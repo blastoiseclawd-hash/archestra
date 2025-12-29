@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { describe, expect, test } from "vitest";
 import { unwrapToolContent } from "./unwrap-tool-content";
 

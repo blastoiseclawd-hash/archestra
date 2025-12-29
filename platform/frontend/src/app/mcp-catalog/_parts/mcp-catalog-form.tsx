@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";

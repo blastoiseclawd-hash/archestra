@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { MEMBER_ROLE_NAME } from "@shared";
 import {
   createInsertSchema,

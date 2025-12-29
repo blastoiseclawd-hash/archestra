@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { UIMessage } from "ai";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps, HTMLAttributes } from "react";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { countTokens } from "@anthropic-ai/tokenizer";
 import { BaseTokenizer, type ProviderMessage } from "./base";
 

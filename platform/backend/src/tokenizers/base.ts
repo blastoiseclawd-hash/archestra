@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Anthropic, Gemini, OpenAi } from "@/types";
 
 export type ProviderMessage =

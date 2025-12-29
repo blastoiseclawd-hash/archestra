@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { archestraApiTypes } from "@shared";
 import { useFeatures } from "./features.query";
 

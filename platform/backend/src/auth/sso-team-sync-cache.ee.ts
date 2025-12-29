@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import type { SsoTeamSyncConfig } from "@shared";
 import logger from "@/logging";
 import { extractGroupsWithTemplate } from "@/templating";

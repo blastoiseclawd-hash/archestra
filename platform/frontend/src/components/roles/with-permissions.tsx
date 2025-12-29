@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Permissions } from "@shared";
 import type React from "react";
 import config from "@/lib/config";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * biome-ignore-all lint/correctness/noEmptyPattern: oddly enough in extend below this is required
  * see https://vitest.dev/guide/test-context.html#extend-test-context

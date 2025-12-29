@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import agentsTable from "./agent";
 import chatApiKeysTable from "./chat-api-key";

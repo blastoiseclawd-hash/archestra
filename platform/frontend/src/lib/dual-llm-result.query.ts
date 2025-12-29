@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { archestraApiSdk, type archestraApiTypes } from "@shared";

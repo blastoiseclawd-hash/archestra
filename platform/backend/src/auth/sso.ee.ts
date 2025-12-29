@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import { MEMBER_ROLE_NAME } from "@shared";
 import { APIError } from "better-auth";
 import { jwtDecode } from "jwt-decode";

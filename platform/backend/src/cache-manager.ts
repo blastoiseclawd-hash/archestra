@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { TimeInMs } from "@shared";
 import { createCache } from "cache-manager";
 

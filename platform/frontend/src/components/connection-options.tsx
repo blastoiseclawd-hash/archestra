@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { McpConnectionInstructions } from "@/components/mcp-connection-instructions";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 const isMainModule =
   process.argv[1]?.includes("server.mjs") ||
   process.argv[1]?.includes("server.ts") ||

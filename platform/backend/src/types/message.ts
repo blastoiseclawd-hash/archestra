@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import type { z } from "zod";
 import { schema } from "@/database";

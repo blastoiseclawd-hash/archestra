@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import "highlight.js/styles/github-dark.css";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { OTLPExporterNodeConfigBase } from "@opentelemetry/otlp-exporter-base";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { Slot } from "@radix-ui/react-slot";

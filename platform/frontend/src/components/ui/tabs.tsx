@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as TabsPrimitive from "@radix-ui/react-tabs";

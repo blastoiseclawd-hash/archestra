@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";

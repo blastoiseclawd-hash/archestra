@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { getArchestraMcpTools } from "@/archestra-mcp-server";
 import logger from "@/logging";
 import { AgentToolModel, ToolModel } from "@/models";

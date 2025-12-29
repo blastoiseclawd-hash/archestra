@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { StatisticsTimeFrame } from "@shared";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import db, { schema } from "@/database";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { desc, eq, ilike, inArray, or } from "drizzle-orm";
 import db, { schema } from "@/database";
 import { secretManager } from "@/secretsmanager";

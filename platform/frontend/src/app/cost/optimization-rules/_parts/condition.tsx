@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { X } from "lucide-react";
 import type React from "react";
 import { Badge } from "@/components/ui/badge";

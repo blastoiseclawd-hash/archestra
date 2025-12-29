@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import path from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";

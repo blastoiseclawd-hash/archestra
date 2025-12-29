@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SupportedProvider } from "@shared";
 import type { PartialUIMessage } from "@/components/chatbot-demo";
 import AnthropicMessagesInteraction from "./llmProviders/anthropic";

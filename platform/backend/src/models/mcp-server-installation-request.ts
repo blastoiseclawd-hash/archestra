@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { randomUUID } from "node:crypto";
 import type { archestraCatalogTypes } from "@shared";
 import { archestraCatalogSdk } from "@shared";

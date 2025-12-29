@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { AnyRoleName } from "@shared";
 import { and, count, eq } from "drizzle-orm";
 import db, { schema } from "@/database";

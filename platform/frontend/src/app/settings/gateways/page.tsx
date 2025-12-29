@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { ArchestraArchitectureDiagram } from "@/components/archestra-architecture-diagram";

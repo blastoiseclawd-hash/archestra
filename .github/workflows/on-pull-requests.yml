@@ -169,8 +169,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "No GPL/AGPL/Unknown licenses found in dependencies." >> $GITHUB_STEP_SUMMARY
 
-  no-spdx-headers-check:
-    name: License / No SPDX Headers
+  license-headers-check:
+    name: License / SPDX Headers Validation
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -180,42 +180,77 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check for accidental SPDX headers
+      - name: Validate SPDX license headers
         run: |
-          echo "Checking for accidental SPDX license headers in source files..."
-          echo "(We use REUSE.toml instead of per-file headers)"
+          echo "Validating SPDX license headers in source files..."
           echo ""
 
-          # Search for SPDX-License-Identifier in source files, excluding expected locations
-          FOUND_HEADERS=$(grep -r "SPDX-License-Identifier" \
-            --include="*.ts" \
-            --include="*.tsx" \
-            --include="*.js" \
-            --include="*.jsx" \
-            --include="*.json" \
-            --exclude-dir=node_modules \
-            --exclude-dir=dist \
-            --exclude-dir=.next \
-            --exclude-dir=vendor \
-            . 2>/dev/null || true)
+          ERRORS=""
 
-          if [ -n "$FOUND_HEADERS" ]; then
-            echo "::error::Found SPDX headers in source files. We use REUSE.toml for license declarations."
+          # Check .ee.ts files have Enterprise License header
+          for file in $(find ./platform -type f -name "*.ee.ts" \
+            ! -path "*/node_modules/*" \
+            ! -path "*/dist/*" \
+            ! -path "*/.next/*" 2>/dev/null); do
+            if ! head -1 "$file" | grep -q "SPDX-License-Identifier: Archestra-Enterprise-License"; then
+              ERRORS="${ERRORS}❌ EE file missing Enterprise License header: ${file}\n"
+            fi
+          done
+
+          # Check non-.ee.ts/.ee.tsx source files have MIT header
+          for file in $(find ./platform -type f \( -name "*.ts" -o -name "*.tsx" \) \
+            ! -name "*.ee.ts" \
+            ! -name "*.ee.tsx" \
+            ! -path "*/node_modules/*" \
+            ! -path "*/dist/*" \
+            ! -path "*/.next/*" 2>/dev/null); do
+            if ! head -1 "$file" | grep -q "SPDX-License-Identifier: MIT"; then
+              ERRORS="${ERRORS}❌ Source file missing MIT header: ${file}\n"
+            fi
+          done
+
+          # Check that non-EE files don't have Enterprise License (wrong license)
+          for file in $(find ./platform -type f \( -name "*.ts" -o -name "*.tsx" \) \
+            ! -name "*.ee.ts" \
+            ! -name "*.ee.tsx" \
+            ! -path "*/node_modules/*" \
+            ! -path "*/dist/*" \
+            ! -path "*/.next/*" 2>/dev/null); do
+            if head -1 "$file" | grep -q "SPDX-License-Identifier: Archestra-Enterprise-License"; then
+              ERRORS="${ERRORS}❌ Non-EE file has Enterprise License (should be MIT): ${file}\n"
+            fi
+          done
+
+          # Check that EE files don't have MIT (wrong license)
+          for file in $(find ./platform -type f -name "*.ee.ts" \
+            ! -path "*/node_modules/*" \
+            ! -path "*/dist/*" \
+            ! -path "*/.next/*" 2>/dev/null); do
+            if head -1 "$file" | grep -q "SPDX-License-Identifier: MIT"; then
+              ERRORS="${ERRORS}❌ EE file has MIT license (should be Archestra-Enterprise-License): ${file}\n"
+            fi
+          done
+
+          if [ -n "$ERRORS" ]; then
+            echo "::error::License header validation failed"
             echo ""
-            echo "Files with headers:"
-            echo "$FOUND_HEADERS"
+            echo -e "$ERRORS"
             echo ""
-            echo "## ❌ SPDX Headers Found" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ License Header Validation Failed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Remove SPDX headers from these files (we use REUSE.toml instead):" >> $GITHUB_STEP_SUMMARY
+            echo "Files with incorrect or missing headers:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$FOUND_HEADERS" >> $GITHUB_STEP_SUMMARY
+            echo -e "$ERRORS" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Required headers:**" >> $GITHUB_STEP_SUMMARY
+            echo "- \`.ee.ts\` files: \`/* SPDX-License-Identifier: Archestra-Enterprise-License */\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Other \`.ts\`/\`.tsx\` files: \`/* SPDX-License-Identifier: MIT */\`" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-          echo "✅ No accidental SPDX headers found"
-          echo "## ✅ No SPDX Headers Check Passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All license headers are correct"
+          echo "## ✅ License Header Validation Passed" >> $GITHUB_STEP_SUMMARY
 
   platform-linting-and-tests-pr:
     name: Platform Linting and Tests (Optional)

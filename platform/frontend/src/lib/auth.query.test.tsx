@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { archestraApiSdk } from "@shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";

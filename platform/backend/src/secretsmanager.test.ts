@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { vi } from "vitest";
 import config from "@/config";
 import SecretModel from "@/models/secret";

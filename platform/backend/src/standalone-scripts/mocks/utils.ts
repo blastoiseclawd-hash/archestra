@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Get a random element from an array
  */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { GoogleGenAI } from "@google/genai";
 import { vi } from "vitest";
 import { beforeEach, describe, expect, test } from "@/test";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import MemberModel from "@/models/member";
 import SessionModel from "@/models/session";
 import UserModel from "@/models/user";

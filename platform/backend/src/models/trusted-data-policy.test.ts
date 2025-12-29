@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { AgentToolModel, ToolModel } from "@/models";
 import { beforeEach, describe, expect, test } from "@/test";
 import TrustedDataPolicyModel from "./trusted-data-policy";

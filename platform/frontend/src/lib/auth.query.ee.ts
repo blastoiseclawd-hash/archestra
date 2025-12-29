@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import { archestraApiSdk, type Permissions } from "@shared";
 import { useQuery } from "@tanstack/react-query";
 import { useIsAuthenticated } from "@/lib/auth.hook";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";

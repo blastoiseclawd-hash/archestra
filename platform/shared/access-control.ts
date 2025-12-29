@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Permissions } from "./permission.types";
 import type { RouteId } from "./routes";
 export const allAvailableActions: Permissions = {};

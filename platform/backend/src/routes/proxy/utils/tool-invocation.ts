@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { isArchestraMcpServerTool } from "@shared";
 import logger from "@/logging";
 import { ToolInvocationPolicyModel } from "@/models";

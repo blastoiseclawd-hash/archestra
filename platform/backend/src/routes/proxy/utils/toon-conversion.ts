@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import logger from "@/logging";
 import { AgentTeamModel, OrganizationModel, TeamModel } from "@/models";
 

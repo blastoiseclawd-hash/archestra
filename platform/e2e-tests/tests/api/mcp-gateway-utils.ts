@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Shared MCP Gateway utilities for E2E tests
  */

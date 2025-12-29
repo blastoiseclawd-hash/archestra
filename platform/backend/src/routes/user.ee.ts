@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import { PermissionsSchema, RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { MemberModel } from "@/models";

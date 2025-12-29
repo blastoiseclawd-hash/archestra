@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export function ForbiddenPage() {
   return (
     <div className="flex h-screen w-full items-center justify-center text-center">

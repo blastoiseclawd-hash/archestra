@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { beforeEach, describe, expect, test } from "@/test";
 import type { InsertOptimizationRule, OptimizationRule } from "@/types";
 import OptimizationRuleModel from "./optimization-rule";

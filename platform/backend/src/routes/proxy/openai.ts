@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import fastifyHttpProxy from "@fastify/http-proxy";
 import { RouteId } from "@shared";
 import type { FastifyReply } from "fastify";

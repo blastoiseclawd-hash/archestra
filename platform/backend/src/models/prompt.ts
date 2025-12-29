@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { and, desc, eq, inArray } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type { InsertPrompt, Prompt, UpdatePrompt } from "@/types";

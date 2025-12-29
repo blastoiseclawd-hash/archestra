@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { AgentToolModel, ToolModel } from "@/models";
 import { describe, expect, test } from "@/test";
 import { persistTools } from "./tools";

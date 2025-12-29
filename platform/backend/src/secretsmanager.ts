@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { SecretsManagerType } from "@shared";
 import config from "@/config";
 import logger from "@/logging";

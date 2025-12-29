@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import fastifyHttpProxy from "@fastify/http-proxy";
 import type {
   GenerateContentParameters,

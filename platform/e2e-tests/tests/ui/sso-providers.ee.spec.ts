@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // biome-ignore-all lint/suspicious/noConsole: we use console.log for logging in this file
 import { E2eTestId } from "@shared";
 import { ADMIN_EMAIL, ADMIN_PASSWORD, IS_CI, UI_BASE_URL } from "../../consts";

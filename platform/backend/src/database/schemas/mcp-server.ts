@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type {
   InternalMcpCatalogServerType,

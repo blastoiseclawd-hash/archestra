@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as ProgressPrimitive from "@radix-ui/react-progress";

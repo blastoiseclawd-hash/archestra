@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { useDebounce } from "@uidotdev/usehooks";
 import { useEffect, useRef, useState } from "react";
 import { Input } from "./ui/input";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { MCP_SERVER_TOOL_NAME_SEPARATOR } from "@shared";
 import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 

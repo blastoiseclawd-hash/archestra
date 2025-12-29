@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export const E2eTestId = {
   AgentsTable: "agents-table",
   CreateAgentButton: "create-agent-button",

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { Badge } from "@/components/ui/badge";
 
 export function TransportBadges({

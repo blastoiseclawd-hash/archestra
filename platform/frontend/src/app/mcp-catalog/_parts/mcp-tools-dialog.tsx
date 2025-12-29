@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { E2eTestId, MCP_SERVER_TOOL_NAME_SEPARATOR } from "@shared";

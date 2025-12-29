@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { MEMBER_ROLE_NAME } from "@shared";
 import { describe, expect, test } from "@/test";
 import TeamModel from "./team";

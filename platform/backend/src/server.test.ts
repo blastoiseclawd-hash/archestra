@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { z } from "zod";
 import { describe, expect, test, vi } from "@/test";
 import { ApiError } from "@/types";

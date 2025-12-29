@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { ApiKeysCard, SecuritySettingsCards } from "@daveyplate/better-auth-ui";

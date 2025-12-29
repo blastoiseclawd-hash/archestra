@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { SupportedProvidersDiscriminatorSchema } from "@shared";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";

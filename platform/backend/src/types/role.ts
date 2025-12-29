@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { PermissionsSchema } from "@shared";
 import {
   createInsertSchema,

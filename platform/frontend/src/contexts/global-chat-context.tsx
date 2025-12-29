@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { type UIMessage, useChat } from "@ai-sdk/react";

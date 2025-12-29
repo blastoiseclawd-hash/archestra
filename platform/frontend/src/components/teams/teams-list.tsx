@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 import { archestraApiSdk, type archestraApiTypes, E2eTestId } from "@shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

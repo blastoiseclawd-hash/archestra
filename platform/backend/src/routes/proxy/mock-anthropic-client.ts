@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Mock Anthropic Client for Benchmarking
  *

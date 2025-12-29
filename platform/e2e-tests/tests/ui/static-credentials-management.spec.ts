@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Page } from "@playwright/test";
 import { archestraApiSdk } from "@shared";
 import {

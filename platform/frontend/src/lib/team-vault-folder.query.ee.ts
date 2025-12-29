@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import { archestraApiSdk, type archestraApiTypes } from "@shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";

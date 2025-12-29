@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";

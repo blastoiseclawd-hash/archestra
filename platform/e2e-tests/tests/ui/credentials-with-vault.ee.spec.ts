@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   archestraApiSdk,
   DEFAULT_VAULT_TOKEN,

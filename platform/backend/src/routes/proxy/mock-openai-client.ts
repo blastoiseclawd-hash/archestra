@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Mock OpenAI Client for Benchmarking
  *

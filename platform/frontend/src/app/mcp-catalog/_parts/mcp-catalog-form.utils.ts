@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { archestraApiTypes } from "@shared";
 import type { McpCatalogFormValues } from "./mcp-catalog-form.types";
 

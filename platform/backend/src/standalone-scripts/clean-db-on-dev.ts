@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pathToFileURL } from "node:url";
 import { sql } from "drizzle-orm";
 import config from "@/config";

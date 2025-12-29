@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { beforeEach, describe, expect, test } from "@/test";
 import AgentModel from "./agent";
 import InteractionModel from "./interaction";

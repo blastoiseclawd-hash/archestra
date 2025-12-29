@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { SecretsManagerType } from "@shared";
 import SecretModel from "./models/secret";
 import type {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as SwitchPrimitive from "@radix-ui/react-switch";

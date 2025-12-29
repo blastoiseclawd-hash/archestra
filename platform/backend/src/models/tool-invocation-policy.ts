@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { isArchestraMcpServerTool } from "@shared";
 import { and, desc, eq, getTableColumns, inArray } from "drizzle-orm";
 import { get } from "lodash-es";

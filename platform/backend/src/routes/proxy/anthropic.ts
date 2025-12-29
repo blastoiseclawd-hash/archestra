@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import AnthropicProvider from "@anthropic-ai/sdk";
 import fastifyHttpProxy from "@fastify/http-proxy";
 import { RouteId } from "@shared";

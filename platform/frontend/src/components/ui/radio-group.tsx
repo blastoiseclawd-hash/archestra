@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";

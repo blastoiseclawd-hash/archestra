@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { ENGINEERING_TEAM_NAME, MARKETING_TEAM_NAME } from "../../consts";
 import { expect, test } from "./fixtures";
 

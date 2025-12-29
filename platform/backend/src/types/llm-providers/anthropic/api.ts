@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { z } from "zod";
 import { MessageContentBlockSchema, MessageParamSchema } from "./messages";
 import { ToolSchema } from "./tools";

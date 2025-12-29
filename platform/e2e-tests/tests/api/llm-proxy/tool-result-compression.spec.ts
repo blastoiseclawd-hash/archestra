@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test } from "../fixtures";
 
 // All compression tests must run serially because they modify shared organization settings

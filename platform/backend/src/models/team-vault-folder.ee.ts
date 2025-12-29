@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import { ADMIN_ROLE_NAME } from "@shared";
 import { and, eq } from "drizzle-orm";
 import db, { schema } from "@/database";

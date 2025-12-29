@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test } from "./fixtures";
 
 // Valid v4 UUIDs for testing (these won't exist in the database)

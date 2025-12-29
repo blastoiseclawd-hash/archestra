@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { archestraApiSdk, type archestraApiTypes } from "@shared";
 import { useQuery } from "@tanstack/react-query";
 

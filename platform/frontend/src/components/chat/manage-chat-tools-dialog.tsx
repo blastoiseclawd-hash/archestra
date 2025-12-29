@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { MCP_SERVER_TOOL_NAME_SEPARATOR } from "@shared";

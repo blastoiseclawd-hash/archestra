@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   ADMIN_EMAIL,
   E2eTestId,

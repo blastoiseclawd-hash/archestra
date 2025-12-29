@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { archestraApiTypes } from "@shared";
 import { ArrowRightIcon, Plus, Trash2Icon } from "lucide-react";
 import { ButtonWithTooltip } from "@/components/button-with-tooltip";

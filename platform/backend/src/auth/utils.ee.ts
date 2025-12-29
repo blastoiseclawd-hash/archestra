@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import type { IncomingHttpHeaders } from "node:http";
 import type { Permissions } from "@shared";
 import logger from "@/logging";

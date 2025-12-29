@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { Readable, Writable } from "node:stream";
 import type { Attach } from "@kubernetes/client-node";
 import {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getBackendBaseUrl } from "@/lib/config";

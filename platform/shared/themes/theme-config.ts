@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Theme configuration - defines which themes from tweakcn registry we support
  * and their categorization for the UI

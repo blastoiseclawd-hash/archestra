@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { IncomingHttpHeaders } from "node:http";
 import { RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import logger from "@/logging";
 import { secretManager } from "@/secretsmanager";
 import { policyConfigSubagent } from "@/subagents";

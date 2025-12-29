@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Custom observability metrics for LLMs: request metrics and token usage.
  * To instrument OpenAI or Anthropic clients, pass observable fetch to the fetch option.

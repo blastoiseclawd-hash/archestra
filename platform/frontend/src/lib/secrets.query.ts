@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { archestraApiSdk, type archestraApiTypes } from "@shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";

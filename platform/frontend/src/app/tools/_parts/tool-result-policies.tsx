@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { archestraApiTypes } from "@shared";
 import { toPath } from "lodash-es";
 import { ArrowRightIcon, Plus, Trash2Icon } from "lucide-react";

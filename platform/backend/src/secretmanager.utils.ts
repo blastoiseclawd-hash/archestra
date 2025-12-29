@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Extract error message from Vault response
  * Returns only the Vault response details (status code and errors array)

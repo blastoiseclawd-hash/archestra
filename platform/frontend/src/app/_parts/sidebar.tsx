@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 import { SignedIn, SignedOut, UserButton } from "@daveyplate/better-auth-ui";
 import { E2eTestId } from "@shared";

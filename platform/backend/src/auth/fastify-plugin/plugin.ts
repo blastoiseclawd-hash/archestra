@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { Authnz } from "./middleware";

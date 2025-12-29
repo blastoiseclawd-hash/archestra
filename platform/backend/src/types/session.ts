@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { AuthContext } from "@better-auth/core";
 import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import type { z } from "zod";

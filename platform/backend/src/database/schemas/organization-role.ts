@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import organizationsTable from "./organization";
 

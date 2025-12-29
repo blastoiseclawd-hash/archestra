@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { cn } from "@/lib/utils";
 
 export function CodeText({

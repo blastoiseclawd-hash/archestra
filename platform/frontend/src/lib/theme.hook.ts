@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   DEFAULT_THEME_ID,
   type OrganizationCustomFont,

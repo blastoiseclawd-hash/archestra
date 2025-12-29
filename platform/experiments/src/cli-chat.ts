@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // biome-ignore-all lint/suspicious/noConsole: it's fine to use console.log here..
 
 import { readdirSync, readFileSync } from "node:fs";

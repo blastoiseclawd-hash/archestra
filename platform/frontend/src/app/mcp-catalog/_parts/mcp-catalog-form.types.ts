@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { LocalConfigFormSchema } from "@shared";
 import { z } from "zod";
 

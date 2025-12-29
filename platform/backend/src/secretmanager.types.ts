@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SecretsManagerType } from "../../shared";
 import type { SecretValue, SelectSecret } from "./types";
 

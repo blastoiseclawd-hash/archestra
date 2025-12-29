@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { InvitationModel, UserModel } from "@/models";

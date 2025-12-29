@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { Edit, Plus, Save, Trash2, X } from "lucide-react";

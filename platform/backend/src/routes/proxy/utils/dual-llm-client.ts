@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import Anthropic from "@anthropic-ai/sdk";
 import type { GoogleGenAI } from "@google/genai";
 import type { SupportedProvider } from "@shared";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { E2eTestId } from "@shared";
 import { Pencil, Plug, Trash2 } from "lucide-react";
 import { ButtonGroup } from "@/components/ui/button-group";

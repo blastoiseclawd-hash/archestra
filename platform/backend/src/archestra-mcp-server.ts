@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   ARCHESTRA_MCP_SERVER_NAME,

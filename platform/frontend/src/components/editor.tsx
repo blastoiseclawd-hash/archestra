@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { type EditorProps, Editor as MonacoEditor } from "@monaco-editor/react";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // biome-ignore-all lint/suspicious/noExplicitAny: experiments
 
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";

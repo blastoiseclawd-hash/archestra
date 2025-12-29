@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { randomBytes } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import db, { schema } from "@/database";

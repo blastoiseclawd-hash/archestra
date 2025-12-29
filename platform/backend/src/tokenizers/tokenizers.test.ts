@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { describe, expect, test } from "vitest";
 import { AnthropicTokenizer } from "./anthropic";
 import type { ProviderMessage } from "./base";

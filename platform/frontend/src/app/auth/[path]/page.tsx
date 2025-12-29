@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { authViewPaths } from "@daveyplate/better-auth-ui/server";
 import { Suspense } from "react";
 import { ErrorBoundary } from "@/app/_parts/error-boundary";

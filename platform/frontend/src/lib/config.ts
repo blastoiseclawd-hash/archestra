@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { env } from "next-runtime-env";
 import type { PostHogConfig } from "posthog-js";
 

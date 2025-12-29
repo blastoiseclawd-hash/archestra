@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { type archestraApiTypes, E2eTestId } from "@shared";

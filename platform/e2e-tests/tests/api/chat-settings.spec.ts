@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test } from "./fixtures";
 
 test.describe("Chat API Keys CRUD", () => {

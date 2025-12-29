@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { ssoClient } from "@better-auth/sso/client";
 import {
   adminClient,

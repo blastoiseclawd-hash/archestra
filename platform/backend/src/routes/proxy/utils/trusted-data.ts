@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SupportedProvider } from "@shared";
 import logger from "@/logging";
 import { DualLlmResultModel, TrustedDataPolicyModel } from "@/models";

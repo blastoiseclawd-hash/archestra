@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type {

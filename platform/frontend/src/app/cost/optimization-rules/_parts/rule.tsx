@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /** The component to display an editable optimization rule */
 
 import { type SupportedProvider, SupportedProviders } from "@shared";

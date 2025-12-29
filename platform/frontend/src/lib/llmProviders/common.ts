@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { archestraApiTypes } from "@shared";
 import type { PartialUIMessage } from "@/components/chatbot-demo";
 

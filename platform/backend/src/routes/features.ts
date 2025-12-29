@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";

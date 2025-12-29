@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";

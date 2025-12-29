@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export { default as agentRoutes } from "./agent";
 export { default as agentToolRoutes } from "./agent-tool";
 export { default as authRoutes } from "./auth";

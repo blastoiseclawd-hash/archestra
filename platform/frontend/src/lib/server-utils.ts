@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { cookies } from "next/headers";
 
 /**

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   ADMIN_ROLE_NAME,
   DEFAULT_ADMIN_EMAIL,

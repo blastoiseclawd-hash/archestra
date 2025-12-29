@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { asc, eq, inArray, isNull } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type { AgentLabelWithDetails } from "@/types";

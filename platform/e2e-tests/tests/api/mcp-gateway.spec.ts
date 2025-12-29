@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { APIRequestContext } from "@playwright/test";
 import {
   API_BASE_URL,

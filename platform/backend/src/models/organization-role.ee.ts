@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import {
   ADMIN_ROLE_NAME,
   EDITOR_ROLE_NAME,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { DEFAULT_VAULT_TOKEN, RouteId, SecretsManagerType } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";

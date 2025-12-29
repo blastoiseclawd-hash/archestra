@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

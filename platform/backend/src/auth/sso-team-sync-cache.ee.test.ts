@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { describe, expect, it } from "vitest";
 import { extractGroupsFromClaims } from "./sso-team-sync-cache.ee";
 

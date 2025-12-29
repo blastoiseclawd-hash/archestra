@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { useQuery } from "@tanstack/react-query";
 
 export type InvitationCheckResponse = {

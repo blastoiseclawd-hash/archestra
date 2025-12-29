@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { CheckCircle, Clock, XCircle } from "lucide-react";

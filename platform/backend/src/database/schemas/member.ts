@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { MEMBER_ROLE_NAME } from "@shared";
 import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import organizationsTable from "./organization";

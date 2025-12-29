@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Server } from "node:http";
 import type { WebSocket, WebSocketServer } from "ws";
 import { WebSocket as WS, WebSocketServer as WSS } from "ws";

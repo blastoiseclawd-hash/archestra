@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { desc, eq } from "drizzle-orm";
 import db, { schema, type Transaction } from "@/database";
 import logger from "@/logging";

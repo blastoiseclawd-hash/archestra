@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 const verification = pgTable("verification", {

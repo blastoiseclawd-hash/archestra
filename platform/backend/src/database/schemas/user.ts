@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 const usersTable = pgTable("user", {

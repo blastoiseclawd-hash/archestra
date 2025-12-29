@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test } from "../../fixtures";
 
 test("internal-dev-test-server should be visible in MCP catalog registry", async ({

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 class Logger {
   prefix = "[Archestra] ";
   logger = console;

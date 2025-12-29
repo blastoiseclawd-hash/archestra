@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // inspired by https://github.com/badlogic/lemmy/blob/main/apps/claude-trace/src/interceptor.ts
 
 import type { IncomingMessage, request } from "node:http";

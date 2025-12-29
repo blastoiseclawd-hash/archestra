@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { PgSelect } from "drizzle-orm/pg-core";
 import type { PaginationMeta, PaginationQuery } from "@/types";
 

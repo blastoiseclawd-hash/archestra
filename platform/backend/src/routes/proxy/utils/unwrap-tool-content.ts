@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Unwrap extra text block wrapping from tool result content.
  *

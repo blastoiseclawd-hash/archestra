@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { Building2, CheckIcon, Key, User, Users } from "lucide-react";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, primaryKey, timestamp, uuid } from "drizzle-orm/pg-core";
 import agentsTable from "./agent";
 import labelKeyTable from "./label-key";

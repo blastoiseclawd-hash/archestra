@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Permission type definitions for compile-time type safety.
  *

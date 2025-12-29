@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pathToFileURL } from "node:url";
 import { ADMIN_ROLE_NAME, MEMBER_ROLE_NAME } from "@shared";
 import db, { schema } from "@/database";

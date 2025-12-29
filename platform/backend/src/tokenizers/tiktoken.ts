@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { get_encoding, type Tiktoken } from "tiktoken";
 import { BaseTokenizer, type ProviderMessage } from "./base";
 

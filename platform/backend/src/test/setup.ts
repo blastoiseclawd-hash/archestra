@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Optimized test setup using PGlite with file-level database initialization.
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import config from "@/config";
 import { describe, expect, test } from "@/test";
 import {

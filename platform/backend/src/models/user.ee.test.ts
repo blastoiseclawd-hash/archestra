@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { ADMIN_ROLE_NAME } from "@shared";
 import { predefinedPermissionsMap } from "@shared/access-control.ee";
 import { getUserPermissions } from "@/models/user.ee";

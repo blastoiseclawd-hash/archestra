@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { z } from "zod";
 
 const RoleSchema = z.enum(["user", "assistant"]);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { createOpenAI, openai as defaultOpenAi } from "@ai-sdk/openai";
 import { Agent } from "@mastra/core/agent";
 import { PinoLogger } from "@mastra/loggers";

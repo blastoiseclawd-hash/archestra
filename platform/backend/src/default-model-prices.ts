@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Returns default token prices for a model.
  * Cheaper models (-haiku, -nano, -mini) get $30/million tokens.

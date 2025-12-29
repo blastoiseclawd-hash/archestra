@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SupportedProvider } from "@shared";
 import { AnthropicTokenizer } from "./anthropic";
 import type { Tokenizer } from "./base";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { ComponentProps, ReactNode } from "react";
 import {
   Command,

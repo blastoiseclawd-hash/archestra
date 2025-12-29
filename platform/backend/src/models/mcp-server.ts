@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import mcpClient from "@/clients/mcp-client";
 import db, { schema } from "@/database";

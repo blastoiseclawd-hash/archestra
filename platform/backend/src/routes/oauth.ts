@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { createHash, randomBytes } from "node:crypto";
 import { exchangeAuthorization } from "@modelcontextprotocol/sdk/client/auth.js";
 import { RouteId } from "@shared";

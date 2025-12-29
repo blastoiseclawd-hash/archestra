@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import config from "@/config";

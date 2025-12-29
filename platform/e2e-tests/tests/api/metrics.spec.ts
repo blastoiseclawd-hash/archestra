@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   API_BASE_URL,
   METRICS_BASE_URL,

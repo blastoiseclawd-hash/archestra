@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pathToFileURL } from "node:url";
 import { createClient, defineConfig } from "@hey-api/openapi-ts";
 import { MCP_CATALOG_API_BASE_URL } from "../consts";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SupportedProvider } from "@shared";
 import { and, asc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import db, { schema } from "@/database";

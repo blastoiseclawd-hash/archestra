@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";

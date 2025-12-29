@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { vi } from "vitest";
 import { TeamTokenModel } from "@/models";

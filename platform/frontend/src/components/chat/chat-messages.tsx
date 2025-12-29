@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { UIMessage } from "@ai-sdk/react";
 import type { ChatStatus, DynamicToolUIPart, ToolUIPart } from "ai";
 import Image from "next/image";

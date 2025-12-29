@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { withSentryConfig } from "@sentry/nextjs";
 import { MCP_CATALOG_API_BASE_URL } from "@shared";
 import type { NextConfig } from "next";

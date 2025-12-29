@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Theme configuration for white-labeling
  * Theme colors are defined in app/themes.css as CSS classes

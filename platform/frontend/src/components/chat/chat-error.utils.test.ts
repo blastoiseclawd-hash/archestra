@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { ChatErrorCode } from "@shared";
 import { describe, expect, it } from "vitest";
 import {

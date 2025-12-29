@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { describe, expect, test } from "@/test";
 import AgentModel from "./agent";
 import PromptModel from "./prompt";

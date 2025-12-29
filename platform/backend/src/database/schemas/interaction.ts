@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SupportedProviderDiscriminator } from "@shared";
 import {
   index,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   ARCHESTRA_MCP_SERVER_NAME,
   MCP_SERVER_TOOL_NAME_SEPARATOR,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, primaryKey, uuid } from "drizzle-orm/pg-core";
 import conversationsTable from "./conversation";
 import toolsTable from "./tool";

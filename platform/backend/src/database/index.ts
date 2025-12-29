@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { instrumentDrizzleClient } from "@kubiks/otel-drizzle";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { type ClassValue, clsx } from "clsx";
 import { format } from "date-fns";
 import { twMerge } from "tailwind-merge";

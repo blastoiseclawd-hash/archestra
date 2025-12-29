@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /** Button with built-in tooltip. Is of icon variant by default. */
 import type React from "react";
 import { Button, type ButtonProps } from "@/components/ui/button";

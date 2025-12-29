@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { IncomingHttpHeaders } from "node:http";
 import type { Permissions } from "@shared";
 import { type Mock, vi } from "vitest";

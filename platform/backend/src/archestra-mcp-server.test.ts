@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // biome-ignore-all lint/suspicious/noExplicitAny: test...
 import {
   ARCHESTRA_MCP_SERVER_NAME,

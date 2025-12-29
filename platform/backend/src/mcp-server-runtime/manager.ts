@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import * as fs from "node:fs";
 import * as k8s from "@kubernetes/client-node";
 import { Attach } from "@kubernetes/client-node";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Table } from "@tanstack/react-table";
 import {
   ChevronLeft,

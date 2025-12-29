@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import conversationsTable from "./conversation";
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { AuthUIProvider } from "@daveyplate/better-auth-ui";

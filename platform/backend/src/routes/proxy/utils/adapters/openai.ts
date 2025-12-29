@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { encode as toonEncode } from "@toon-format/toon";
 import logger from "@/logging";
 import { TokenPriceModel } from "@/models";

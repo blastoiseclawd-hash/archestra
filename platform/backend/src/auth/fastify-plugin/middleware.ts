@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import * as Sentry from "@sentry/node";
 import type { RouteId } from "@shared";
 import type { FastifyReply, FastifyRequest } from "fastify";

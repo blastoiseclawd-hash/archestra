@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export function formatCost(value: number) {
   if (value < 0.000001) return `$${value.toExponential(2)}`;
   if (value < 0.01) return `$${value.toFixed(6)}`;

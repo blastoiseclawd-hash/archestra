@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import * as Sentry from "@sentry/nextjs";
 
 export async function register() {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { type Span, trace } from "@opentelemetry/api";
 import type { SupportedProvider } from "@shared";
 import logger from "@/logging";

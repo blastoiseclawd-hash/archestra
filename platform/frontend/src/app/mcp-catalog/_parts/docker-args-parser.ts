@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Parses Docker run arguments to extract the actual command and arguments
  * to run inside the container.

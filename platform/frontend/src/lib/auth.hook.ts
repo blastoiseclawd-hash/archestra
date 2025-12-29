@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { authClient } from "./clients/auth/auth-client";
 
 export function useIsAuthenticated() {

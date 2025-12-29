@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { and, eq, gt } from "drizzle-orm";
 import db, { schema } from "@/database";
 import type { InsertMessage, Message } from "@/types";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { vi } from "vitest";
 import { afterEach, beforeEach, describe, expect, test } from "@/test";
 import {

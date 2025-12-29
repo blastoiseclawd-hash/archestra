@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test } from "./fixtures";
 
 test.describe("MCP Server Installation Requests API - CRUD Operations", () => {

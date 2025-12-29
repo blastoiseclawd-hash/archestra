@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useIsAuthenticated } from "./auth.hook";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import path from "node:path";
 import { DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD } from "@shared";
 import dotenv from "dotenv";

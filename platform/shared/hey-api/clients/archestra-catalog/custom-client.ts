@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { MCP_CATALOG_API_BASE_URL } from "../../../consts";
 import type { CreateClientConfig } from "./client.gen";
 

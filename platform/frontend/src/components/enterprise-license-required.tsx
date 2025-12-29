@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 interface EnterpriseLicenseRequiredProps {
   /** The name of the feature that requires the enterprise license */
   featureName: string;

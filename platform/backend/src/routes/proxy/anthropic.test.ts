@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import Fastify, { type FastifyInstance } from "fastify";
 import {
   serializerCompiler,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { archestraApiSdk, E2eTestId } from "@shared";
 import { goToPage, type Page, test } from "../../fixtures";
 import { clickButton } from "../../utils";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 import type { Permissions } from "@shared";
 import logger from "@/logging";
 import MemberModel from "@/models/member";

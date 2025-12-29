@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * API route prefixes for various feature areas
  */

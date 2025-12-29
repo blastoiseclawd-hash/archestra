@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { Permissions } from "@shared";
 import { allAvailableActions } from "@shared/access-control.ee";
 import {

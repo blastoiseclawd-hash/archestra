@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import {
   ADMIN_ROLE_NAME,
   type PredefinedRoleName,

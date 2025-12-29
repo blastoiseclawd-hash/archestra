@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { StatisticsTimeFrame } from "@shared";
 import { describe, expect, test } from "@/test";
 import StatisticsModel from "./statistics";

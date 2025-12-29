@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as LabelPrimitive from "@radix-ui/react-label";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import pino from "pino";
 
 const logger = pino({

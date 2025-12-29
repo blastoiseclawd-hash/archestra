@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { SsoRoleMappingConfig } from "@shared";
 import { MEMBER_ROLE_NAME } from "@shared";
 import { APIError } from "better-auth";

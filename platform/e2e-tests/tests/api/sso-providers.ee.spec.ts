@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { API_BASE_URL, UI_BASE_URL } from "../../consts";
 import { expect, test } from "./fixtures";
 

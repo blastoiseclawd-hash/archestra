@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { GoogleGenAI } from "@google/genai";
 import config from "@/config";
 import logger from "@/logging";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { DEFAULT_PROFILE_NAME, isArchestraMcpServerTool } from "@shared";
 import {
   and,

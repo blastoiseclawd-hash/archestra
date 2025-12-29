@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { RouteId } from "@shared";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";

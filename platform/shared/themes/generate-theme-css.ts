@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * biome-ignore-all lint/suspicious/noConsole: this is a script
  *

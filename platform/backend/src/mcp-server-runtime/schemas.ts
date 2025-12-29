@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { z } from "zod";
 
 export type K8sRuntimeStatus =

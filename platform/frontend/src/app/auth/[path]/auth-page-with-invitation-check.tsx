@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Theme utilities - processes tweakcn-themes.json to extract theme data
  */

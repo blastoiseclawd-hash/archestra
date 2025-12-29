@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { ThemeProvider as NextThemesProvider } from "next-themes";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { vi } from "vitest";
 import {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { cn } from "@/lib/utils";
 
 function Divider({ className }: { className?: string }) {

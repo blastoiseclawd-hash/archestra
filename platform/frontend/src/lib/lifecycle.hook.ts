@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { useEffect, useRef } from "react";
 
 export function useOnUnmount(callback: () => void) {

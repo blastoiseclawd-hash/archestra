@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import path from "node:path";
 import dotenv from "dotenv";
 import { defineConfig } from "drizzle-kit";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export * from "./account";
 export * from "./agent";
 export * from "./agent-tool";

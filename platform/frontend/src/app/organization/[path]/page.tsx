@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { OrganizationView } from "@daveyplate/better-auth-ui";
 import { organizationViewPaths } from "@daveyplate/better-auth-ui/server";
 import { Suspense } from "react";

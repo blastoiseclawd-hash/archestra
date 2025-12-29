@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export const RouteId = {
   // Agent Routes
   GetAgents: "getAgents",

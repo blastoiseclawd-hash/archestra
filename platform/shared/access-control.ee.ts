@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Archestra-Enterprise-License */
 /**
  * This file contains access control stubs for the non-enterprise version of the app.
  *

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { expect, test as setup } from "@playwright/test";
 import {
   ADMIN_EMAIL,

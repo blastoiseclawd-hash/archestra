@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { randomUUID } from "node:crypto";
 import type { InsertInteraction } from "@/types";
 import { randomBool, randomElement, randomInt } from "./utils";

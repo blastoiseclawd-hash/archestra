@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { createOpenAI } from "@ai-sdk/openai";
 import { type CoreMessage, stepCountIs, streamText, tool } from "ai";
 import "dotenv/config";

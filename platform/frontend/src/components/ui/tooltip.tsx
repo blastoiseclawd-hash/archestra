@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";

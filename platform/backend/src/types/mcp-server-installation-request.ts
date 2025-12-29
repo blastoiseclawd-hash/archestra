@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { LocalConfigSchema, OAuthConfigSchema } from "@shared";
 import {
   createInsertSchema,

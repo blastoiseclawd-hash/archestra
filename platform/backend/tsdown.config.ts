@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 // biome-ignore-all lint/suspicious/noConsole: we use console.log for logging in this file
 import { type ChildProcess, spawn } from "node:child_process";
 import { defineConfig, type UserConfig } from "tsdown";

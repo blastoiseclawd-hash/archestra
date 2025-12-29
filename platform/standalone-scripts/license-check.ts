@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 /**
  * Recursively check licenses of all dependencies
  *

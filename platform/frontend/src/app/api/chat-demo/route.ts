@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
 // Allow streaming responses up to 30 seconds

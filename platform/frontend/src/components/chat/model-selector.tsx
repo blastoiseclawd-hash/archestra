@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { providerDisplayNames, type SupportedProvider } from "@shared";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { E2eTestId } from "@shared";
 import { expect, test } from "../../fixtures";
 import { clickButton } from "../../utils";

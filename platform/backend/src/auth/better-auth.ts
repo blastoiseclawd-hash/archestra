@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { HookEndpointContext } from "@better-auth/core";
 import { sso } from "@better-auth/sso";
 import { SSO_TRUSTED_PROVIDER_IDS } from "@shared";

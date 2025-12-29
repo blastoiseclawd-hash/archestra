@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 export { default as accountsTable } from "./account";
 export { default as agentsTable } from "./agent";
 export { default as agentLabelsTable } from "./agent-label";

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import { OnboardingDialog } from "@/components/onboarding-dialog";

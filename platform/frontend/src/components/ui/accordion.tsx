@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 "use client";
 
 import * as AccordionPrimitive from "@radix-ui/react-accordion";

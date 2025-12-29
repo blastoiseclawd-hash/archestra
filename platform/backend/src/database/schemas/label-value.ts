@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 const labelValueTable = pgTable("label_values", {

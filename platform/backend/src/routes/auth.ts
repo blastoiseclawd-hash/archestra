@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { DEFAULT_ADMIN_EMAIL, RouteId } from "@shared";
 import { verifyPassword } from "better-auth/crypto";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";

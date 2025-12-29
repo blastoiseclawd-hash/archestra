@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { EXTERNAL_AGENT_ID_HEADER } from "@shared";
 
 /**

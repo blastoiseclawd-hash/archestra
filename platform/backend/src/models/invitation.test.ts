@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { ADMIN_ROLE_NAME, MEMBER_ROLE_NAME } from "@shared";
 import { describe, expect, test } from "@/test";
 import type { BetterAuthSession, BetterAuthSessionUser } from "@/types";

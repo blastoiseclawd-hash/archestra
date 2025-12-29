@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type { HookEndpointContext } from "@better-auth/core";
 import { APIError } from "better-auth";
 import { vi } from "vitest";

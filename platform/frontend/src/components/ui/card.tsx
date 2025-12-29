@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";

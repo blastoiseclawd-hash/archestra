@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 import { archestraApiSdk } from "@shared";
 import { ADMIN_EMAIL, E2eTestId, EDITOR_EMAIL } from "../../consts";
 import { goToPage, test } from "../../fixtures";
