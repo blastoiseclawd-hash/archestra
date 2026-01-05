@@ -885,6 +885,10 @@ export const openaiResponsesAdapterFactory: LLMProvider<
           "openai-responses",
           options.agent,
           options.externalAgentId,
+          (data) =>
+            this.createResponseAdapter(
+              data as OpenAiResponsesResponse,
+            ).getUsage(),
         )
       : undefined;
 

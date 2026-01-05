@@ -1,3 +1,4 @@
+import { getBaseProvider } from "@shared";
 import logger from "@/logging";
 import {
   AgentTeamModel,
@@ -71,10 +72,13 @@ export async function getOptimizedModel<
   }
 
   // Fetch enabled optimization rules for this organization, agent, and provider
+  // Use base provider so that variant APIs (e.g., openai-responses) inherit
+  // optimization rules from their base provider (e.g., openai)
+  const baseProvider = getBaseProvider(provider);
   const rules =
     await OptimizationRuleModel.findEnabledByOrganizationAndProvider(
       organizationId,
-      provider,
+      baseProvider,
     );
 
   if (rules.length === 0) {

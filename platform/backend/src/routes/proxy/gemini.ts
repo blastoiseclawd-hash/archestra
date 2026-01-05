@@ -177,6 +177,16 @@ const geminiProxyRoutes: FastifyPluginAsyncZod = async (fastify) => {
       genAIClient,
       resolvedAgent,
       externalAgentId,
+      (usage) => {
+        const u = usage as {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+        };
+        return {
+          inputTokens: u.promptTokenCount ?? 0,
+          outputTokens: u.candidatesTokenCount ?? 0,
+        };
+      },
     );
 
     // Use the model from the URL path or default to gemini-pro

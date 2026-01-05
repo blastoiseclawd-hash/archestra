@@ -12,8 +12,7 @@ import type { GoogleGenAI } from "@google/genai";
 import type { SupportedProvider } from "@shared";
 import client from "prom-client";
 import logger from "@/logging";
-import type { Agent } from "@/types";
-import * as utils from "./routes/proxy/utils";
+import type { Agent, UsageView } from "@/types";
 
 type Fetch = (
   input: string | URL | Request,
@@ -354,12 +353,14 @@ export function reportTokensPerSecond(
  * Returns a fetch wrapped in observability. Use it as OpenAI or Anthropic provider custom fetch implementation.
  * @param provider The LLM provider
  * @param profile The Archestra profile
- * @param externalAgentId Optional external agent ID from X-Archestra-Agent-Id header
+ * @param externalAgentId External agent ID from X-Archestra-Agent-Id header (pass undefined if not available)
+ * @param getUsage Function to extract usage from the response. Uses adapter's getUsage() via createResponseAdapter.
  */
 export function getObservableFetch(
   provider: SupportedProvider,
   profile: Agent,
-  externalAgentId?: string,
+  externalAgentId: string | undefined,
+  getUsage: (data: unknown) => UsageView,
 ): Fetch {
   return async function observableFetch(
     url: string | URL | Request,
@@ -429,31 +430,14 @@ export function getObservableFetch(
         if (!data.usage) {
           return response;
         }
-        if (provider === "openai") {
-          const { input, output } = utils.adapters.openai.getUsageTokens(
-            data.usage,
-          );
-          reportLLMTokens(
-            provider,
-            profile,
-            { input, output },
-            model,
-            externalAgentId,
-          );
-        } else if (provider === "anthropic") {
-          const { input, output } = utils.adapters.anthropic.getUsageTokens(
-            data.usage,
-          );
-          reportLLMTokens(
-            provider,
-            profile,
-            { input, output },
-            model,
-            externalAgentId,
-          );
-        } else {
-          throw new Error("Unknown provider when logging usage token metrics");
-        }
+        const usage = getUsage(data);
+        reportLLMTokens(
+          provider,
+          profile,
+          { input: usage.inputTokens, output: usage.outputTokens },
+          model,
+          externalAgentId,
+        );
       } catch (_parseError) {
         logger.error("Error parsing LLM response JSON for tokens");
       }
@@ -467,12 +451,14 @@ export function getObservableFetch(
  * Wraps observability around GenAI's LLM request methods
  * @param genAI The GoogleGenAI instance
  * @param profile The Archestra profile
- * @param externalAgentId Optional external agent ID from X-Archestra-Agent-Id header
+ * @param externalAgentId External agent ID from X-Archestra-Agent-Id header (pass undefined if not available)
+ * @param getUsage Function to extract usage from the response
  */
 export function getObservableGenAI(
   genAI: GoogleGenAI,
   profile: Agent,
-  externalAgentId?: string,
+  externalAgentId: string | undefined,
+  getUsage: (usageMetadata: unknown) => UsageView,
 ) {
   const originalGenerateContent = genAI.models.generateContent;
   const provider: SupportedProvider = "gemini";
@@ -512,11 +498,11 @@ export function getObservableGenAI(
       // Record token metrics
       const usage = result.usageMetadata;
       if (usage) {
-        const { input, output } = utils.adapters.gemini.getUsageTokens(usage);
+        const { inputTokens, outputTokens } = getUsage(usage);
         reportLLMTokens(
           provider,
           profile,
-          { input, output },
+          { input: inputTokens, output: outputTokens },
           model,
           externalAgentId,
         );

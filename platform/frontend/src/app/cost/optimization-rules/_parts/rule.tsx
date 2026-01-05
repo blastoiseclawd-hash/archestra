@@ -1,6 +1,11 @@
 /** The component to display an editable optimization rule */
 
-import { type SupportedProvider, SupportedProviders } from "@shared";
+import {
+  getBaseProvider,
+  providerBaseMap,
+  type SupportedProvider,
+  SupportedProviders,
+} from "@shared";
 import { AlertCircle, Plus } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
@@ -51,6 +56,12 @@ const providerDictionary: Record<SupportedProvider, string> = {
   anthropic: "Anthropic",
   gemini: "Gemini",
 };
+
+// Filter out variant providers (like "openai-responses") from the selectable list
+// since they inherit optimization rules from their base provider
+const selectableProviders = SupportedProviders.filter(
+  (p) => !(p in providerBaseMap),
+);
 
 // Helper to get entity display name
 function getEntityName(
@@ -453,8 +464,14 @@ export function Rule({
   // Check if we can add more conditions (max 2: one of each type)
   const canAddCondition = formData.conditions.length < 2;
 
+  // Filter models by provider, including models from variant providers
+  // (e.g., when selecting "openai", also include models from "openai-responses")
   const models = sortModelsByPrice(
-    tokenPrices.filter((price) => price.provider === formData.provider),
+    tokenPrices.filter(
+      (price) =>
+        getBaseProvider(price.provider as SupportedProvider) ===
+        formData.provider,
+    ),
   );
 
   return (
@@ -476,7 +493,7 @@ export function Rule({
       with{" "}
       <ProviderSelect
         provider={formData.provider}
-        providers={SupportedProviders}
+        providers={selectableProviders}
         onChange={onProviderChange}
         editable={editable}
       />
