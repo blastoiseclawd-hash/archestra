@@ -954,8 +954,6 @@ export const anthropicAdapterFactory: LLMProvider<
           "anthropic",
           options.agent,
           options.externalAgentId,
-          (data) =>
-            this.createResponseAdapter(data as AnthropicResponse).getUsage(),
         )
       : undefined;
 

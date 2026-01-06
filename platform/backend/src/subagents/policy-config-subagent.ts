@@ -134,15 +134,6 @@ Examples:
         "anthropic",
         PolicyConfigSubagent.VIRTUAL_AGENT,
         PolicyConfigSubagent.SUBAGENT_ID, // Use subagent ID as external agent ID
-        (data) => {
-          const response = data as {
-            usage?: { input_tokens?: number; output_tokens?: number };
-          };
-          return {
-            inputTokens: response.usage?.input_tokens ?? 0,
-            outputTokens: response.usage?.output_tokens ?? 0,
-          };
-        },
       ),
     });
 

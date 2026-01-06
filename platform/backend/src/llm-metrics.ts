@@ -12,7 +12,7 @@ import type { GoogleGenAI } from "@google/genai";
 import { getBaseProvider, type SupportedProvider } from "@shared";
 import client from "prom-client";
 import logger from "@/logging";
-import type { Agent, UsageView } from "@/types";
+import type { Agent } from "@/types";
 
 type Fetch = (
   input: string | URL | Request,
@@ -362,14 +362,12 @@ export function reportTokensPerSecond(
  * Returns a fetch wrapped in observability. Use it as OpenAI or Anthropic provider custom fetch implementation.
  * @param provider The LLM provider
  * @param profile The Archestra profile
- * @param externalAgentId External agent ID from X-Archestra-Agent-Id header (pass undefined if not available)
- * @param getUsage Function to extract usage from the response. Uses adapter's getUsage() via createResponseAdapter.
+ * @param externalAgentId Optional external agent ID from X-Archestra-Agent-Id header
  */
 export function getObservableFetch(
   provider: SupportedProvider,
   profile: Agent,
-  externalAgentId: string | undefined,
-  getUsage: (data: unknown) => UsageView,
+  externalAgentId?: string,
 ): Fetch {
   return async function observableFetch(
     url: string | URL | Request,
@@ -439,14 +437,35 @@ export function getObservableFetch(
         if (!data.usage) {
           return response;
         }
-        const usage = getUsage(data);
-        reportLLMTokens(
-          provider,
-          profile,
-          { input: usage.inputTokens, output: usage.outputTokens },
-          model,
-          externalAgentId,
-        );
+        if (provider === "openai") {
+          // OpenAI usage format: prompt_tokens, completion_tokens
+          const usage = data.usage as {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+          };
+          reportLLMTokens(
+            provider,
+            profile,
+            { input: usage.prompt_tokens, output: usage.completion_tokens },
+            model,
+            externalAgentId,
+          );
+        } else if (provider === "anthropic") {
+          // Anthropic usage format: input_tokens, output_tokens
+          const usage = data.usage as {
+            input_tokens?: number;
+            output_tokens?: number;
+          };
+          reportLLMTokens(
+            provider,
+            profile,
+            { input: usage.input_tokens, output: usage.output_tokens },
+            model,
+            externalAgentId,
+          );
+        } else {
+          throw new Error("Unknown provider when logging usage token metrics");
+        }
       } catch (_parseError) {
         logger.error("Error parsing LLM response JSON for tokens");
       }
@@ -460,14 +479,12 @@ export function getObservableFetch(
  * Wraps observability around GenAI's LLM request methods
  * @param genAI The GoogleGenAI instance
  * @param profile The Archestra profile
- * @param externalAgentId External agent ID from X-Archestra-Agent-Id header (pass undefined if not available)
- * @param getUsage Function to extract usage from the response
+ * @param externalAgentId Optional external agent ID from X-Archestra-Agent-Id header
  */
 export function getObservableGenAI(
   genAI: GoogleGenAI,
   profile: Agent,
-  externalAgentId: string | undefined,
-  getUsage: (usageMetadata: unknown) => UsageView,
+  externalAgentId?: string,
 ) {
   const originalGenerateContent = genAI.models.generateContent;
   const provider: SupportedProvider = "gemini";
@@ -505,13 +522,16 @@ export function getObservableGenAI(
       );
 
       // Record token metrics
-      const usage = result.usageMetadata;
+      const usage = result.usageMetadata as {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+      } | undefined;
       if (usage) {
-        const { inputTokens, outputTokens } = getUsage(usage);
+        // Gemini usage format: promptTokenCount, candidatesTokenCount
         reportLLMTokens(
           provider,
           profile,
-          { input: inputTokens, output: outputTokens },
+          { input: usage.promptTokenCount, output: usage.candidatesTokenCount },
           model,
           externalAgentId,
         );

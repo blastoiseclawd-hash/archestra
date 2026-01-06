@@ -64,20 +64,7 @@ describe("getObservableFetch", () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue(mockResponse);
 
-    const observableFetch = getObservableFetch(
-      "openai",
-      testAgent,
-      undefined,
-      (data) => {
-        const response = data as {
-          usage?: { prompt_tokens?: number; completion_tokens?: number };
-        };
-        return {
-          inputTokens: response.usage?.prompt_tokens ?? 0,
-          outputTokens: response.usage?.completion_tokens ?? 0,
-        };
-      },
-    );
+    const observableFetch = getObservableFetch("openai", testAgent, undefined);
 
     await observableFetch("https://api.openai.com/v1/chat", {
       method: "POST",
@@ -134,7 +121,6 @@ describe("getObservableFetch", () => {
       "anthropic",
       testAgent,
       undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
     );
 
     await observableFetch("https://api.anthropic.com/v1/messages", {
@@ -163,12 +149,7 @@ describe("getObservableFetch", () => {
 
     globalThis.fetch = vi.fn().mockResolvedValue(mockResponse);
 
-    const observableFetch = getObservableFetch(
-      "openai",
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const observableFetch = getObservableFetch("openai", testAgent, undefined);
 
     await observableFetch("https://api.openai.com/v1/chat", {
       method: "POST",
@@ -190,12 +171,7 @@ describe("getObservableFetch", () => {
   test("records duration with status_code 0 on network error", async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    const observableFetch = getObservableFetch(
-      "openai",
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const observableFetch = getObservableFetch("openai", testAgent, undefined);
 
     await expect(
       observableFetch("https://api.openai.com/v1/chat", { method: "POST" }),
@@ -232,15 +208,6 @@ describe("getObservableFetch", () => {
       "anthropic",
       testAgent,
       undefined,
-      (data) => {
-        const response = data as {
-          usage?: { input_tokens?: number; output_tokens?: number };
-        };
-        return {
-          inputTokens: response.usage?.input_tokens ?? 0,
-          outputTokens: response.usage?.output_tokens ?? 0,
-        };
-      },
     );
 
     await observableFetch("https://api.anthropic.com/v1/messages", {
@@ -283,12 +250,7 @@ describe("getObservableFetch", () => {
     const mockFetch = vi.fn().mockResolvedValue(mockResponse);
     globalThis.fetch = mockFetch;
 
-    const observableFetch = getObservableFetch(
-      "openai",
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const observableFetch = getObservableFetch("openai", testAgent, undefined);
     const url = "https://mock.openai.com/v1/chat";
     const init = { method: "POST", body: '{"model":"gpt-4"}' };
 
@@ -306,7 +268,6 @@ describe("getObservableFetch", () => {
       "anthropic",
       testAgent,
       undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
     );
 
     await expect(
@@ -349,21 +310,7 @@ describe("getObservableGenAI", () => {
       },
     });
 
-    const instrumentedGenAI = getObservableGenAI(
-      mockGenAI,
-      testAgent,
-      undefined,
-      (usage) => {
-        const u = usage as {
-          promptTokenCount?: number;
-          candidatesTokenCount?: number;
-        };
-        return {
-          inputTokens: u.promptTokenCount ?? 0,
-          outputTokens: u.candidatesTokenCount ?? 0,
-        };
-      },
-    );
+    const instrumentedGenAI = getObservableGenAI(mockGenAI, testAgent, undefined);
 
     // biome-ignore lint/suspicious/noExplicitAny: Mock parameter for testing
     await instrumentedGenAI.models.generateContent({} as any);
@@ -410,12 +357,7 @@ describe("getObservableGenAI", () => {
     Object.assign(errorWithStatus, { status: 400 });
 
     const mockGenAI = getGenAIMock(errorWithStatus);
-    const instrumentedGenAI = getObservableGenAI(
-      mockGenAI,
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const instrumentedGenAI = getObservableGenAI(mockGenAI, testAgent, undefined);
 
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: Mock parameter for testing
@@ -438,12 +380,7 @@ describe("getObservableGenAI", () => {
   test("records duration with status_code 0 on Gemini network error", async () => {
     const mockGenAI = getGenAIMock(new Error("Network timeout"));
 
-    const instrumentedGenAI = getObservableGenAI(
-      mockGenAI,
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const instrumentedGenAI = getObservableGenAI(mockGenAI, testAgent, undefined);
 
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: Mock parameter for testing
@@ -480,12 +417,7 @@ describe("getObservableGenAI", () => {
       },
     } as unknown as GoogleGenAI;
 
-    const instrumentedGenAI = getObservableGenAI(
-      mockGenAI,
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const instrumentedGenAI = getObservableGenAI(mockGenAI, testAgent, undefined);
 
     const params = { model: "gemini-pro", contents: [{ text: "test" }] };
     const result = await instrumentedGenAI.models.generateContent(
@@ -509,12 +441,7 @@ describe("getObservableGenAI", () => {
       },
     } as unknown as GoogleGenAI;
 
-    const instrumentedGenAI = getObservableGenAI(
-      mockGenAI,
-      testAgent,
-      undefined,
-      () => ({ inputTokens: 0, outputTokens: 0 }),
-    );
+    const instrumentedGenAI = getObservableGenAI(mockGenAI, testAgent, undefined);
 
     await expect(
       // biome-ignore lint/suspicious/noExplicitAny: Mock parameter for testing

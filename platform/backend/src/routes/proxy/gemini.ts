@@ -183,21 +183,7 @@ const geminiProxyRoutes: FastifyPluginAsyncZod = async (fastify) => {
       });
     }
 
-    const genAI = getObservableGenAI(
-      genAIClient,
-      resolvedAgent,
-      externalAgentId,
-      (usage) => {
-        const u = usage as {
-          promptTokenCount?: number;
-          candidatesTokenCount?: number;
-        };
-        return {
-          inputTokens: u.promptTokenCount ?? 0,
-          outputTokens: u.candidatesTokenCount ?? 0,
-        };
-      },
-    );
+    const genAI = getObservableGenAI(genAIClient, resolvedAgent, externalAgentId);
 
     // Use the model from the URL path or default to gemini-pro
     const modelName = model || "gemini-2.5-pro";

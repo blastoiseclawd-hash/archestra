@@ -182,18 +182,7 @@ const openAiProxyRoutes: FastifyPluginAsyncZod = async (fastify) => {
       : new OpenAIProvider({
           apiKey: openAiApiKey,
           baseURL: config.llm.openai.baseUrl,
-          fetch: getObservableFetch(
-            "openai",
-            resolvedAgent,
-            externalAgentId,
-            (data) => {
-              const response = data as OpenAi.Types.ChatCompletionsResponse;
-              return {
-                inputTokens: response.usage?.prompt_tokens ?? 0,
-                outputTokens: response.usage?.completion_tokens ?? 0,
-              };
-            },
-          ),
+          fetch: getObservableFetch("openai", resolvedAgent, externalAgentId),
         });
 
     try {

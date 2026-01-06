@@ -799,13 +799,7 @@ export const openaiAdapterFactory: LLMProvider<
 
     // Use observable fetch for request duration metrics if agent is provided
     const customFetch = options?.agent
-      ? getObservableFetch(
-          "openai",
-          options.agent,
-          options.externalAgentId,
-          (data) =>
-            this.createResponseAdapter(data as OpenAiResponse).getUsage(),
-        )
+      ? getObservableFetch("openai", options.agent, options.externalAgentId)
       : undefined;
 
     return new OpenAIProvider({

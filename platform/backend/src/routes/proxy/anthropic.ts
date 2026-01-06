@@ -208,13 +208,6 @@ const anthropicProxyRoutes: FastifyPluginAsyncZod = async (fastify) => {
             "anthropic",
             resolvedAgent,
             externalAgentId,
-            (data) => {
-              const response = data as Anthropic.Types.MessagesResponse;
-              return {
-                inputTokens: response.usage?.input_tokens ?? 0,
-                outputTokens: response.usage?.output_tokens ?? 0,
-              };
-            },
           ),
           defaultHeaders: anthropicBeta
             ? { "anthropic-beta": anthropicBeta }

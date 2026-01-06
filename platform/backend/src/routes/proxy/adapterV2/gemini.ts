@@ -710,21 +710,7 @@ export const geminiAdapterFactory: LLMProvider<
 
     // Wrap with observability for request duration metrics
     if (options?.agent) {
-      return getObservableGenAI(
-        client,
-        options.agent,
-        options.externalAgentId,
-        (usage) => {
-          const u = usage as {
-            promptTokenCount?: number;
-            candidatesTokenCount?: number;
-          };
-          return {
-            inputTokens: u.promptTokenCount ?? 0,
-            outputTokens: u.candidatesTokenCount ?? 0,
-          };
-        },
-      );
+      return getObservableGenAI(client, options.agent, options.externalAgentId);
     }
     return client;
   },
