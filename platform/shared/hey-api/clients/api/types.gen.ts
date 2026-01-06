@@ -13401,6 +13401,7 @@ export type InstallMcpServerData = {
         agentIds?: Array<string>;
         accessToken?: string;
         isByosVault?: boolean;
+        serviceAccount?: string;
     };
     path?: never;
     query?: never;
