@@ -239,6 +239,7 @@ export default {
       baseUrl:
         process.env.ARCHESTRA_OPENAI_BASE_URL || "https://api.openai.com/v1",
       useV2Routes: process.env.ARCHESTRA_OPENAI_USE_V2_ROUTES !== "false",
+      enableResponses: process.env.ARCHESTRA_OPENAI_ENABLE_RESPONSES === "true",
     },
     anthropic: {
       baseUrl:

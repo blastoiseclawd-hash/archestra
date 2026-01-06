@@ -23,7 +23,10 @@ const openAiProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
   const CHAT_COMPLETIONS_SUFFIX = "/chat/completions";
   const RESPONSES_SUFFIX = "/responses";
 
-  logger.info("[UnifiedProxy] Registering unified OpenAI routes");
+  logger.info(
+    { enableResponses: config.llm.openai.enableResponses },
+    "[UnifiedProxy] Registering unified OpenAI routes",
+  );
 
   await fastify.register(fastifyHttpProxy, {
     upstream: config.llm.openai.baseUrl,
@@ -31,10 +34,14 @@ const openAiProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
     rewritePrefix: "",
     preHandler: (request, _reply, next) => {
       // Skip proxy for routes handled by custom handlers
-      const shouldSkip =
+      const shouldSkipChatCompletions =
         request.method === "POST" &&
-        (request.url.includes(CHAT_COMPLETIONS_SUFFIX) ||
-          request.url.includes(RESPONSES_SUFFIX));
+        request.url.includes(CHAT_COMPLETIONS_SUFFIX);
+      const shouldSkipResponses =
+        config.llm.openai.enableResponses &&
+        request.method === "POST" &&
+        request.url.includes(RESPONSES_SUFFIX);
+      const shouldSkip = shouldSkipChatCompletions || shouldSkipResponses;
 
       if (shouldSkip) {
         logger.info(
@@ -169,98 +176,100 @@ const openAiProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
     },
   );
 
-  fastify.post(
-    `${API_PREFIX}${RESPONSES_SUFFIX}`,
-    {
-      bodyLimit: PROXY_BODY_LIMIT,
-      schema: {
-        operationId: RouteId.OpenAiResponsesWithDefaultAgent,
-        description:
-          "Send a responses request to OpenAI using the default agent",
-        tags: ["llm-proxy"],
-        body: OpenAiResponses.API.ResponsesRequestSchema,
-        headers: OpenAiResponses.API.ResponsesHeadersSchema,
-        response: constructResponseSchema(
-          OpenAiResponses.API.ResponsesResponseSchema,
-        ),
+  if (config.llm.openai.enableResponses) {
+    fastify.post(
+      `${API_PREFIX}${RESPONSES_SUFFIX}`,
+      {
+        bodyLimit: PROXY_BODY_LIMIT,
+        schema: {
+          operationId: RouteId.OpenAiResponsesWithDefaultAgent,
+          description:
+            "Send a responses request to OpenAI using the default agent",
+          tags: ["llm-proxy"],
+          body: OpenAiResponses.API.ResponsesRequestSchema,
+          headers: OpenAiResponses.API.ResponsesHeadersSchema,
+          response: constructResponseSchema(
+            OpenAiResponses.API.ResponsesResponseSchema,
+          ),
+        },
+        preValidation: (request, _reply, done) => {
+          logger.info(
+            {
+              url: request.url,
+              bodyInput: (request.body as { input?: unknown })?.input,
+            },
+            "[UnifiedProxy] OpenAI Responses pre-validation - raw input",
+          );
+          done();
+        },
       },
-      preValidation: (request, _reply, done) => {
-        logger.info(
-          {
-            url: request.url,
-            bodyInput: (request.body as { input?: unknown })?.input,
-          },
-          "[UnifiedProxy] OpenAI Responses pre-validation - raw input",
+      async (request, reply) => {
+        logger.debug(
+          { url: request.url },
+          "[UnifiedProxy] Handling OpenAI Responses request (default agent)",
         );
-        done();
+        const externalAgentId = utils.externalAgentId.getExternalAgentId(
+          request.headers,
+        );
+        const userId = await utils.userId.getUserId(request.headers);
+        return handleLLMProxy(
+          request.body,
+          request.headers,
+          reply,
+          openaiResponsesAdapterFactory,
+          {
+            organizationId: request.organizationId,
+            agentId: undefined,
+            externalAgentId,
+            userId,
+          },
+        );
       },
-    },
-    async (request, reply) => {
-      logger.debug(
-        { url: request.url },
-        "[UnifiedProxy] Handling OpenAI Responses request (default agent)",
-      );
-      const externalAgentId = utils.externalAgentId.getExternalAgentId(
-        request.headers,
-      );
-      const userId = await utils.userId.getUserId(request.headers);
-      return handleLLMProxy(
-        request.body,
-        request.headers,
-        reply,
-        openaiResponsesAdapterFactory,
-        {
-          organizationId: request.organizationId,
-          agentId: undefined,
-          externalAgentId,
-          userId,
-        },
-      );
-    },
-  );
+    );
 
-  fastify.post(
-    `${API_PREFIX}/:agentId${RESPONSES_SUFFIX}`,
-    {
-      bodyLimit: PROXY_BODY_LIMIT,
-      schema: {
-        operationId: RouteId.OpenAiResponsesWithAgent,
-        description:
-          "Send a responses request to OpenAI using a specific agent",
-        tags: ["llm-proxy"],
-        params: z.object({
-          agentId: UuidIdSchema,
-        }),
-        body: OpenAiResponses.API.ResponsesRequestSchema,
-        headers: OpenAiResponses.API.ResponsesHeadersSchema,
-        response: constructResponseSchema(
-          OpenAiResponses.API.ResponsesResponseSchema,
-        ),
-      },
-    },
-    async (request, reply) => {
-      logger.debug(
-        { url: request.url, agentId: request.params.agentId },
-        "[UnifiedProxy] Handling OpenAI Responses request (with agent)",
-      );
-      const externalAgentId = utils.externalAgentId.getExternalAgentId(
-        request.headers,
-      );
-      const userId = await utils.userId.getUserId(request.headers);
-      return handleLLMProxy(
-        request.body,
-        request.headers,
-        reply,
-        openaiResponsesAdapterFactory,
-        {
-          organizationId: request.organizationId,
-          agentId: request.params.agentId,
-          externalAgentId,
-          userId,
+    fastify.post(
+      `${API_PREFIX}/:agentId${RESPONSES_SUFFIX}`,
+      {
+        bodyLimit: PROXY_BODY_LIMIT,
+        schema: {
+          operationId: RouteId.OpenAiResponsesWithAgent,
+          description:
+            "Send a responses request to OpenAI using a specific agent",
+          tags: ["llm-proxy"],
+          params: z.object({
+            agentId: UuidIdSchema,
+          }),
+          body: OpenAiResponses.API.ResponsesRequestSchema,
+          headers: OpenAiResponses.API.ResponsesHeadersSchema,
+          response: constructResponseSchema(
+            OpenAiResponses.API.ResponsesResponseSchema,
+          ),
         },
-      );
-    },
-  );
+      },
+      async (request, reply) => {
+        logger.debug(
+          { url: request.url, agentId: request.params.agentId },
+          "[UnifiedProxy] Handling OpenAI Responses request (with agent)",
+        );
+        const externalAgentId = utils.externalAgentId.getExternalAgentId(
+          request.headers,
+        );
+        const userId = await utils.userId.getUserId(request.headers);
+        return handleLLMProxy(
+          request.body,
+          request.headers,
+          reply,
+          openaiResponsesAdapterFactory,
+          {
+            organizationId: request.organizationId,
+            agentId: request.params.agentId,
+            externalAgentId,
+            userId,
+          },
+        );
+      },
+    );
+  }
 };
 
 export default openAiProxyRoutesV2;
