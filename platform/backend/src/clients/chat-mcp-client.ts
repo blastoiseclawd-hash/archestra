@@ -4,10 +4,6 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { isArchestraMcpServerTool, TimeInMs } from "@shared";
 import { jsonSchema, type Tool } from "ai";
 import { ToolExecutionError } from "@/errors/tool-execution-error";
-
-// Re-export for backwards compatibility
-export { ToolExecutionError } from "@/errors/tool-execution-error";
-
 import {
   type ArchestraContext,
   executeArchestraTool,
