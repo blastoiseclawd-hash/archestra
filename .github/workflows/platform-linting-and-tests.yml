@@ -37,6 +37,7 @@ jobs:
       contents: read
     outputs:
       mcp-server-base-image: ${{ steps.filter.outputs.mcp-server-base-image }}
+      platform-code: ${{ steps.filter.outputs.platform-code }}
     steps:
       - name: Checkout repository
         if: ${{ inputs.should-skip-running-and-always-succeed != true }}
@@ -53,13 +54,20 @@ jobs:
             mcp-server-base-image:
               - 'platform/mcp_server_docker_image/**'
               - '.github/workflows/build-base-mcp-server-docker-image.yml'
+            platform-code:
+              - 'platform/**'
+              - '.github/**'
+              - '!platform/**/*.md'
+              - '!docs/**'
 
   # Build Docker image in parallel with e2e-preflight job
   # This saves ~2-3 minutes by not blocking on Kind cluster creation
+  # Skip for docs-only changes to save CI time
   build-platform-image:
     name: Build Platform Image
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    if: ${{ inputs.should-skip-running-and-always-succeed != true }}
+    needs: [paths-filter]
+    if: ${{ inputs.should-skip-running-and-always-succeed != true && needs.paths-filter.outputs.platform-code == 'true' }}
     permissions:
       contents: read
     outputs:
@@ -95,10 +103,12 @@ jobs:
 
   # Run preflight checks (codegen, migrations) in parallel with Docker build
   # These checks don't need the Docker image or Kind cluster
+  # Skip for docs-only changes to save CI time
   e2e-preflight:
     name: E2E Preflight Checks
     runs-on: blacksmith-8vcpu-ubuntu-2404
-    if: ${{ inputs.should-skip-running-and-always-succeed != true }}
+    needs: [paths-filter]
+    if: ${{ inputs.should-skip-running-and-always-succeed != true && needs.paths-filter.outputs.platform-code == 'true' }}
     permissions:
       contents: write
     outputs:
@@ -231,9 +241,15 @@ jobs:
     runs-on: blacksmith-16vcpu-ubuntu-2404
     # Wait for Docker image build and preflight checks to complete
     # These run in parallel, so we wait for both
-    needs: [build-platform-image, e2e-preflight]
-    # Skip if preflight determined we should stop (e.g., release-please auto-commit)
-    if: ${{ inputs.should-skip-running-and-always-succeed != true && needs.e2e-preflight.outputs.should-continue == 'true' }}
+    needs: [paths-filter, build-platform-image, e2e-preflight]
+    # Skip if:
+    # - should-skip is true
+    # - docs-only changes (platform-code == false)
+    # - preflight determined we should stop (e.g., release-please auto-commit)
+    if: |
+      inputs.should-skip-running-and-always-succeed != true &&
+      needs.paths-filter.outputs.platform-code == 'true' &&
+      needs.e2e-preflight.outputs.should-continue == 'true'
     permissions:
       contents: read
     steps:
@@ -343,8 +359,12 @@ jobs:
     name: Platform Docker Image Scanning
     runs-on: ubuntu-latest
     # Reuse the pre-built image instead of building again
-    needs: [build-platform-image]
-    if: ${{ github.event_name == 'pull_request' && inputs.should-skip-running-and-always-succeed != true }}
+    # Skip for docs-only changes
+    needs: [paths-filter, build-platform-image]
+    if: |
+      github.event_name == 'pull_request' &&
+      inputs.should-skip-running-and-always-succeed != true &&
+      needs.paths-filter.outputs.platform-code == 'true'
     permissions:
       contents: read
     steps:

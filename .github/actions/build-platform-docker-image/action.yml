@@ -74,6 +74,10 @@ runs:
         tags: ${{ inputs.tags }}
         outputs: ${{ inputs.outputs }}
         build-args: ${{ inputs.version != '' && format('VERSION={0}', inputs.version) || '' }}
+        # Enable GitHub Actions cache for Docker layers
+        # This caches layers across workflow runs for faster builds
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
         secrets: |
           turbo_team=${{ inputs.turbo-team }}
           turbo_token=${{ inputs.turbo-token }}
