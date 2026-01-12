@@ -489,7 +489,7 @@ class McpClient {
                 now,
                 isExpired: now > tokens.expires_at,
               },
-              "OAuth token expired or expiring soon, attempting refresh",
+              "getSecretsForMcpServer: OAuth token expired or expiring soon, attempting refresh",
             );
 
             const refreshResult = await refreshOAuthToken(
@@ -502,12 +502,12 @@ class McpClient {
               secret = await secretManager().getSecret(mcpServer.secretId);
               logger.info(
                 { targetMcpServerId, secretId: mcpServer.secretId },
-                "OAuth token refreshed successfully",
+                "getSecretsForMcpServer: OAuth token refreshed successfully",
               );
             } else {
               logger.warn(
                 { targetMcpServerId, secretId: mcpServer.secretId },
-                "OAuth token refresh failed, using potentially expired token",
+                "getSecretsForMcpServer: OAuth token refresh failed, using potentially expired token",
               );
             }
           }

@@ -210,7 +210,12 @@ async function registerOAuthClient(
       );
     }
 
-    return await response.json();
+    const result = await response.json();
+    logger.info(
+      { registrationResult: result },
+      "registerOAuthClient: Dynamic client registration response",
+    );
+    return result;
   } catch (error) {
     throw new Error(
       `Dynamic client registration failed: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -230,6 +235,7 @@ const oauthStateStore = new Map<
     timestamp: number;
     clientId?: string;
     clientSecret?: string;
+    registrationResult?: Record<string, unknown>;
   }
 >();
 
@@ -278,6 +284,10 @@ export async function refreshOAuthToken(
       expires_in?: number;
       expires_at?: number;
       token_type?: string;
+      // When using dynamic oauth client registration (for example huggingace mcp), store the client credentials in the secret
+      // to be able to refresh the token.
+      client_id?: string;
+      client_secret?: string;
     };
 
     if (!currentTokens.refresh_token) {
@@ -333,8 +343,20 @@ export async function refreshOAuthToken(
         oauthConfig.token_endpoint || `${oauthConfig.server_url}/token`;
     }
 
+    // Use client credentials from stored secret (when using dynamic oauth client registration)
+    //  or fall back to values from the config.
+    const clientId = currentTokens.client_id || oauthConfig.client_id;
+    const clientSecret = currentTokens.client_secret || oauthConfig.client_secret;
+
     logger.info(
-      { secretId, catalogId, tokenEndpoint },
+      {
+        secretId,
+        catalogId,
+        tokenEndpoint,
+        hasStoredClientId: !!currentTokens.client_id,
+        hasConfigClientId: !!oauthConfig.client_id,
+        usingClientId: clientId ? `${clientId.substring(0, 8)}...` : "(empty)",
+      },
       "refreshOAuthToken: Attempting token refresh",
     );
 
@@ -348,9 +370,9 @@ export async function refreshOAuthToken(
       body: new URLSearchParams({
         grant_type: "refresh_token",
         refresh_token: currentTokens.refresh_token,
-        client_id: oauthConfig.client_id,
-        ...(oauthConfig.client_secret && {
-          client_secret: oauthConfig.client_secret,
+        client_id: clientId,
+        ...(clientSecret && {
+          client_secret: clientSecret,
         }),
       }),
     });
@@ -384,16 +406,19 @@ export async function refreshOAuthToken(
       return null;
     }
 
-    // Build updated secret payload
+    // Build updated secret payload:
+    // 1. Start with existing secret (preserves client_id, client_secret, registration_result, etc.)
+    // 2. Overlay new token response (preserves any provider-specific fields)
+    // 3. Ensure refresh_token is kept if provider didn't return a new one
+    // 4. Add computed expires_at for reliable expiration checking
     const updatedSecretPayload = {
-      access_token: tokenData.access_token,
+      ...currentTokens,
+      ...tokenData,
       // Use new refresh token if provided, otherwise keep the old one
       refresh_token: tokenData.refresh_token || currentTokens.refresh_token,
       ...(tokenData.expires_in && {
-        expires_in: tokenData.expires_in,
         expires_at: Date.now() + tokenData.expires_in * 1000,
       }),
-      token_type: "Bearer",
     };
 
     // Update the secret in storage
@@ -586,13 +611,14 @@ const oauthRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       // If we don't have client credentials and registration endpoint is available, try dynamic registration
+      let registrationResult: Record<string, unknown> | undefined;
       if (!clientId && registrationEndpoint) {
         try {
           fastify.log.info(
             { registrationEndpoint },
             "Attempting dynamic client registration",
           );
-          const registrationResult = await registerOAuthClient(
+          registrationResult = await registerOAuthClient(
             registrationEndpoint,
             {
               client_name: `Archestra Platform - ${catalogItem.name}`,
@@ -603,8 +629,8 @@ const oauthRoutes: FastifyPluginAsyncZod = async (fastify) => {
             },
           );
 
-          clientId = registrationResult.client_id;
-          clientSecret = registrationResult.client_secret;
+          clientId = registrationResult?.client_id as string;
+          clientSecret = registrationResult?.client_secret as string | undefined;
 
           fastify.log.info(
             { client_id: clientId },
@@ -634,6 +660,7 @@ const oauthRoutes: FastifyPluginAsyncZod = async (fastify) => {
         timestamp: Date.now(),
         clientId,
         clientSecret,
+        registrationResult,
       });
 
       // Build authorization URL using the discovered authorization endpoint
@@ -868,17 +895,20 @@ const oauthRoutes: FastifyPluginAsyncZod = async (fastify) => {
       // Create secret entry with the OAuth tokens
       // Use forceDB=true when BYOS is enabled because OAuth tokens are generated values,
       // not user-provided vault references
+      // Store entire OAuth response to preserve provider-specific fields (scope, id_token, etc.)
       const secretPayload = {
-        access_token: tokenData.access_token,
-        ...(tokenData.refresh_token && {
-          refresh_token: tokenData.refresh_token,
-        }),
+        ...tokenData,
+        // Add computed expiration timestamp for reliable expiration checking
         ...(tokenData.expires_in && {
-          expires_in: tokenData.expires_in,
-          // Store absolute expiration timestamp for reliable expiration checking
           expires_at: Date.now() + tokenData.expires_in * 1000,
         }),
-        token_type: "Bearer",
+        // Store client credentials for token refresh (may come from dynamic registration)
+        ...(clientId && { client_id: clientId }),
+        ...(clientSecret && { client_secret: clientSecret }),
+        // Store full registration result for debugging/future use
+        ...(oauthState.registrationResult && {
+          registration_result: oauthState.registrationResult,
+        }),
       };
 
       logger.info(
