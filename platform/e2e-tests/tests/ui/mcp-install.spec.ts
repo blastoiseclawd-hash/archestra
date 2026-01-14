@@ -61,7 +61,10 @@ test.describe("MCP Install", () => {
       .fill("fake-api-key");
 
     // install the server
-    await clickButton({ page: adminPage, options: { name: "Install" } });
+    await clickButton({
+      page: adminPage,
+      options: { name: "Installzzzzzzzzzzz" },
+    });
     await adminPage.waitForLoadState("networkidle");
 
     // Check that tools are discovered
