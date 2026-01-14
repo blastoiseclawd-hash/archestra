@@ -1,5 +1,6 @@
 import {
   ADMIN_ROLE_NAME,
+  AGENT_DELEGATION_MCP_CATALOG_ID,
   ARCHESTRA_MCP_CATALOG_ID,
   type PredefinedRoleName,
   testMcpServerCommand,
@@ -405,6 +406,16 @@ async function seedArchestraCatalogAndTools(): Promise<void> {
 }
 
 /**
+ * Seeds Agent Delegation MCP catalog entry.
+ * This is a virtual catalog that groups all agent delegation tools (agent__*).
+ * Agent delegation tools are created dynamically when prompts are linked.
+ */
+async function seedAgentDelegationCatalog(): Promise<void> {
+  await ToolModel.seedAgentDelegationCatalog(AGENT_DELEGATION_MCP_CATALOG_ID);
+  logger.info("✓ Seeded Agent Delegation catalog");
+}
+
+/**
  * Seeds default team and assigns it to the default profile and user
  */
 async function seedDefaultTeam(): Promise<void> {
@@ -527,6 +538,7 @@ export async function seedRequiredStartingData(): Promise<void> {
   await seedN8NSystemPrompt();
   await seedDefaultRegularPrompts();
   await seedArchestraCatalogAndTools();
+  await seedAgentDelegationCatalog();
   await seedTestMcpServer();
   await seedTeamTokens();
 }

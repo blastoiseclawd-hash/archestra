@@ -1,6 +1,10 @@
 "use client";
 
-import { ARCHESTRA_MCP_CATALOG_ID, type archestraApiTypes } from "@shared";
+import {
+  AGENT_DELEGATION_MCP_CATALOG_ID,
+  ARCHESTRA_MCP_CATALOG_ID,
+  type archestraApiTypes,
+} from "@shared";
 import {
   ChevronDown,
   ChevronRight,
@@ -8,6 +12,7 @@ import {
   Loader2,
   Search,
   Server,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -49,9 +54,13 @@ export function AssignToolsDialog({
   open,
   onOpenChange,
 }: AssignToolsDialogProps) {
-  // Fetch all tools and filter for MCP tools (using non-suspense queries for dialog/portal)
+  // Fetch all tools and filter for MCP tools and agent delegation tools (using non-suspense queries for dialog/portal)
   const { data: allTools, isLoading: isLoadingAllTools } = useTools({});
-  const mcpTools = allTools?.filter((tool) => tool.catalogId !== null) || [];
+  // Include MCP tools (catalogId set) and agent delegation tools (promptAgentId set)
+  const mcpTools =
+    allTools?.filter(
+      (tool) => tool.catalogId !== null || tool.promptAgentId !== null,
+    ) || [];
   const { data: internalMcpCatalogItems, isLoading: isLoadingCatalog } =
     useInternalMcpCatalog();
 
@@ -383,7 +392,8 @@ export function AssignToolsDialog({
         <DialogHeader>
           <DialogTitle>Assign tools to {agent.name} profile</DialogTitle>
           <DialogDescription>
-            Select which MCP server tools this profile can access.
+            Select which tools this profile can access, including MCP server
+            tools and agent delegation tools.
           </DialogDescription>
           <p className="text-muted-foreground text-sm mt-2">
             Don't see the tool you need? Go to{" "}
@@ -516,10 +526,12 @@ export function AssignToolsDialog({
                             (t) => t.toolId === tool.id,
                           );
 
-                          // Don't show credential selector for built-in Archestra tools
+                          // Don't show credential selector for built-in Archestra tools or agent delegation tools
                           const isBuiltinArchestraTool =
                             tool.catalogId === ARCHESTRA_MCP_CATALOG_ID;
-                          if (isBuiltinArchestraTool) {
+                          const isAgentDelegationTool =
+                            tool.promptAgentId !== null;
+                          if (isBuiltinArchestraTool || isAgentDelegationTool) {
                             return null;
                           }
 
@@ -568,8 +580,17 @@ export function AssignToolsDialog({
                         </p>
                       )}
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Server className="h-3 w-3" />
-                        <span>MCP Server Tool</span>
+                        {tool.promptAgentId ? (
+                          <>
+                            <Users className="h-3 w-3" />
+                            <span>Agent Delegation Tool</span>
+                          </>
+                        ) : (
+                          <>
+                            <Server className="h-3 w-3" />
+                            <span>MCP Server Tool</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -581,6 +602,7 @@ export function AssignToolsDialog({
 
         {originFilter !== "all" &&
           originFilter !== ARCHESTRA_MCP_CATALOG_ID &&
+          originFilter !== AGENT_DELEGATION_MCP_CATALOG_ID &&
           filteredTools.length > 0 && (
             <div className="pt-4 border-t">
               <Label className="text-md font-medium mb-1">
@@ -614,6 +636,12 @@ export function AssignToolsDialog({
                 if (tool.useDynamicTeamCredential) return false;
 
                 const mcpTool = mcpTools.find((t) => t.id === tool.toolId);
+
+                // Agent delegation tools don't require credentials
+                if (mcpTool?.promptAgentId) {
+                  return false;
+                }
+
                 const mcpCatalogItem = internalMcpCatalogItems?.find(
                   (item) => item.id === mcpTool?.catalogId,
                 );

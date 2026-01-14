@@ -1,4 +1,5 @@
 import {
+  AGENT_DELEGATION_MCP_CATALOG_ID,
   AGENT_TOOL_PREFIX,
   MCP_SERVER_TOOL_NAME_SEPARATOR,
   slugify,
@@ -343,8 +344,10 @@ class ToolModel {
 
   /**
    * Get only MCP tools assigned to an agent (those from connected MCP servers)
-   * Includes: MCP server tools (catalogId set, including Archestra builtin tools)
-   * Excludes: proxy-discovered tools (agentId set, catalogId null)
+   * Includes:
+   * - MCP server tools (catalogId set, including Archestra builtin tools)
+   * - Agent delegation tools (promptAgentId set)
+   * Excludes: proxy-discovered tools (agentId set, catalogId null, promptAgentId null)
    *
    * Note: Archestra tools are no longer automatically assigned - they must be
    * explicitly assigned like any other MCP server tools.
@@ -357,16 +360,20 @@ class ToolModel {
       return [];
     }
 
-    // Return tools that are assigned via junction table AND have catalogId set
-    // This includes both regular MCP server tools and Archestra builtin tools
-    // Excludes proxy-discovered tools which have agentId set and catalogId null
+    // Return tools that are assigned via junction table AND either:
+    // - Have catalogId set (MCP server tools and Archestra builtin tools)
+    // - Have promptAgentId set (agent delegation tools)
+    // Excludes proxy-discovered tools which have agentId set and both catalogId and promptAgentId null
     const tools = await db
       .select()
       .from(schema.toolsTable)
       .where(
         and(
           inArray(schema.toolsTable.id, assignedToolIds),
-          isNotNull(schema.toolsTable.catalogId),
+          or(
+            isNotNull(schema.toolsTable.catalogId),
+            isNotNull(schema.toolsTable.promptAgentId),
+          ),
         ),
       )
       .orderBy(desc(schema.toolsTable.createdAt));
@@ -550,6 +557,38 @@ class ToolModel {
     if (toolsToInsert.length > 0) {
       await db.insert(schema.toolsTable).values(toolsToInsert).returning();
     }
+  }
+
+  /**
+   * Creates/ensures the Agent Delegation catalog entry exists.
+   * Also migrates any existing agent delegation tools to use this catalog.
+   * Called during server startup.
+   */
+  static async seedAgentDelegationCatalog(catalogId: string): Promise<void> {
+    // Ensure the Agent Delegation catalog entry exists in the database
+    await db
+      .insert(schema.internalMcpCatalogTable)
+      .values({
+        id: catalogId,
+        name: "Agent Delegation",
+        description:
+          "Agent delegation tools that allow prompts to delegate tasks to other agents.",
+        serverType: "builtin",
+        requiresAuth: false,
+      })
+      .onConflictDoNothing();
+
+    // Migrate existing agent delegation tools to use this catalog
+    // These are tools with promptAgentId set but no catalogId
+    await db
+      .update(schema.toolsTable)
+      .set({ catalogId })
+      .where(
+        and(
+          isNull(schema.toolsTable.catalogId),
+          isNotNull(schema.toolsTable.promptAgentId),
+        ),
+      );
   }
 
   /**
@@ -1024,14 +1063,15 @@ class ToolModel {
       return existingTool;
     }
 
-    // Create the tool (NOT assigned to agent_tools - it's prompt-specific)
+    // Create the tool with catalogId for grouping in UI
+    // NOT assigned to agent_tools - it's prompt-specific until explicitly assigned
     const [tool] = await db
       .insert(schema.toolsTable)
       .values({
         name: `${AGENT_TOOL_PREFIX}${slugify(agentName)}`,
         promptAgentId,
         agentId: null,
-        catalogId: null,
+        catalogId: AGENT_DELEGATION_MCP_CATALOG_ID,
         mcpServerId: null,
         parameters: {
           type: "object",

@@ -99,6 +99,13 @@ export const ARCHESTRA_MCP_SERVER_NAME = "archestra";
 export const ARCHESTRA_MCP_CATALOG_ID = "00000000-0000-4000-8000-000000000001";
 
 /**
+ * Fixed UUID for the Agent Delegation catalog entry.
+ * This groups all agent delegation tools (agent__*) under a single catalog entry.
+ */
+export const AGENT_DELEGATION_MCP_CATALOG_ID =
+  "00000000-0000-4000-8000-000000000002";
+
+/**
  * Prefix for agent delegation tools
  * Format: agent__{slugified_agent_name}
  * These are NOT archestra tools - they are dynamically generated per prompt
