@@ -20,6 +20,65 @@ import {
 } from "@/models";
 
 /**
+ * Extract error message from MCP tool content
+ * Handles various formats:
+ * - Standard MCP array: [{type: "text", text: "error message"}]
+ * - Nested error object: {error: {message: "..."}} or {error: {code: ..., message: "..."}}
+ * - Direct error string: {error: "error message"}
+ * - Plain string content
+ */
+function extractErrorFromContent(content: unknown): string | null {
+  if (content === null || content === undefined) {
+    return null;
+  }
+
+  // Standard MCP format: array of content items
+  if (Array.isArray(content)) {
+    const textParts = content
+      .map((item: { type?: string; text?: string }) =>
+        item.type === "text" && item.text ? item.text : JSON.stringify(item),
+      )
+      .filter(Boolean);
+    return textParts.length > 0 ? textParts.join("\n") : null;
+  }
+
+  // String content
+  if (typeof content === "string") {
+    return content;
+  }
+
+  // Object content - check for nested error
+  if (typeof content === "object") {
+    const obj = content as Record<string, unknown>;
+
+    // Check for {error: {message: "..."}} or {error: {code: ..., message: "..."}}
+    if (obj.error && typeof obj.error === "object") {
+      const errorObj = obj.error as Record<string, unknown>;
+      if (typeof errorObj.message === "string") {
+        return errorObj.message;
+      }
+      // Fallback: stringify the error object
+      return JSON.stringify(obj.error);
+    }
+
+    // Check for {error: "string"}
+    if (typeof obj.error === "string") {
+      return obj.error;
+    }
+
+    // Check for {message: "..."} at top level
+    if (typeof obj.message === "string") {
+      return obj.message;
+    }
+
+    // Fallback: stringify the entire object
+    return JSON.stringify(content);
+  }
+
+  return null;
+}
+
+/**
  * MCP Gateway base URL (internal)
  * Chat connects to the new MCP Gateway endpoint with profile ID in path
  */
@@ -668,16 +727,8 @@ export async function getChatMcpTools({
               // This allows AI SDK to create a tool-error part and continue the conversation
               if (result.isError) {
                 // Extract error message from content (where MCP server puts the error details)
-                // Content can be an array (from MCP server response) or null (from internal errors)
-                const extractedError = Array.isArray(result.content)
-                  ? result.content
-                      .map((item: { type: string; text?: string }) =>
-                        item.type === "text" && item.text
-                          ? item.text
-                          : JSON.stringify(item),
-                      )
-                      .join("\n")
-                  : null;
+                // Content can be in various formats depending on the MCP server implementation
+                const extractedError = extractErrorFromContent(result.content);
                 const errorMessage =
                   extractedError || result.error || "Tool execution failed";
                 throw new Error(errorMessage);
