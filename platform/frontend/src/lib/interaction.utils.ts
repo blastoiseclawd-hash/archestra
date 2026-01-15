@@ -1,6 +1,7 @@
 import type { SupportedProvider } from "@shared";
 import type { PartialUIMessage } from "@/components/chatbot-demo";
 import AnthropicMessagesInteraction from "./llmProviders/anthropic";
+import BedrockChatCompletionInteraction from "./llmProviders/bedrock";
 import CerebrasChatCompletionInteraction from "./llmProviders/cerebras";
 import type {
   DualLlmResult,
@@ -122,6 +123,9 @@ export class DynamicInteraction implements InteractionUtils {
     }
     if (type === "anthropic:messages") {
       return new AnthropicMessagesInteraction(interaction);
+    }
+    if (type === "bedrock:chatCompletions") {
+      return new BedrockChatCompletionInteraction(interaction);
     }
     if (type === "cerebras:chatCompletions") {
       return new CerebrasChatCompletionInteraction(interaction);

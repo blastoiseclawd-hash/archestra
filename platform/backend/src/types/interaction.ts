@@ -4,6 +4,7 @@ import { z } from "zod";
 import { schema } from "@/database";
 import {
   Anthropic,
+  Bedrock,
   Cerebras,
   Gemini,
   Ollama,
@@ -24,6 +25,7 @@ export const InteractionRequestSchema = z.union([
   OpenAi.API.ChatCompletionRequestSchema,
   Gemini.API.GenerateContentRequestSchema,
   Anthropic.API.MessagesRequestSchema,
+  Bedrock.API.ChatCompletionRequestSchema,
   Cerebras.API.ChatCompletionRequestSchema,
   Vllm.API.ChatCompletionRequestSchema,
   Ollama.API.ChatCompletionRequestSchema,
@@ -33,6 +35,7 @@ export const InteractionResponseSchema = z.union([
   OpenAi.API.ChatCompletionResponseSchema,
   Gemini.API.GenerateContentResponseSchema,
   Anthropic.API.MessagesResponseSchema,
+  Bedrock.API.ChatCompletionResponseSchema,
   Cerebras.API.ChatCompletionResponseSchema,
   Vllm.API.ChatCompletionResponseSchema,
   Ollama.API.ChatCompletionResponseSchema,
@@ -83,6 +86,16 @@ export const SelectInteractionSchema = z.discriminatedUnion("type", [
     request: Anthropic.API.MessagesRequestSchema,
     processedRequest: Anthropic.API.MessagesRequestSchema.nullable().optional(),
     response: Anthropic.API.MessagesResponseSchema,
+    requestType: RequestTypeSchema.optional(),
+    /** Resolved prompt name if externalAgentId matches a prompt ID */
+    externalAgentIdLabel: z.string().nullable().optional(),
+  }),
+  BaseSelectInteractionSchema.extend({
+    type: z.enum(["bedrock:chatCompletions"]),
+    request: Bedrock.API.ChatCompletionRequestSchema,
+    processedRequest:
+      Bedrock.API.ChatCompletionRequestSchema.nullable().optional(),
+    response: Bedrock.API.ChatCompletionResponseSchema,
     requestType: RequestTypeSchema.optional(),
     /** Resolved prompt name if externalAgentId matches a prompt ID */
     externalAgentIdLabel: z.string().nullable().optional(),

@@ -6,10 +6,19 @@ import {
   TokenPriceModel,
 } from "@/models";
 import { getTokenizer } from "@/tokenizers";
-import type { Agent, Anthropic, Cerebras, Gemini, OpenAi, Vllm } from "@/types";
+import type {
+  Agent,
+  Anthropic,
+  Bedrock,
+  Cerebras,
+  Gemini,
+  OpenAi,
+  Vllm,
+} from "@/types";
 
 type ProviderMessages = {
   anthropic: Anthropic.Types.MessagesRequest["messages"];
+  bedrock: Bedrock.Types.ChatCompletionsRequest["messages"];
   cerebras: Cerebras.Types.ChatCompletionsRequest["messages"];
   gemini: Gemini.Types.GenerateContentRequest["contents"];
   openai: OpenAi.Types.ChatCompletionsRequest["messages"];

@@ -11605,6 +11605,7 @@ export type GetFeaturesResponses = {
         geminiVertexAiEnabled: boolean;
         vllmEnabled: boolean;
         ollamaEnabled: boolean;
+        bedrockEnabled: boolean;
         globalToolPolicy: 'permissive' | 'restrictive';
         browserStreamingEnabled: boolean;
         incomingEmail: {
@@ -12583,6 +12584,28 @@ export type GetInteractionsResponses = {
             sessionSource: string | null;
             request: BedrockChatCompletionRequest;
             processedRequest?: BedrockChatCompletionRequest | null;
+            response: BedrockChatCompletionResponse;
+            type: 'bedrock:chatCompletions';
+            model: string | null;
+            inputTokens: number | null;
+            outputTokens: number | null;
+            baselineCost: string | null;
+            cost: string | null;
+            toonTokensBefore: number | null;
+            toonTokensAfter: number | null;
+            toonCostSavings: string | null;
+            createdAt: string;
+            requestType?: 'main' | 'subagent';
+            externalAgentIdLabel?: string | null;
+        } | {
+            id: string;
+            profileId: string;
+            externalAgentId: string | null;
+            userId: string | null;
+            sessionId: string | null;
+            sessionSource: string | null;
+            request: BedrockChatCompletionRequest;
+            processedRequest?: BedrockChatCompletionRequest | null;
             response: CerebrasChatCompletionResponse;
             type: 'cerebras:chatCompletions';
             model: string | null;
@@ -13059,6 +13082,28 @@ export type GetInteractionResponses = {
         processedRequest?: AnthropicMessagesRequest | null;
         response: AnthropicMessagesResponse;
         type: 'anthropic:messages';
+        model: string | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        baselineCost: string | null;
+        cost: string | null;
+        toonTokensBefore: number | null;
+        toonTokensAfter: number | null;
+        toonCostSavings: string | null;
+        createdAt: string;
+        requestType?: 'main' | 'subagent';
+        externalAgentIdLabel?: string | null;
+    } | {
+        id: string;
+        profileId: string;
+        externalAgentId: string | null;
+        userId: string | null;
+        sessionId: string | null;
+        sessionSource: string | null;
+        request: BedrockChatCompletionRequest;
+        processedRequest?: BedrockChatCompletionRequest | null;
+        response: BedrockChatCompletionResponse;
+        type: 'bedrock:chatCompletions';
         model: string | null;
         inputTokens: number | null;
         outputTokens: number | null;
