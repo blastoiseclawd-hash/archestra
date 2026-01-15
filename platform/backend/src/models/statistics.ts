@@ -250,10 +250,10 @@ class StatisticsModel {
       existing.requests += Number(row.requests) || 0;
       existing.inputTokens += Number(row.inputTokens) || 0;
       existing.outputTokens += Number(row.outputTokens) || 0;
-      // Aggregate cost if present in the row (for statistics that include stored cost)
-      if ("cost" in row) {
-        (existing as T & { cost: number }).cost +=
-          Number((row as T & { cost: number }).cost) || 0;
+      // Aggregate cost (for statistics that include stored cost from interactions)
+      if ("cost" in row && "cost" in existing) {
+        (existing as { cost: number }).cost +=
+          Number((row as { cost: number }).cost) || 0;
       }
     }
 
@@ -296,7 +296,7 @@ class StatisticsModel {
         requests: sql<number>`CAST(COUNT(*) AS INTEGER)`,
         inputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.inputTokens}), 0) AS INTEGER)`,
         outputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.outputTokens}), 0) AS INTEGER)`,
-        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DECIMAL)`,
+        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DOUBLE PRECISION)`,
       })
       .from(schema.interactionsTable)
       .innerJoin(
@@ -398,7 +398,8 @@ class StatisticsModel {
     const teamMap = new Map<string, TeamStatistics>();
 
     for (const row of timeSeriesData) {
-      const { cost } = row;
+      // Use stored cost from interactions (already calculated per-model)
+      const cost = Number(row.cost) || 0;
 
       if (!teamMap.has(row.teamId)) {
         const memberCount =
@@ -468,7 +469,7 @@ class StatisticsModel {
         requests: sql<number>`CAST(COUNT(*) AS INTEGER)`,
         inputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.inputTokens}), 0) AS INTEGER)`,
         outputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.outputTokens}), 0) AS INTEGER)`,
-        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DECIMAL)`,
+        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DOUBLE PRECISION)`,
       })
       .from(schema.interactionsTable)
       .innerJoin(
@@ -542,7 +543,8 @@ class StatisticsModel {
     const agentMap = new Map<string, AgentStatistics>();
 
     for (const row of timeSeriesData) {
-      const { cost } = row;
+      // Use stored cost from interactions (already calculated per-model)
+      const cost = Number(row.cost) || 0;
 
       if (!agentMap.has(row.agentId)) {
         agentMap.set(row.agentId, {
@@ -604,7 +606,7 @@ class StatisticsModel {
         requests: sql<number>`CAST(COUNT(*) AS INTEGER)`,
         inputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.inputTokens}), 0) AS INTEGER)`,
         outputTokens: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.outputTokens}), 0) AS INTEGER)`,
-        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DECIMAL)`,
+        cost: sql<number>`CAST(COALESCE(SUM(${schema.interactionsTable.cost}), 0) AS DOUBLE PRECISION)`,
       })
       .from(schema.interactionsTable)
       .innerJoin(
@@ -663,7 +665,8 @@ class StatisticsModel {
     for (const row of timeSeriesData) {
       if (!row.model) continue;
 
-      const { cost } = row;
+      // Use stored cost from interactions (already calculated per-model)
+      const cost = Number(row.cost) || 0;
 
       totalCost += cost;
 
