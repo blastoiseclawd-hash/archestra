@@ -883,13 +883,13 @@ class BedrockStreamAdapter
     const toolCalls =
       this.state.toolCalls.length > 0
         ? this.state.toolCalls.map((tc) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: {
-            name: tc.name,
-            arguments: tc.arguments,
-          },
-        }))
+            id: tc.id,
+            type: "function" as const,
+            function: {
+              name: tc.name,
+              arguments: tc.arguments,
+            },
+          }))
         : undefined;
 
     return {
@@ -1058,10 +1058,7 @@ export const bedrockAdapterFactory: LLMProvider<
     return new BedrockResponseAdapter(response);
   },
 
-  createStreamAdapter(): LLMStreamAdapter<
-    BedrockStreamChunk,
-    BedrockResponse
-  > {
+  createStreamAdapter(): LLMStreamAdapter<BedrockStreamChunk, BedrockResponse> {
     return new BedrockStreamAdapter();
   },
 
@@ -1123,8 +1120,7 @@ export const bedrockAdapterFactory: LLMProvider<
       stream: true,
       stream_options: { include_usage: true },
     } as unknown as ChatCompletionCreateParamsStreaming;
-    const stream =
-      await bedrockClient.chat.completions.create(bedrockRequest);
+    const stream = await bedrockClient.chat.completions.create(bedrockRequest);
 
     return {
       [Symbol.asyncIterator]: async function* () {

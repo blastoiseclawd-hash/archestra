@@ -15,7 +15,7 @@ export {
   ChatCompletionResponseSchema,
   ChatCompletionsHeadersSchema,
   ChatCompletionUsageSchema,
-  FinishReasonSchema
+  FinishReasonSchema,
 } from "../openai/api";
 
 import { ChatCompletionUsageSchema, FinishReasonSchema } from "../openai/api";

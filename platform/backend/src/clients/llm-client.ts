@@ -247,12 +247,14 @@ export function createLLMModel(params: {
   }
 
   if (provider === "bedrock") {
-    // URL format: /v1/cerebras/:agentId (SDK appends /chat/completions)
+    // URL format: /v1/bedrock/:agentId (SDK appends /chat/completions)
+    // Bedrock uses OpenAI-compatible API via bedrock-mantle, so we use the OpenAI SDK
     const client = createAmazonBedrock({
       apiKey,
       baseURL: `http://localhost:${config.api.port}/v1/bedrock/${agentId}`,
       headers,
     });
+    // Use .chat() to force Chat Completions API
     return client(modelName);
   }
 
