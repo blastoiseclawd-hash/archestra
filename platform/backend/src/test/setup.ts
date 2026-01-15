@@ -121,6 +121,27 @@ beforeEach(async () => {
   } catch {
     // Ignore if default agent already exists or table doesn't have expected structure
   }
+
+  // Seed the Agent Delegation catalog entry required for prompt_agent tools
+  // This matches the AGENT_DELEGATION_MCP_CATALOG_ID from @shared/consts
+  const seedAgentDelegationCatalog = `
+    INSERT INTO internal_mcp_catalog (id, name, description, server_type, requires_auth, created_at, updated_at)
+    VALUES (
+      '00000000-0000-4000-8000-000000000002',
+      'Agent Delegation',
+      'Agent delegation tools that allow prompts to delegate tasks to other agents.',
+      'builtin',
+      false,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT DO NOTHING;
+  `;
+  try {
+    await pgliteClient.exec(seedAgentDelegationCatalog);
+  } catch {
+    // Ignore if catalog already exists or table doesn't have expected structure
+  }
 });
 
 /**
