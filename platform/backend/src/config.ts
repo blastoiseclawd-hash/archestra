@@ -399,10 +399,6 @@ export default {
     },
     bedrock: {
       apiKey: process.env.ARCHESTRA_CHAT_BEDROCK_API_KEY || "",
-      // Bedrock is a marketplace for models,
-      // some of which are available to its OpenAI-compatible API we are using.
-      // Dedicated chat url is for getting the list of models dynamically.
-      baseUrl: process.env.ARCHESTRA_CHAT_BEDROCK_BASE_URL || "",
     },
     mcp: {
       remoteServerUrl: process.env.ARCHESTRA_CHAT_MCP_SERVER_URL || "",

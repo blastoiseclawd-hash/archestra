@@ -278,7 +278,7 @@ async function fetchVllmModels(apiKey: string): Promise<ModelInfo[]> {
  * See: https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-mantle.html
  */
 async function fetchBedrockModels(apiKey: string): Promise<ModelInfo[]> {
-  const baseUrl = config.chat.bedrock.baseUrl;
+  const baseUrl = config.llm.bedrock.baseUrl;
   if (!baseUrl) {
     logger.warn("Bedrock base URL not configured, skipping model fetch");
     return [];
