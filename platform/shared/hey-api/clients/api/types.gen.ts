@@ -2399,6 +2399,365 @@ export type OllamaChatCompletionResponseInput = {
     };
 };
 
+export type BedrockChatCompletionRequestInput = {
+    model: string;
+    /**
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1186
+     */
+    messages: Array<{
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        }>;
+        role: 'developer';
+        name?: string;
+    } | {
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        }>;
+        role: 'system';
+        name?: string;
+    } | {
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        } | {
+            type: 'image_url';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L765
+             */
+            image_url: {
+                url: string;
+                detail?: 'auto' | 'low' | 'high';
+            };
+        } | {
+            type: 'input_audio';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L792
+             */
+            input_audio: {
+                data: string;
+                format: 'wav' | 'mp3';
+            };
+        } | {
+            type: 'file';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L732
+             */
+            file: {
+                file_data?: string;
+                file_id?: string;
+                filename?: string;
+            };
+        }>;
+        role: 'user';
+        name?: string;
+    } | {
+        role: 'assistant';
+        audio?: {
+            id: string;
+        } | unknown;
+        content?: string | Array<{
+            type: 'text';
+            text: string;
+        }> | Array<{
+            type: 'refusal';
+            refusal: string;
+        }> | unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+         */
+        function_call?: {
+            arguments: string;
+            name: string;
+        } | unknown;
+        name?: string;
+        refusal?: string | unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1197
+         */
+        tool_calls?: Array<{
+            id: string;
+            type: 'function';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+             */
+            function: {
+                arguments: string;
+                name: string;
+            };
+        } | {
+            id: string;
+            type: 'custom';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+             */
+            custom: {
+                input: string;
+                name: string;
+            };
+        }>;
+    } | {
+        role: 'tool';
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        } | {
+            type: 'image_url';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L765
+             */
+            image_url: {
+                url: string;
+                detail?: 'auto' | 'low' | 'high';
+            };
+        }>;
+        tool_call_id: string;
+    } | {
+        role: 'function';
+        content: string | unknown;
+        name: string;
+    }>;
+    /**
+     *
+     * A function tool that can be used to generate a response.
+     *
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1392
+     *
+     */
+    tools?: Array<{
+        type: 'function';
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L174
+         */
+        function: {
+            name: string;
+            description?: string;
+            /**
+             *
+             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+             *
+             * The parameters the functions accepts, described as a JSON Schema object. See the
+             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+             * documentation about the format.
+             *
+             * Omitting parameters defines a function with an empty parameter list.
+             *
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            strict?: boolean | unknown;
+        };
+    } | {
+        type: 'custom';
+        custom: {
+            /**
+             * The name of the custom tool, used to identify it in tool calls
+             */
+            name: string;
+            /**
+             * Optional description of the custom tool, used to provide more context
+             */
+            description?: string;
+            /**
+             * The input format for the custom tool. Default is unconstrained text.
+             */
+            format?: {
+                /**
+                 * Unconstrained text format. Always `text`
+                 */
+                type: 'text';
+            } | {
+                type: 'grammar';
+                /**
+                 * Your chosen grammar
+                 */
+                grammar: {
+                    /**
+                     * The grammar definition
+                     */
+                    definition: string;
+                    /**
+                     * The syntax of the grammar definition
+                     */
+                    syntax: 'lark' | 'regex';
+                };
+            };
+        };
+    }>;
+    /**
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1405
+     */
+    tool_choice?: 'none' | 'auto' | 'required' | {
+        type: 'allowed_tools';
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1455
+         */
+        allowed_tools: {
+            /**
+             *
+             * Constrains the tools available to the model to a pre-defined set.
+             *
+             * auto allows the model to pick from among the allowed tools and generate a
+             * message.
+             *
+             * required requires the model to call one or more of the allowed tools.
+             *
+             */
+            mode: 'auto' | 'required';
+            /**
+             * A list of tool definitions that the model should be allowed to call
+             */
+            tools: Array<{
+                [key: string]: {
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L174
+                     */
+                    function: {
+                        name: string;
+                        description?: string;
+                        /**
+                         *
+                         * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+                         *
+                         * The parameters the functions accepts, described as a JSON Schema object. See the
+                         * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+                         * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+                         * documentation about the format.
+                         *
+                         * Omitting parameters defines a function with an empty parameter list.
+                         *
+                         */
+                        parameters?: {
+                            [key: string]: unknown;
+                        };
+                        strict?: boolean | unknown;
+                    };
+                };
+            }>;
+        };
+    } | {
+        type: 'function';
+        function: {
+            name: string;
+        };
+    } | {
+        type: 'custom';
+        custom: {
+            /**
+             * The name of the custom tool, used to identify it in tool calls
+             */
+            name: string;
+            /**
+             * Optional description of the custom tool, used to provide more context
+             */
+            description?: string;
+            /**
+             * The input format for the custom tool. Default is unconstrained text.
+             */
+            format?: {
+                /**
+                 * Unconstrained text format. Always `text`
+                 */
+                type: 'text';
+            } | {
+                type: 'grammar';
+                /**
+                 * Your chosen grammar
+                 */
+                grammar: {
+                    /**
+                     * The grammar definition
+                     */
+                    definition: string;
+                    /**
+                     * The syntax of the grammar definition
+                     */
+                    syntax: 'lark' | 'regex';
+                };
+            };
+        };
+    };
+    temperature?: number | unknown;
+    max_tokens?: number | unknown;
+    stream?: boolean | unknown;
+};
+
+export type BedrockChatCompletionResponseInput = {
+    id: string;
+    choices: Array<{
+        finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+        index: number;
+        logprobs: unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+         */
+        message: {
+            content: string | unknown;
+            refusal?: string | unknown;
+            role: 'assistant';
+            annotations?: Array<unknown>;
+            audio?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+             */
+            function_call?: {
+                arguments: string;
+                name: string;
+            } | unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1197
+             */
+            tool_calls?: Array<{
+                id: string;
+                type: 'function';
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                 */
+                function: {
+                    arguments: string;
+                    name: string;
+                };
+            } | {
+                id: string;
+                type: 'custom';
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                 */
+                custom: {
+                    input: string;
+                    name: string;
+                };
+            }>;
+        };
+    }>;
+    created: number;
+    model: string;
+    object: 'chat.completion';
+    server_tier?: string;
+    system_fingerprint?: string | unknown;
+    /**
+     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+     */
+    usage?: {
+        completion_tokens: number;
+        prompt_tokens: number;
+        total_tokens: number;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+         */
+        completion_tokens_details?: unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+         */
+        prompt_tokens_details?: unknown;
+    };
+};
+
 export type WebSocketMessageInput = {
     type: string;
     payload: {
@@ -4851,6 +5210,365 @@ export type OllamaChatCompletionResponse = {
         prompt_tokens: number;
         total_tokens: number;
         completion_tokens_details?: unknown;
+        prompt_tokens_details?: unknown;
+    };
+};
+
+export type BedrockChatCompletionRequest = {
+    model: string;
+    /**
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1186
+     */
+    messages: Array<{
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        }>;
+        role: 'developer';
+        name?: string;
+    } | {
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        }>;
+        role: 'system';
+        name?: string;
+    } | {
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        } | {
+            type: 'image_url';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L765
+             */
+            image_url: {
+                url: string;
+                detail?: 'auto' | 'low' | 'high';
+            };
+        } | {
+            type: 'input_audio';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L792
+             */
+            input_audio: {
+                data: string;
+                format: 'wav' | 'mp3';
+            };
+        } | {
+            type: 'file';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L732
+             */
+            file: {
+                file_data?: string;
+                file_id?: string;
+                filename?: string;
+            };
+        }>;
+        role: 'user';
+        name?: string;
+    } | {
+        role: 'assistant';
+        audio?: {
+            id: string;
+        } | unknown;
+        content?: string | Array<{
+            type: 'text';
+            text: string;
+        }> | Array<{
+            type: 'refusal';
+            refusal: string;
+        }> | unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+         */
+        function_call?: {
+            arguments: string;
+            name: string;
+        } | unknown;
+        name?: string;
+        refusal?: string | unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1197
+         */
+        tool_calls?: Array<{
+            id: string;
+            type: 'function';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+             */
+            function: {
+                arguments: string;
+                name: string;
+            };
+        } | {
+            id: string;
+            type: 'custom';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+             */
+            custom: {
+                input: string;
+                name: string;
+            };
+        }>;
+    } | {
+        role: 'tool';
+        content: string | Array<{
+            type: 'text';
+            text: string;
+        } | {
+            type: 'image_url';
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L765
+             */
+            image_url: {
+                url: string;
+                detail?: 'auto' | 'low' | 'high';
+            };
+        }>;
+        tool_call_id: string;
+    } | {
+        role: 'function';
+        content: string | unknown;
+        name: string;
+    }>;
+    /**
+     *
+     * A function tool that can be used to generate a response.
+     *
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1392
+     *
+     */
+    tools?: Array<{
+        type: 'function';
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L174
+         */
+        function: {
+            name: string;
+            description?: string;
+            /**
+             *
+             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+             *
+             * The parameters the functions accepts, described as a JSON Schema object. See the
+             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+             * documentation about the format.
+             *
+             * Omitting parameters defines a function with an empty parameter list.
+             *
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            strict?: boolean | unknown;
+        };
+    } | {
+        type: 'custom';
+        custom: {
+            /**
+             * The name of the custom tool, used to identify it in tool calls
+             */
+            name: string;
+            /**
+             * Optional description of the custom tool, used to provide more context
+             */
+            description?: string;
+            /**
+             * The input format for the custom tool. Default is unconstrained text.
+             */
+            format?: {
+                /**
+                 * Unconstrained text format. Always `text`
+                 */
+                type: 'text';
+            } | {
+                type: 'grammar';
+                /**
+                 * Your chosen grammar
+                 */
+                grammar: {
+                    /**
+                     * The grammar definition
+                     */
+                    definition: string;
+                    /**
+                     * The syntax of the grammar definition
+                     */
+                    syntax: 'lark' | 'regex';
+                };
+            };
+        };
+    }>;
+    /**
+     * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1405
+     */
+    tool_choice?: 'none' | 'auto' | 'required' | {
+        type: 'allowed_tools';
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1455
+         */
+        allowed_tools: {
+            /**
+             *
+             * Constrains the tools available to the model to a pre-defined set.
+             *
+             * auto allows the model to pick from among the allowed tools and generate a
+             * message.
+             *
+             * required requires the model to call one or more of the allowed tools.
+             *
+             */
+            mode: 'auto' | 'required';
+            /**
+             * A list of tool definitions that the model should be allowed to call
+             */
+            tools: Array<{
+                [key: string]: {
+                    type: 'function';
+                    /**
+                     * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L174
+                     */
+                    function: {
+                        name: string;
+                        description?: string;
+                        /**
+                         *
+                         * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+                         *
+                         * The parameters the functions accepts, described as a JSON Schema object. See the
+                         * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+                         * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+                         * documentation about the format.
+                         *
+                         * Omitting parameters defines a function with an empty parameter list.
+                         *
+                         */
+                        parameters?: {
+                            [key: string]: unknown;
+                        };
+                        strict?: boolean | unknown;
+                    };
+                };
+            }>;
+        };
+    } | {
+        type: 'function';
+        function: {
+            name: string;
+        };
+    } | {
+        type: 'custom';
+        custom: {
+            /**
+             * The name of the custom tool, used to identify it in tool calls
+             */
+            name: string;
+            /**
+             * Optional description of the custom tool, used to provide more context
+             */
+            description?: string;
+            /**
+             * The input format for the custom tool. Default is unconstrained text.
+             */
+            format?: {
+                /**
+                 * Unconstrained text format. Always `text`
+                 */
+                type: 'text';
+            } | {
+                type: 'grammar';
+                /**
+                 * Your chosen grammar
+                 */
+                grammar: {
+                    /**
+                     * The grammar definition
+                     */
+                    definition: string;
+                    /**
+                     * The syntax of the grammar definition
+                     */
+                    syntax: 'lark' | 'regex';
+                };
+            };
+        };
+    };
+    temperature?: number | unknown;
+    max_tokens?: number | unknown;
+    stream?: boolean | unknown;
+};
+
+export type BedrockChatCompletionResponse = {
+    id: string;
+    choices: Array<{
+        finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | 'function_call';
+        index: number;
+        logprobs: unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1000
+         */
+        message: {
+            content: string | unknown;
+            refusal?: string | unknown;
+            role: 'assistant';
+            annotations?: Array<unknown>;
+            audio?: unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L431
+             */
+            function_call?: {
+                arguments: string;
+                name: string;
+            } | unknown;
+            /**
+             * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1197
+             */
+            tool_calls?: Array<{
+                id: string;
+                type: 'function';
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1165
+                 */
+                function: {
+                    arguments: string;
+                    name: string;
+                };
+            } | {
+                id: string;
+                type: 'custom';
+                /**
+                 * https://github.com/openai/openai-node/blob/v6.0.0/src/resources/chat/completions/completions.ts#L1128
+                 */
+                custom: {
+                    input: string;
+                    name: string;
+                };
+            }>;
+        };
+    }>;
+    created: number;
+    model: string;
+    object: 'chat.completion';
+    server_tier?: string;
+    system_fingerprint?: string | unknown;
+    /**
+     * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L113
+     */
+    usage?: {
+        completion_tokens: number;
+        prompt_tokens: number;
+        total_tokens: number;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L144
+         */
+        completion_tokens_details?: unknown;
+        /**
+         * https://github.com/openai/openai-node/blob/master/src/resources/completions.ts#L173
+         */
         prompt_tokens_details?: unknown;
     };
 };
@@ -8125,8 +8843,180 @@ export type BulkUpsertDefaultResultPolicyResponses = {
 
 export type BulkUpsertDefaultResultPolicyResponse = BulkUpsertDefaultResultPolicyResponses[keyof BulkUpsertDefaultResultPolicyResponses];
 
+export type BedrockChatCompletionsWithDefaultAgentData = {
+    body?: BedrockChatCompletionRequestInput;
+    headers: {
+        /**
+         * The user agent of the client
+         */
+        'user-agent'?: string;
+        /**
+         * Bearer token for OpenAI
+         */
+        authorization: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/bedrock/chat/completions';
+};
+
+export type BedrockChatCompletionsWithDefaultAgentErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type BedrockChatCompletionsWithDefaultAgentError = BedrockChatCompletionsWithDefaultAgentErrors[keyof BedrockChatCompletionsWithDefaultAgentErrors];
+
+export type BedrockChatCompletionsWithDefaultAgentResponses = {
+    /**
+     * Default Response
+     */
+    200: BedrockChatCompletionResponse;
+};
+
+export type BedrockChatCompletionsWithDefaultAgentResponse = BedrockChatCompletionsWithDefaultAgentResponses[keyof BedrockChatCompletionsWithDefaultAgentResponses];
+
+export type BedrockChatCompletionsWithAgentData = {
+    body?: BedrockChatCompletionRequestInput;
+    headers: {
+        /**
+         * The user agent of the client
+         */
+        'user-agent'?: string;
+        /**
+         * Bearer token for OpenAI
+         */
+        authorization: string;
+    };
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/v1/bedrock/{agentId}/chat/completions';
+};
+
+export type BedrockChatCompletionsWithAgentErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type BedrockChatCompletionsWithAgentError = BedrockChatCompletionsWithAgentErrors[keyof BedrockChatCompletionsWithAgentErrors];
+
+export type BedrockChatCompletionsWithAgentResponses = {
+    /**
+     * Default Response
+     */
+    200: BedrockChatCompletionResponse;
+};
+
+export type BedrockChatCompletionsWithAgentResponse = BedrockChatCompletionsWithAgentResponses[keyof BedrockChatCompletionsWithAgentResponses];
+
 export type CerebrasChatCompletionsWithDefaultAgentData = {
-    body?: CerebrasChatCompletionRequestInput;
+    body?: BedrockChatCompletionRequestInput;
     headers: {
         /**
          * The user agent of the client
@@ -8211,7 +9101,7 @@ export type CerebrasChatCompletionsWithDefaultAgentResponses = {
 export type CerebrasChatCompletionsWithDefaultAgentResponse = CerebrasChatCompletionsWithDefaultAgentResponses[keyof CerebrasChatCompletionsWithDefaultAgentResponses];
 
 export type CerebrasChatCompletionsWithAgentData = {
-    body?: CerebrasChatCompletionRequestInput;
+    body?: BedrockChatCompletionRequestInput;
     headers: {
         /**
          * The user agent of the client
@@ -8371,7 +9261,7 @@ export type GetChatApiKeysResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -8391,7 +9281,7 @@ export type GetChatApiKeysResponse = GetChatApiKeysResponses[keyof GetChatApiKey
 export type CreateChatApiKeyData = {
     body: {
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         apiKey?: string;
         scope?: 'personal' | 'team' | 'org_wide';
         teamId?: string;
@@ -8470,7 +9360,7 @@ export type CreateChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -8486,7 +9376,7 @@ export type GetAvailableChatApiKeysData = {
     body?: never;
     path?: never;
     query?: {
-        provider?: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
     };
     url: '/api/chat-api-keys/available';
 };
@@ -8558,7 +9448,7 @@ export type GetAvailableChatApiKeysResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -8730,7 +9620,7 @@ export type GetChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -8830,7 +9720,7 @@ export type UpdateChatApiKeyResponses = {
         id: string;
         organizationId: string;
         name: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         secretId: string | null;
         scope: 'personal' | 'team' | 'org_wide';
         userId: string | null;
@@ -8846,7 +9736,7 @@ export type GetChatModelsData = {
     body?: never;
     path?: never;
     query?: {
-        provider?: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider?: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
     };
     url: '/api/chat/models';
 };
@@ -8917,7 +9807,7 @@ export type GetChatModelsResponses = {
     200: Array<{
         id: string;
         displayName: string;
-        provider: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        provider: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         createdAt?: string;
     }>;
 };
@@ -9097,7 +9987,7 @@ export type CreateChatConversationData = {
         promptId?: string | null;
         title?: string | null;
         selectedModel?: string;
-        selectedProvider?: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         chatApiKeyId?: string | null;
     };
     path?: never;
@@ -9377,7 +10267,7 @@ export type UpdateChatConversationData = {
     body?: {
         title?: string | null;
         selectedModel?: string;
-        selectedProvider?: 'anthropic' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
+        selectedProvider?: 'anthropic' | 'bedrock' | 'cerebras' | 'gemini' | 'openai' | 'vllm' | 'ollama';
         chatApiKeyId?: string | null;
         agentId?: string;
         artifact?: string | null;
@@ -11625,9 +12515,9 @@ export type GetInteractionsResponses = {
             userId: string | null;
             sessionId: string | null;
             sessionSource: string | null;
-            request: CerebrasChatCompletionRequest;
-            processedRequest?: CerebrasChatCompletionRequest | null;
-            response: OpenAiChatCompletionResponse;
+            request: BedrockChatCompletionRequest;
+            processedRequest?: BedrockChatCompletionRequest | null;
+            response: BedrockChatCompletionResponse;
             type: 'openai:chatCompletions';
             model: string | null;
             inputTokens: number | null;
@@ -11691,8 +12581,8 @@ export type GetInteractionsResponses = {
             userId: string | null;
             sessionId: string | null;
             sessionSource: string | null;
-            request: CerebrasChatCompletionRequest;
-            processedRequest?: CerebrasChatCompletionRequest | null;
+            request: BedrockChatCompletionRequest;
+            processedRequest?: BedrockChatCompletionRequest | null;
             response: CerebrasChatCompletionResponse;
             type: 'cerebras:chatCompletions';
             model: string | null;
@@ -12121,9 +13011,9 @@ export type GetInteractionResponses = {
         userId: string | null;
         sessionId: string | null;
         sessionSource: string | null;
-        request: CerebrasChatCompletionRequest;
-        processedRequest?: CerebrasChatCompletionRequest | null;
-        response: OpenAiChatCompletionResponse;
+        request: BedrockChatCompletionRequest;
+        processedRequest?: BedrockChatCompletionRequest | null;
+        response: BedrockChatCompletionResponse;
         type: 'openai:chatCompletions';
         model: string | null;
         inputTokens: number | null;
@@ -12187,8 +13077,8 @@ export type GetInteractionResponses = {
         userId: string | null;
         sessionId: string | null;
         sessionSource: string | null;
-        request: CerebrasChatCompletionRequest;
-        processedRequest?: CerebrasChatCompletionRequest | null;
+        request: BedrockChatCompletionRequest;
+        processedRequest?: BedrockChatCompletionRequest | null;
         response: CerebrasChatCompletionResponse;
         type: 'cerebras:chatCompletions';
         model: string | null;
@@ -16579,7 +17469,7 @@ export type OllamaChatCompletionsWithAgentResponses = {
 export type OllamaChatCompletionsWithAgentResponse = OllamaChatCompletionsWithAgentResponses[keyof OllamaChatCompletionsWithAgentResponses];
 
 export type OpenAiChatCompletionsWithDefaultAgentData = {
-    body?: CerebrasChatCompletionRequestInput;
+    body?: BedrockChatCompletionRequestInput;
     headers: {
         /**
          * The user agent of the client
@@ -16658,13 +17548,13 @@ export type OpenAiChatCompletionsWithDefaultAgentResponses = {
     /**
      * Default Response
      */
-    200: OpenAiChatCompletionResponse;
+    200: BedrockChatCompletionResponse;
 };
 
 export type OpenAiChatCompletionsWithDefaultAgentResponse = OpenAiChatCompletionsWithDefaultAgentResponses[keyof OpenAiChatCompletionsWithDefaultAgentResponses];
 
 export type OpenAiChatCompletionsWithAgentData = {
-    body?: CerebrasChatCompletionRequestInput;
+    body?: BedrockChatCompletionRequestInput;
     headers: {
         /**
          * The user agent of the client
@@ -16745,7 +17635,7 @@ export type OpenAiChatCompletionsWithAgentResponses = {
     /**
      * Default Response
      */
-    200: OpenAiChatCompletionResponse;
+    200: BedrockChatCompletionResponse;
 };
 
 export type OpenAiChatCompletionsWithAgentResponse = OpenAiChatCompletionsWithAgentResponses[keyof OpenAiChatCompletionsWithAgentResponses];
@@ -16829,7 +17719,7 @@ export type GetOptimizationRulesResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         targetModel: string;
         enabled: boolean;
         createdAt: string;
@@ -16849,7 +17739,7 @@ export type CreateOptimizationRuleData = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         targetModel: string;
         enabled?: boolean;
         createdAt?: unknown;
@@ -16932,7 +17822,7 @@ export type CreateOptimizationRuleResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         targetModel: string;
         enabled: boolean;
         createdAt: string;
@@ -17031,7 +17921,7 @@ export type UpdateOptimizationRuleData = {
         } | {
             hasTools: boolean;
         }>;
-        provider?: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider?: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         targetModel?: string;
         enabled?: boolean;
         createdAt?: unknown;
@@ -17116,7 +18006,7 @@ export type UpdateOptimizationRuleResponses = {
         } | {
             hasTools: boolean;
         }>;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         targetModel: string;
         enabled: boolean;
         createdAt: string;
@@ -20862,7 +21752,7 @@ export type GetTokenPricesResponses = {
      */
     200: Array<{
         id: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model: string;
         pricePerMillionInput: string;
         pricePerMillionOutput: string;
@@ -20875,7 +21765,7 @@ export type GetTokenPricesResponse = GetTokenPricesResponses[keyof GetTokenPrice
 
 export type CreateTokenPriceData = {
     body: {
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model: string;
         pricePerMillionInput: string;
         pricePerMillionOutput: string;
@@ -20950,7 +21840,7 @@ export type CreateTokenPriceResponses = {
      */
     200: {
         id: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model: string;
         pricePerMillionInput: string;
         pricePerMillionOutput: string;
@@ -21114,7 +22004,7 @@ export type GetTokenPriceResponses = {
      */
     200: {
         id: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model: string;
         pricePerMillionInput: string;
         pricePerMillionOutput: string;
@@ -21127,7 +22017,7 @@ export type GetTokenPriceResponse = GetTokenPriceResponses[keyof GetTokenPriceRe
 
 export type UpdateTokenPriceData = {
     body?: {
-        provider?: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider?: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model?: string;
         pricePerMillionInput?: string;
         pricePerMillionOutput?: string;
@@ -21204,7 +22094,7 @@ export type UpdateTokenPriceResponses = {
      */
     200: {
         id: string;
-        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama';
+        provider: 'openai' | 'gemini' | 'anthropic' | 'cerebras' | 'vllm' | 'ollama' | 'bedrock';
         model: string;
         pricePerMillionInput: string;
         pricePerMillionOutput: string;

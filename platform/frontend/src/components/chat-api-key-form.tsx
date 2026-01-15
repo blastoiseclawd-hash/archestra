@@ -107,6 +107,14 @@ const PROVIDER_CONFIG: Record<
     consoleUrl: "https://ollama.ai/",
     consoleName: "Ollama",
   },
+  bedrock: {
+    name: "Amazon Bedrock",
+    icon: "/icons/bedrock.svg",
+    placeholder: "bedrock-api-key",
+    enabled: true,
+    consoleUrl: "https://console.aws.amazon.com/bedrock/",
+    consoleName: "AWS Console",
+  },
 } as const;
 
 export { PROVIDER_CONFIG };
