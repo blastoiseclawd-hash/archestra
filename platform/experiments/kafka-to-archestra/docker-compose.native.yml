@@ -1,0 +1,165 @@
+# Docker Compose for Native Kafka Connect HTTP Sink approach
+#
+# This uses Kafka Connect with the HTTP Sink Connector to route Kafka events
+# directly to Archestra without an additional bridge service.
+#
+# Usage:
+#   docker-compose -f docker-compose.native.yml up -d
+#   # Wait for services to be healthy, then deploy connector:
+#   ./scripts/deploy-connector.sh
+
+version: "3.8"
+
+services:
+  # ============================================
+  # Kafka Infrastructure
+  # ============================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: archestra-zookeeper-native
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: archestra-kafka-native
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Topic Initialization
+  # ============================================
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: archestra-kafka-init-native
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Creating Kafka topics...'
+      kafka-topics --create --if-not-exists --topic customer.events --partitions 3 --replication-factor 1 --bootstrap-server kafka:29092
+      kafka-topics --create --if-not-exists --topic orders.events --partitions 3 --replication-factor 1 --bootstrap-server kafka:29092
+      kafka-topics --create --if-not-exists --topic analytics.events --partitions 3 --replication-factor 1 --bootstrap-server kafka:29092
+      echo 'Topics created successfully!'
+      kafka-topics --list --bootstrap-server kafka:29092
+      "
+
+  # ============================================
+  # Kafka Connect with HTTP Sink
+  # ============================================
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.5.0
+    hostname: kafka-connect
+    container_name: archestra-kafka-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:29092
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: archestra-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: archestra-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_TOPIC: archestra-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: archestra-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      # Install HTTP Sink connector on startup
+      CONNECT_CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: All
+    volumes:
+      - connect-plugins:/usr/share/confluent-hub-components
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    command:
+      - bash
+      - -c
+      - |
+        echo "Installing HTTP Sink Connector..."
+        confluent-hub install --no-prompt confluentinc/kafka-connect-http:1.7.3
+        echo "Starting Kafka Connect..."
+        /etc/confluent/docker/run
+
+  # ============================================
+  # Kafka UI (Optional)
+  # ============================================
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: archestra-kafka-ui-native
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: archestra-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: archestra-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8083
+    profiles:
+      - debug
+
+volumes:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+  connect-plugins:
+
+networks:
+  default:
+    name: archestra-kafka-native-network

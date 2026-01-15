@@ -2,7 +2,7 @@
   {
     "name": "customer-support",
     "topic_pattern": "customer.events",
-    "prompt_id": "",
+    "prompt_id": "05ebccda-557c-409c-a6bd-ecd763f6018b",
     "header_match": null,
     "field_match": null,
     "transform_template": "New customer support request:\n\nCustomer ID: {customer_id}\nIssue Type: {issue_type}\nPriority: {priority}\n\nMessage:\n{message}\n\nPlease analyze this request and provide a helpful response."
@@ -10,7 +10,7 @@
   {
     "name": "order-processing",
     "topic_pattern": "orders.events",
-    "prompt_id": "",
+    "prompt_id": "e21ddfc4-b904-4ef7-9f73-0d2df9ae7f35",
     "header_match": null,
     "field_match": null,
     "transform_template": "Process the following order event:\n\nOrder ID: {order_id}\nEvent Type: {event_type}\nCustomer: {customer_email}\n\nOrder Details:\n{details}\n\nPlease analyze this order event and provide any necessary actions or recommendations."
@@ -18,7 +18,7 @@
   {
     "name": "analytics-insights",
     "topic_pattern": "analytics.events",
-    "prompt_id": "",
+    "prompt_id": "a00625a5-4b43-44c6-9dd6-e8991380d001",
     "header_match": null,
     "field_match": null,
     "transform_template": "Analyze the following analytics data:\n\nMetric: {metric_name}\nValue: {value}\nTimestamp: {timestamp}\nDimensions: {dimensions}\n\nPlease provide insights and recommendations based on this data."
