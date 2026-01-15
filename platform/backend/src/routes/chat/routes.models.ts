@@ -310,7 +310,11 @@ async function fetchBedrockModels(apiKey: string): Promise<ModelInfo[]> {
     }>;
   };
 
-  return data.data.map((model) => ({
+  const sorted = data.data.sort((a, b) => {
+    return a.id.localeCompare(b.id);
+  });
+
+  return sorted.map((model) => ({
     id: model.id,
     displayName: model.id,
     provider: "bedrock" as const,
