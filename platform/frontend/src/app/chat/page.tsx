@@ -1,7 +1,7 @@
 "use client";
 
 import type { UIMessage } from "@ai-sdk/react";
-import { Eye, EyeOff, FileText, Globe } from "lucide-react";
+import { Eye, EyeOff, Globe } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -954,7 +954,7 @@ export default function ChatPage() {
                     </>
                   )}
                 </Button>
-              </div>
+              )}
             </div>
           </div>
 

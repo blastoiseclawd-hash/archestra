@@ -59,7 +59,6 @@ interface AgentToolsDisplayProps {
   agentId: string;
   promptId: string | null;
   conversationId?: string;
-  addAgentsButton: ReactNode;
 }
 
 /**
@@ -71,7 +70,6 @@ export function AgentToolsDisplay({
   agentId,
   promptId,
   conversationId,
-  addAgentsButton,
 }: AgentToolsDisplayProps) {
   // Always fetch prompt tools - they exist regardless of conversation
   const { data: promptTools = [], isLoading } = usePromptTools(
@@ -190,16 +188,9 @@ export function AgentToolsDisplay({
   }
 
   return (
-<<<<<<< HEAD
     <div className="flex items-center gap-1">
       {agentToolsWithNames.map((tool) => {
         const isEnabled = isToolEnabled(tool.id);
-=======
-    <TooltipProvider>
-      <div className="flex flex-wrap items-center gap-2">
-        {agentToolsWithNames.map((tool) => {
-          const isEnabled = isToolEnabled(tool.id);
->>>>>>> main
 
         return (
           <HoverCard key={tool.id} openDelay={200} closeDelay={100}>
