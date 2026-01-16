@@ -709,7 +709,7 @@ class BedrockStreamAdapter
 
   getSSEHeaders(): Record<string, string> {
     return {
-      "Content-Type": "application/x-ndjson",
+      "Content-Type": "application/json",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "request-id": `req-proxy-${Date.now()}`,
