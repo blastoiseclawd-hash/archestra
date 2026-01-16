@@ -981,7 +981,10 @@ describe("BedrockStreamAdapter", () => {
       expect(result).toEqual(
         expect.objectContaining({
           isFinal: true,
-          error: { type: "internal_server_error", message: "Internal error occurred" },
+          error: {
+            type: "internal_server_error",
+            message: "Internal error occurred",
+          },
         }),
       );
     });

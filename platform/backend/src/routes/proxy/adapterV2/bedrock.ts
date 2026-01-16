@@ -664,7 +664,10 @@ class BedrockStreamAdapter
       if (metadata.trace) {
         this.bedrockState.trace = metadata.trace;
       }
-    } else if ("internalServerException" in chunk && chunk.internalServerException) {
+    } else if (
+      "internalServerException" in chunk &&
+      chunk.internalServerException
+    ) {
       // Internal server error from Bedrock
       const error = chunk.internalServerException;
       return {
@@ -676,7 +679,10 @@ class BedrockStreamAdapter
           message: error.message ?? "Internal server error",
         },
       };
-    } else if ("modelStreamErrorException" in chunk && chunk.modelStreamErrorException) {
+    } else if (
+      "modelStreamErrorException" in chunk &&
+      chunk.modelStreamErrorException
+    ) {
       // Model stream error
       const error = chunk.modelStreamErrorException;
       return {
@@ -688,7 +694,10 @@ class BedrockStreamAdapter
           message: error.message ?? "Model stream error",
         },
       };
-    } else if ("serviceUnavailableException" in chunk && chunk.serviceUnavailableException) {
+    } else if (
+      "serviceUnavailableException" in chunk &&
+      chunk.serviceUnavailableException
+    ) {
       // Service unavailable
       const error = chunk.serviceUnavailableException;
       return {

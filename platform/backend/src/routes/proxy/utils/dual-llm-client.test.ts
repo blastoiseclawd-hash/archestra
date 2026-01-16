@@ -2,6 +2,7 @@ import config from "@/config";
 import { describe, expect, test } from "@/test";
 import {
   AnthropicDualLlmClient,
+  BedrockDualLlmClient,
   createDualLlmClient,
   GeminiDualLlmClient,
   OpenAiDualLlmClient,
@@ -56,6 +57,30 @@ describe("dual-llm-client", () => {
       } finally {
         config.llm.gemini.vertexAi.enabled = originalEnabled;
       }
+    });
+
+    test("creates Bedrock client with model", () => {
+      const client = createDualLlmClient(
+        "bedrock",
+        "access:secret:session:us-east-1",
+        "amazon.titan-text-express-v1",
+      );
+      expect(client).toBeInstanceOf(BedrockDualLlmClient);
+    });
+
+    test("creates Bedrock client without credentials (uses default chain)", () => {
+      const client = createDualLlmClient(
+        "bedrock",
+        undefined,
+        "amazon.titan-text-express-v1",
+      );
+      expect(client).toBeInstanceOf(BedrockDualLlmClient);
+    });
+
+    test("throws error for Bedrock without model", () => {
+      expect(() => createDualLlmClient("bedrock", undefined)).toThrow(
+        "Model name required for Bedrock dual LLM",
+      );
     });
 
     test("throws error for unsupported provider", () => {

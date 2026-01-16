@@ -9,6 +9,7 @@ import { getTokenizer } from "@/tokenizers";
 import type {
   Agent,
   Anthropic,
+  Bedrock,
   Cerebras,
   Gemini,
   OpenAi,
@@ -18,6 +19,7 @@ import type {
 
 type ProviderMessages = {
   anthropic: Anthropic.Types.MessagesRequest["messages"];
+  bedrock: Bedrock.Types.Message[];
   cerebras: Cerebras.Types.ChatCompletionsRequest["messages"];
   gemini: Gemini.Types.GenerateContentRequest["contents"];
   openai: OpenAi.Types.ChatCompletionsRequest["messages"];

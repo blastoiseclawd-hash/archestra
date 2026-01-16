@@ -1,4 +1,4 @@
-import type { Anthropic, Gemini, Ollama, OpenAi, Vllm, Zhipuai } from "@/types";
+import type { Anthropic, Bedrock, Gemini, Ollama, OpenAi, Vllm, Zhipuai } from "@/types";
 
 export type ProviderMessage =
   | OpenAi.Types.ChatCompletionsRequest["messages"][number]
@@ -6,7 +6,8 @@ export type ProviderMessage =
   | Gemini.Types.GenerateContentRequest["contents"][number]
   | Vllm.Types.ChatCompletionsRequest["messages"][number]
   | Ollama.Types.ChatCompletionsRequest["messages"][number]
-  | Zhipuai.Types.ChatCompletionsRequest["messages"][number];
+  | Zhipuai.Types.ChatCompletionsRequest["messages"][number]
+  | Bedrock.Types.Message;
 
 /**
  * Base interface for tokenizers
@@ -54,9 +55,14 @@ export abstract class BaseTokenizer implements Tokenizer {
       }
 
       if (Array.isArray(message.content)) {
-        const text = message.content.reduce(
-          (acc: string, block: { type?: string; text?: string }) => {
-            if (block.type === "text" && typeof block.text === "string") {
+        const text = (message.content as { type?: string; text?: string }[]).reduce(
+          (acc, block) => {
+            if (!block || typeof block !== "object") {
+              return acc;
+            }
+            // Works for both Bedrock { text: "..." } and OpenAI/Anthropic { type: "text", text: "..." }
+            const isText = block.type === "text" || !("type" in block);
+            if (isText && typeof block.text === "string") {
               acc += block.text;
             }
             return acc;

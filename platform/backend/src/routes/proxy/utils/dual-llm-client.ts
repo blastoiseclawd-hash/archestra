@@ -1,4 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  BedrockRuntimeClient,
+  ConverseCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 import type { GoogleGenAI } from "@google/genai";
 import type { SupportedProvider } from "@shared";
 import OpenAI from "openai";
@@ -648,6 +652,165 @@ Return only the JSON object, no other text.`;
 }
 
 /**
+ * AWS Bedrock implementation of DualLlmClient
+ * Uses the Converse API for unified model access
+ */
+export class BedrockDualLlmClient implements DualLlmClient {
+  private client: BedrockRuntimeClient;
+  private model: string;
+
+  constructor(
+    credentials: {
+      accessKeyId?: string;
+      secretAccessKey?: string;
+      sessionToken?: string;
+      region?: string;
+    },
+    model: string,
+  ) {
+    logger.debug({ model }, "[dualLlmClient] Bedrock: initializing client");
+    const region =
+      credentials.region || config.llm.bedrock.region || "us-east-1";
+
+    // Build credentials object only if explicit credentials provided
+    const clientConfig: ConstructorParameters<typeof BedrockRuntimeClient>[0] =
+      {
+        region,
+      };
+
+    if (credentials.accessKeyId && credentials.secretAccessKey) {
+      clientConfig.credentials = {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+        sessionToken: credentials.sessionToken,
+      };
+    }
+    // Otherwise, SDK will use default credential chain (IAM role, env vars, etc.)
+
+    this.client = new BedrockRuntimeClient(clientConfig);
+    this.model = model;
+  }
+
+  async chat(messages: DualLlmMessage[], temperature = 0): Promise<string> {
+    logger.debug(
+      { model: this.model, messageCount: messages.length, temperature },
+      "[dualLlmClient] Bedrock: starting chat completion",
+    );
+
+    // Convert DualLlmMessage to Bedrock message format
+    const bedrockMessages = messages.map((msg) => ({
+      role: msg.role as "user" | "assistant",
+      content: [{ text: msg.content }],
+    }));
+
+    const command = new ConverseCommand({
+      modelId: this.model,
+      messages: bedrockMessages,
+      inferenceConfig: {
+        temperature,
+        maxTokens: 4096,
+      },
+    });
+
+    const response = await this.client.send(command);
+
+    // Extract text from response
+    const textBlock = response.output?.message?.content?.find(
+      (block) => "text" in block,
+    );
+    const content =
+      textBlock && "text" in textBlock ? (textBlock.text?.trim() ?? "") : "";
+
+    logger.debug(
+      { model: this.model, responseLength: content.length },
+      "[dualLlmClient] Bedrock: chat completion complete",
+    );
+    return content;
+  }
+
+  async chatWithSchema<T>(
+    messages: DualLlmMessage[],
+    schema: {
+      name: string;
+      schema: {
+        type: string;
+        properties: Record<string, unknown>;
+        required: string[];
+        additionalProperties: boolean;
+      };
+    },
+    temperature = 0,
+  ): Promise<T> {
+    logger.debug(
+      {
+        model: this.model,
+        schemaName: schema.name,
+        messageCount: messages.length,
+        temperature,
+      },
+      "[dualLlmClient] Bedrock: starting chat with schema",
+    );
+
+    // Bedrock doesn't have native structured output
+    // Use prompt-based approach similar to Anthropic
+    const systemPrompt = `You must respond with valid JSON matching this schema:
+${JSON.stringify(schema.schema, null, 2)}
+
+Return only the JSON object, no other text.`;
+
+    // Prepend the schema instruction to the first user message
+    const enhancedMessages: DualLlmMessage[] = messages.map((msg, idx) => {
+      if (idx === 0 && msg.role === "user") {
+        return {
+          ...msg,
+          content: `${systemPrompt}\n\n${msg.content}`,
+        };
+      }
+      return msg;
+    });
+
+    // Convert to Bedrock format
+    const bedrockMessages = enhancedMessages.map((msg) => ({
+      role: msg.role as "user" | "assistant",
+      content: [{ text: msg.content }],
+    }));
+
+    const command = new ConverseCommand({
+      modelId: this.model,
+      messages: bedrockMessages,
+      inferenceConfig: {
+        temperature,
+        maxTokens: 4096,
+      },
+    });
+
+    const response = await this.client.send(command);
+
+    // Extract text from response
+    const textBlock = response.output?.message?.content?.find(
+      (block) => "text" in block,
+    );
+    const content =
+      textBlock && "text" in textBlock ? (textBlock.text?.trim() ?? "") : "";
+
+    logger.debug(
+      { model: this.model, responseLength: content.length },
+      "[dualLlmClient] Bedrock: chat with schema complete, parsing response",
+    );
+
+    // Parse JSON response
+    // Try to extract JSON from markdown code blocks if present
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || [
+      null,
+      content,
+    ];
+    const jsonText = jsonMatch[1].trim();
+
+    return JSON.parse(jsonText) as T;
+  }
+}
+
+/**
  * Zhipuai implementation of DualLlmClient
  * Zhipuai exposes an OpenAI-compatible API, so we use the OpenAI SDK with Zhipuai's base URL
  */
@@ -830,6 +993,20 @@ export function createDualLlmClient(
         throw new Error("API key required for Zhipuai dual LLM");
       }
       return new ZhipuaiDualLlmClient(apiKey, model);
+    case "bedrock": {
+      if (!model) {
+        throw new Error("Model name required for Bedrock dual LLM");
+      }
+      // Bedrock uses AWS credentials format: accessKeyId:secretAccessKey:sessionToken:region
+      const parts = apiKey?.split(":") ?? [];
+      const credentials = {
+        accessKeyId: parts[0] || undefined,
+        secretAccessKey: parts[1] || undefined,
+        sessionToken: parts[2] || undefined,
+        region: parts[3] || undefined,
+      };
+      return new BedrockDualLlmClient(credentials, model);
+    }
     default:
       logger.debug(
         { provider },

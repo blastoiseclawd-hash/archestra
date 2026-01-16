@@ -372,8 +372,11 @@ export default {
     },
     bedrock: {
       enabled:
-        Boolean(process.env.ARCHESTRA_BEDROCK_ACCESS_KEY_ID) ||
-        Boolean(process.env.AWS_ACCESS_KEY_ID),
+        (Boolean(process.env.ARCHESTRA_BEDROCK_ACCESS_KEY_ID) ||
+          Boolean(process.env.AWS_ACCESS_KEY_ID))
+        && (Boolean(process.env.ARCHESTRA_CHAT_BEDROCK_SECRET_ACCESS_KEY) ||
+          Boolean(process.env.ARCHESTRA_BEDROCK_SECRET_ACCESS_KEY)) && (Boolean(process.env.ARCHESTRA_CHAT_BEDROCK_REGION) ||
+          Boolean(process.env.ARCHESTRA_BEDROCK_REGION)),
       region: process.env.ARCHESTRA_BEDROCK_REGION || "us-east-1",
       useV2Routes: process.env.ARCHESTRA_BEDROCK_USE_V2_ROUTES !== "false",
     },

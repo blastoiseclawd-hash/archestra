@@ -14,11 +14,12 @@ export function getTokenizer(provider: SupportedProvider): Tokenizer {
   switch (provider) {
     case "anthropic":
       return new AnthropicTokenizer();
+    case "bedrock":
     case "cerebras":
     case "openai":
     case "vllm":
     case "ollama":
-      // vLLM and Ollama use tiktoken-compatible tokenization for most models
+      // Bedrock, vLLM and Ollama use tiktoken-compatible tokenization for most models
       return new TiktokenTokenizer();
     case "zhipuai":
       return new TiktokenTokenizer();
