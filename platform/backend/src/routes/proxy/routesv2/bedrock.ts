@@ -67,26 +67,24 @@ const bedrockProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
 
   logger.info("[UnifiedProxy] Registering unified Amazon Bedrock routes");
 
-  // =========================================================================
-  // Routes with agent ID - Used by AI SDK for Chat and external clients
-  // =========================================================================
-
   /**
    * Bedrock Converse API with agent and model ID in path
    * POST /v1/bedrock/:agentId/model/:modelId/converse
+   * POST /v1/bedrock/:agentId/model/:modelId/converse-stream
    */
   fastify.post(
-    `${BEDROCK_PREFIX}/:agentId/model/:modelId/converse`,
+    `${BEDROCK_PREFIX}/:agentId/model/:modelId/:action(converse|converse-stream)`,
     {
       bodyLimit: PROXY_BODY_LIMIT,
       schema: {
-        operationId: `${RouteId.BedrockConverseWithAgent}_model`,
+        operationId: RouteId.BedrockConverseWithAgent,
         description:
           "Send a message to Amazon Bedrock with agent and model ID in path",
         tags: ["llm-proxy"],
         params: z.object({
           agentId: UuidIdSchema,
           modelId: z.string(),
+          action: z.enum(["converse", "converse-stream"]),
         }),
         body: Bedrock.API.ConverseRequestSchema.omit({ modelId: true }),
         headers: Bedrock.API.ConverseHeadersSchema,
@@ -100,60 +98,26 @@ const bedrockProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
         body: request.body as Bedrock.Types.ConverseRequest,
         agentId: request.params.agentId,
         modelId: decodeURIComponent(request.params.modelId),
+        streaming: request.params.action === "converse-stream",
       }),
   );
-
-  /**
-   * Bedrock Converse Stream API with agent and model ID in path
-   * POST /v1/bedrock/:agentId/model/:modelId/converse-stream
-   */
-  fastify.post(
-    `${BEDROCK_PREFIX}/:agentId/model/:modelId/converse-stream`,
-    {
-      bodyLimit: PROXY_BODY_LIMIT,
-      schema: {
-        operationId: `${RouteId.BedrockConverseWithAgent}_model_stream`,
-        description:
-          "Stream a message to Amazon Bedrock with agent and model ID in path",
-        tags: ["llm-proxy"],
-        params: z.object({
-          agentId: UuidIdSchema,
-          modelId: z.string(),
-        }),
-        body: Bedrock.API.ConverseRequestSchema.omit({ modelId: true }),
-        headers: Bedrock.API.ConverseHeadersSchema,
-        response: constructResponseSchema(Bedrock.API.ConverseResponseSchema),
-      },
-    },
-    (request, reply) =>
-      handleBedrockRequest({
-        request,
-        reply,
-        body: request.body as Bedrock.Types.ConverseRequest,
-        agentId: request.params.agentId,
-        modelId: decodeURIComponent(request.params.modelId),
-        streaming: true,
-      }),
-  );
-
-  // =========================================================================
-  // Routes without agent ID - Default agent, model in path
-  // =========================================================================
 
   /**
    * Bedrock Converse API with model ID in path (default agent)
    * POST /v1/bedrock/model/:modelId/converse
+   * POST /v1/bedrock/model/:modelId/converse-stream
    */
   fastify.post(
-    `${BEDROCK_PREFIX}/model/:modelId/converse`,
+    `${BEDROCK_PREFIX}/model/:modelId/:action(converse|converse-stream)`,
     {
       bodyLimit: PROXY_BODY_LIMIT,
       schema: {
-        operationId: `${RouteId.BedrockConverseWithDefaultAgent}_model`,
+        operationId: RouteId.BedrockConverseWithDefaultAgent,
         description: "Send a message to Amazon Bedrock with model ID in path",
         tags: ["llm-proxy"],
         params: z.object({
           modelId: z.string(),
+          action: z.enum(["converse", "converse-stream"]),
         }),
         body: Bedrock.API.ConverseRequestSchema.omit({ modelId: true }),
         headers: Bedrock.API.ConverseHeadersSchema,
@@ -166,6 +130,7 @@ const bedrockProxyRoutesV2: FastifyPluginAsyncZod = async (fastify) => {
         reply,
         body: request.body as Bedrock.Types.ConverseRequest,
         modelId: decodeURIComponent(request.params.modelId),
+        streaming: request.params.action === "converse-stream",
       }),
   );
 };
