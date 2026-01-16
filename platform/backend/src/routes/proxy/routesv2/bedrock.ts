@@ -32,9 +32,6 @@ async function handleBedrockRequest(params: {
       streaming,
       headers: {
         ...headers,
-        "x-amz-access-key-id": headers["x-amz-access-key-id"]
-          ? "***"
-          : undefined,
         "x-amz-secret-access-key": headers["x-amz-secret-access-key"]
           ? "***"
           : undefined,
