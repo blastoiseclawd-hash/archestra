@@ -1,3 +1,4 @@
+import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -126,6 +127,16 @@ export async function resolveProviderApiKey(params: {
     } else if (provider === "zhipuai" && config.chat.zhipuai.apiKey) {
       providerApiKey = config.chat.zhipuai.apiKey;
       apiKeySource = "environment";
+    } else if (provider === "bedrock") {
+      // Bedrock uses AWS credentials format: accessKeyId:secretAccessKey:sessionToken:region
+      const accessKeyId = config.chat.bedrock.accessKeyId;
+      const secretAccessKey = config.chat.bedrock.secretAccessKey;
+      const sessionToken = config.chat.bedrock.sessionToken;
+      const region = config.chat.bedrock.region;
+      if (accessKeyId && secretAccessKey) {
+        providerApiKey = `${accessKeyId}:${secretAccessKey}:${sessionToken || ""}:${region || ""}`;
+        apiKeySource = "environment";
+      }
     }
   }
 
@@ -144,7 +155,9 @@ export function isApiKeyRequired(
   // vLLM and Ollama typically don't require API keys (use "EMPTY" or dummy values)
   const isVllm = provider === "vllm";
   const isOllama = provider === "ollama";
-  return !apiKey && !isGeminiWithVertexAi && !isVllm && !isOllama;
+  // Bedrock may use default AWS credential chain if no explicit credentials
+  const isBedrock = provider === "bedrock" && config.llm.bedrock.enabled;
+  return !apiKey && !isGeminiWithVertexAi && !isVllm && !isOllama && !isBedrock;
 }
 
 /**
@@ -263,6 +276,25 @@ export function createLLMModel(params: {
     return client.chat(modelName);
   }
 
+  if (provider === "bedrock") {
+    // Bedrock uses AWS credentials format: accessKeyId:secretAccessKey:sessionToken:region
+    // Parse credentials from the apiKey string
+    const parts = apiKey?.split(":") ?? [];
+    const accessKeyId = parts[0] || undefined;
+    const secretAccessKey = parts[1] || undefined;
+    const sessionToken = parts[2] || undefined;
+    const region = parts[3] || config.chat.bedrock.region || "us-east-1";
+
+    const client = createAmazonBedrock({
+      region,
+      accessKeyId,
+      secretAccessKey,
+      sessionToken,
+      headers,
+    });
+    return client(modelName);
+  }
+
   throw new Error(`Unsupported provider: ${provider}`);
 }
 
@@ -308,13 +340,22 @@ export async function createLLMModelForAgent(params: {
   // vLLM and Ollama typically don't require API keys
   const isVllm = provider === "vllm";
   const isOllama = provider === "ollama";
+  // Bedrock may use default AWS credential chain if no explicit credentials
+  const isBedrock = provider === "bedrock" && config.llm.bedrock.enabled;
 
   logger.info(
-    { apiKeySource: source, provider, isGeminiWithVertexAi, isVllm, isOllama },
+    {
+      apiKeySource: source,
+      provider,
+      isGeminiWithVertexAi,
+      isVllm,
+      isOllama,
+      isBedrock,
+    },
     "Using LLM provider API key",
   );
 
-  if (!apiKey && !isGeminiWithVertexAi && !isVllm && !isOllama) {
+  if (!apiKey && !isGeminiWithVertexAi && !isVllm && !isOllama && !isBedrock) {
     throw new ApiError(
       400,
       "LLM Provider API key not configured. Please configure it in Chat Settings.",

@@ -89,6 +89,11 @@ async function getSmartDefaultModel(
             return { model: "gemini-2.5-pro", provider: "gemini" };
           case "openai":
             return { model: "gpt-4o", provider: "openai" };
+          case "bedrock":
+            return {
+              model: "anthropic.claude-3-5-sonnet",
+              provider: "bedrock",
+            };
         }
       }
     }
@@ -104,6 +109,15 @@ async function getSmartDefaultModel(
   if (config.chat.gemini.apiKey) {
     return { model: "gemini-2.5-pro", provider: "gemini" };
   }
+  if (
+    config.chat.bedrock.accessKeyId &&
+    config.chat.bedrock.secretAccessKey
+  ) {
+    return {
+      model: "anthropic.claude-3-5-sonnet",
+      provider: "bedrock",
+    };
+  }
 
   // Check if Vertex AI is enabled - use Gemini without API key
   if (isVertexAiEnabled()) {
@@ -111,6 +125,17 @@ async function getSmartDefaultModel(
       "getSmartDefaultModel:Vertex AI is enabled, using gemini-2.5-pro",
     );
     return { model: "gemini-2.5-pro", provider: "gemini" };
+  }
+
+  // Check if Bedrock is enabled (may use default AWS credential chain)
+  if (config.llm.bedrock.enabled) {
+    logger.info(
+      "getSmartDefaultModel: Bedrock is enabled, using claude-3-5-sonnet",
+    );
+    return {
+      model: "anthropic.claude-3-5-sonnet",
+      provider: "bedrock",
+    };
   }
 
   // Ultimate fallback - use configured defaults

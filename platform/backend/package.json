@@ -29,6 +29,7 @@
     "sentry:sourcemaps": "if [ -n \"$SENTRY_AUTH_TOKEN\" ]; then sentry-cli sourcemaps inject --org archestra --project archestra-platform-backend ./dist && sentry-cli sourcemaps upload --org archestra --project archestra-platform-backend --release \"${VERSION:-dev}\" ./dist; else echo 'Skipping Sentry source map upload (SENTRY_AUTH_TOKEN not set)'; fi"
   },
   "dependencies": {
+    "@ai-sdk/amazon-bedrock": "^4.0.17",
     "@ai-sdk/anthropic": "^3.0.9",
     "@ai-sdk/cerebras": "^2.0.5",
     "@ai-sdk/google": "^3.0.6",

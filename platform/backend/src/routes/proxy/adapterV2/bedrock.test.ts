@@ -1,6 +1,7 @@
+// biome-ignore-all lint/suspicious/noExplicitAny: AWS SDK stream event types require any casts in tests
 import { describe, expect, test, vi } from "@/test";
 import type { Bedrock } from "@/types";
-import { bedrockAdapterFactory, getCommandInput } from "./bedrock";
+import { bedrockAdapterFactory } from "./bedrock";
 
 // =============================================================================
 // MOCK BEDROCK CLIENT
@@ -33,7 +34,9 @@ function createMockBedrockClient(options: {
       if (commandName === "ConverseStreamCommand") {
         const events = options.streamEvents ?? [
           { messageStart: { role: "assistant" } },
-          { contentBlockDelta: { contentBlockIndex: 0, delta: { text: "Hi" } } },
+          {
+            contentBlockDelta: { contentBlockIndex: 0, delta: { text: "Hi" } },
+          },
           { messageStop: { stopReason: "end_turn" } },
           { metadata: { usage: { inputTokens: 10, outputTokens: 5 } } },
         ];
@@ -64,7 +67,9 @@ function createMockRequest(
 }
 
 function createMockResponse(
-  content: Bedrock.Types.ConverseResponse["output"]["message"]["content"],
+  content: NonNullable<
+    Bedrock.Types.ConverseResponse["output"]["message"]
+  >["content"],
   options?: Partial<Bedrock.Types.ConverseResponse>,
 ): Bedrock.Types.ConverseResponse {
   return {
@@ -619,6 +624,7 @@ describe("BedrockResponseAdapter", () => {
           toolUse: {
             toolUseId: "call_123",
             name: "no_args_tool",
+            input: {},
           },
         },
       ]);
@@ -772,7 +778,6 @@ describe("BedrockResponseAdapter", () => {
   });
 });
 
-
 describe("BedrockStreamAdapter", () => {
   describe("processChunk", () => {
     test("processes messageStart event", () => {
@@ -793,7 +798,7 @@ describe("BedrockStreamAdapter", () => {
           contentBlockIndex: 0,
           start: { text: "" },
         },
-      });
+      } as any);
 
       expect(result.sseData).toContain("content_block_start");
       expect(result.sseData).toContain('"type":"text"');
@@ -919,11 +924,11 @@ describe("BedrockStreamAdapter", () => {
 
     test("processes metadata event with usage", () => {
       const adapter = bedrockAdapterFactory.createStreamAdapter();
-      const result = adapter.processChunk({
+      adapter.processChunk({
         metadata: {
-          usage: { inputTokens: 100, outputTokens: 50 },
+          usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
         },
-      });
+      } as any);
 
       expect(adapter.state.usage).toEqual({
         inputTokens: 100,
@@ -946,17 +951,19 @@ describe("BedrockStreamAdapter", () => {
       const adapter = bedrockAdapterFactory.createStreamAdapter();
 
       // Simulate streaming chunks
-      adapter.processChunk({ messageStart: { role: "assistant" } });
+      adapter.processChunk({ messageStart: { role: "assistant" } } as any);
       adapter.processChunk({
         contentBlockDelta: {
           contentBlockIndex: 0,
           delta: { text: "Hello!" },
         },
-      });
+      } as any);
       adapter.processChunk({
-        metadata: { usage: { inputTokens: 10, outputTokens: 5 } },
-      });
-      adapter.processChunk({ messageStop: { stopReason: "end_turn" } });
+        metadata: {
+          usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+        },
+      } as any);
+      adapter.processChunk({ messageStop: { stopReason: "end_turn" } } as any);
 
       const response = adapter.toProviderResponse();
 
@@ -977,14 +984,14 @@ describe("BedrockStreamAdapter", () => {
             toolUse: { toolUseId: "call_123", name: "get_weather" },
           },
         },
-      });
+      } as any);
       adapter.processChunk({
         contentBlockDelta: {
           contentBlockIndex: 0,
           delta: { toolUse: { input: '{"location":"NYC"}' } },
         },
-      });
-      adapter.processChunk({ messageStop: { stopReason: "tool_use" } });
+      } as any);
+      adapter.processChunk({ messageStop: { stopReason: "tool_use" } } as any);
 
       const response = adapter.toProviderResponse();
 
@@ -1005,13 +1012,13 @@ describe("BedrockStreamAdapter", () => {
           contentBlockIndex: 0,
           start: { toolUse: { toolUseId: "call_123", name: "tool" } },
         },
-      });
+      } as any);
       adapter.processChunk({
         contentBlockDelta: {
           contentBlockIndex: 0,
           delta: { toolUse: { input: "invalid json{" } },
         },
-      });
+      } as any);
 
       const response = adapter.toProviderResponse();
       const toolUseContent = response.output?.message?.content?.find(
@@ -1033,13 +1040,13 @@ describe("BedrockStreamAdapter", () => {
             toolUse: { toolUseId: "call_123", name: "get_weather" },
           },
         },
-      });
+      } as any);
       adapter.processChunk({
         contentBlockDelta: {
           contentBlockIndex: 0,
           delta: { toolUse: { input: '{"loc":"NYC"}' } },
         },
-      });
+      } as any);
 
       const events = adapter.getRawToolCallEvents();
 
@@ -1055,9 +1062,11 @@ describe("BedrockStreamAdapter", () => {
       const adapter = bedrockAdapterFactory.createStreamAdapter();
 
       adapter.processChunk({
-        metadata: { usage: { inputTokens: 100, outputTokens: 50 } },
-      });
-      adapter.processChunk({ messageStop: { stopReason: "end_turn" } });
+        metadata: {
+          usage: { inputTokens: 100, outputTokens: 50, totalTokens: 150 },
+        },
+      } as any);
+      adapter.processChunk({ messageStop: { stopReason: "end_turn" } } as any);
 
       const endSSE = adapter.formatEndSSE();
 
@@ -1067,7 +1076,6 @@ describe("BedrockStreamAdapter", () => {
     });
   });
 });
-
 
 describe("bedrockAdapterFactory", () => {
   describe("extractApiKey", () => {
@@ -1117,7 +1125,6 @@ describe("bedrockAdapterFactory", () => {
   });
 });
 
-
 describe("bedrockAdapterFactory.execute", () => {
   test("sends request and returns formatted response", async () => {
     const client = createMockBedrockClient({
@@ -1157,14 +1164,23 @@ describe("bedrockAdapterFactory.execute", () => {
   });
 });
 
-
 describe("bedrockAdapterFactory.executeStream", () => {
   test("returns async iterable that yields stream events", async () => {
     const client = createMockBedrockClient({
       streamEvents: [
         { messageStart: { role: "assistant" } },
-        { contentBlockDelta: { contentBlockIndex: 0, delta: { text: "Hello " } } },
-        { contentBlockDelta: { contentBlockIndex: 0, delta: { text: "world!" } } },
+        {
+          contentBlockDelta: {
+            contentBlockIndex: 0,
+            delta: { text: "Hello " },
+          },
+        },
+        {
+          contentBlockDelta: {
+            contentBlockIndex: 0,
+            delta: { text: "world!" },
+          },
+        },
         { messageStop: { stopReason: "end_turn" } },
       ],
     });
@@ -1174,10 +1190,10 @@ describe("bedrockAdapterFactory.executeStream", () => {
     ]);
 
     const stream = await bedrockAdapterFactory.executeStream(client, request);
-    const events: Array<Record<string, unknown>> = [];
+    const events: unknown[] = [];
 
     for await (const event of stream) {
-      events.push(event as Record<string, unknown>);
+      events.push(event);
     }
 
     expect(events).toEqual([
