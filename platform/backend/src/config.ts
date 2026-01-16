@@ -350,6 +350,10 @@ export default {
           process.env.ARCHESTRA_GEMINI_VERTEX_AI_CREDENTIALS_FILE || "",
       },
     },
+    cohere: {
+      baseUrl: process.env.ARCHESTRA_COHERE_BASE_URL || "https://api.cohere.ai",
+      useV2Routes: process.env.ARCHESTRA_COHERE_USE_V2_ROUTES !== "false",
+    },
     cerebras: {
       baseUrl:
         process.env.ARCHESTRA_CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1",
@@ -392,6 +396,11 @@ export default {
     },
     ollama: {
       apiKey: process.env.ARCHESTRA_CHAT_OLLAMA_API_KEY || "",
+    },
+    cohere: {
+      apiKey: process.env.ARCHESTRA_CHAT_COHERE_API_KEY || "",
+      baseUrl:
+        process.env.ARCHESTRA_CHAT_COHERE_BASE_URL || "https://api.cohere.ai",
     },
     zhipuai: {
       apiKey: process.env.ARCHESTRA_CHAT_ZHIPUAI_API_KEY || "",

@@ -146,6 +146,9 @@ export const RouteId = {
   AnthropicMessagesWithDefaultAgent: "anthropicMessagesWithDefaultAgent",
   AnthropicMessagesWithAgent: "anthropicMessagesWithAgent",
 
+  // Proxy Routes - Cohere
+  CohereChatWithDefaultAgent: "cohereChatWithDefaultAgent",
+  CohereChatWithAgent: "cohereChatWithAgent",
   // Proxy Routes - Cerebras
   CerebrasChatCompletionsWithDefaultAgent:
     "cerebrasChatCompletionsWithDefaultAgent",
