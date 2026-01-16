@@ -49,6 +49,15 @@ function sortModelsByPrice(tokenPrices: TokenPrices): TokenPrices {
   });
 }
 
+const providerDictionary: Record<SupportedProvider, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  gemini: "Gemini",
+  cohere: "Cohere",
+  vllm: "vLLM",
+  ollama: "Ollama",
+};
+
 // Helper to get entity display name
 function getEntityName(
   entityType: EntityType,
@@ -83,7 +92,7 @@ export function ProviderSelect({
 
   return (
     <Select value={provider} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="!h-7">
+      <SelectTrigger size="sm" className="h-7!">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -200,7 +209,7 @@ function ModelSelect({
     <Select value={model || undefined} onValueChange={onChange}>
       <SelectTrigger
         size="sm"
-        className="max-w-36 bg-green-100 border-green-200 !h-7"
+        className="max-w-36 bg-green-100 border-green-200 h-7!"
       >
         <SelectValue placeholder="Select target model" />
       </SelectTrigger>
@@ -259,7 +268,7 @@ function EntitySelect({
           }
         }}
       >
-        <SelectTrigger size="sm" className="!h-7">
+        <SelectTrigger size="sm" className="h-7!">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -272,7 +281,7 @@ function EntitySelect({
           value={entityId || undefined}
           onValueChange={(value) => onChange(entityType, value)}
         >
-          <SelectTrigger size="sm" className="!h-7">
+          <SelectTrigger size="sm" className="h-7!">
             <SelectValue placeholder="Select team" />
           </SelectTrigger>
           <SelectContent>
@@ -323,7 +332,12 @@ type RuleProps = Omit<OptimizationRule, "createdAt" | "updatedAt"> & {
   teams?: Team[];
   editable?: boolean;
   onChange?: (
-    data: Omit<OptimizationRule, "id" | "createdAt" | "updatedAt">,
+    data: Omit<
+      OptimizationRule,
+      "id" | "createdAt" | "updatedAt" | "provider"
+    > & {
+      provider: SupportedProvider;
+    },
   ) => void;
   onToggle?: (enabled: boolean) => void;
   switchDisabled?: boolean;
