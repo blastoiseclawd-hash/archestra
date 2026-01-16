@@ -1,0 +1,27 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "c1188e83-4de1-4a82-8ee9-2127e34e0980",
+  "packageName": "com.archestra.bot",
+  "developer": {
+    "name": "Your Company",
+    "websiteUrl": "https://archestra.ai",
+    "privacyUrl": "https://archestra.ai/privacy",
+    "termsOfUseUrl": "https://archestra.ai/terms"
+  },
+  "name": { "short": "Archestra", "full": "Archestra Bot" },
+  "description": { "short": "Ask Archestra", "full": "Chat with Archestra A2A agent" },
+  "icons": { "outline": "outline.png", "color": "color.png" },
+  "accentColor": "#FFFFFF",
+  "bots": [
+    {
+      "botId": "c1188e83-4de1-4a82-8ee9-2127e34e0980",
+      "scopes": ["personal", "team", "groupchat"],
+      "supportsFiles": false,
+      "isNotificationOnly": false
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": []
+}
