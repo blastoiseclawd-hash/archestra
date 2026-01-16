@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { useFeatureFlag } from "@/lib/features.hook";
 import { useTeams } from "@/lib/team.query";
+import { WithPermissions } from "./roles/with-permissions";
 
 const ExternalSecretSelector = lazy(
   () =>
@@ -29,15 +30,7 @@ const InlineVaultSecretSelector = lazy(
     // biome-ignore lint/style/noRestrictedImports: lazy loading
     import("@/components/inline-vault-secret-selector.ee"),
 );
-const WithPermissions = lazy(() =>
-  // biome-ignore lint/style/noRestrictedImports: dynamic import
-  import("@/components/roles/with-permissions").then((mod) => ({
-    default: mod.WithPermissions,
-  })),
-);
 
-
-// Reuse types from generated API types
 type CreateChatApiKeyBody = archestraApiTypes.CreateChatApiKeyData["body"];
 
 // Form values type - combines create/update fields
@@ -56,7 +49,7 @@ export type ChatApiKeyResponse =
   archestraApiTypes.GetChatApiKeysResponses["200"][number];
 
 const PROVIDER_CONFIG: Record<
-  string,
+  CreateChatApiKeyBody["provider"],
   {
     name: string;
     icon: string;
@@ -90,13 +83,13 @@ const PROVIDER_CONFIG: Record<
     consoleUrl: "https://aistudio.google.com/app/apikey",
     consoleName: "Google AI Studio",
   },
-  cohere: {
-    name: "Cohere",
-    icon: "/icons/cohere.png",
-    placeholder: "...",
+  cerebras: {
+    name: "Cerebras",
+    icon: "/icons/cerebras.png",
+    placeholder: "csk-...",
     enabled: true,
-    consoleUrl: "https://dashboard.cohere.com/api-keys",
-    consoleName: "Cohere Dashboard",
+    consoleUrl: "https://cloud.cerebras.ai/platform",
+    consoleName: "Cerebras Cloud",
   },
   vllm: {
     name: "vLLM",
@@ -113,6 +106,14 @@ const PROVIDER_CONFIG: Record<
     enabled: true,
     consoleUrl: "https://ollama.ai/",
     consoleName: "Ollama",
+  },
+  zhipuai: {
+    name: "Zhipu AI",
+    icon: "/icons/zhipuai.png",
+    placeholder: "...",
+    enabled: true,
+    consoleUrl: "https://z.ai/model-api",
+    consoleName: "Zhipu AI Platform",
   },
 } as const;
 
@@ -405,16 +406,20 @@ export function ChatApiKeyForm({
                   )}
                 </div>
               </SelectItem>
-
-              <SelectItem value="org_wide" disabled={disabledScopes.org_wide}>
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span>
-                    Whole Organization{" "}
-                    {disabledScopes.org_wide ? " (already exists)" : ""}
-                  </span>
-                </div>
-              </SelectItem>
+              <WithPermissions
+                permissions={{ team: ["admin"] }}
+                noPermissionHandle="hide"
+              >
+                <SelectItem value="org_wide" disabled={disabledScopes.org_wide}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    <span>
+                      Whole Organization{" "}
+                      {disabledScopes.org_wide ? " (already exists)" : ""}
+                    </span>
+                  </div>
+                </SelectItem>
+              </WithPermissions>
             </SelectContent>
           </Select>
         </div>
