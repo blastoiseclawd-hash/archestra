@@ -1,46 +1,78 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+const DEFAULT_BACKEND_URL = "http://localhost:9000";
+
+/**
+ * Get the backend API base URL at runtime.
+ *
+ * Priority:
+ * 1. ARCHESTRA_API_BASE_URL (server-side env var)
+ * 2. Default: http://localhost:9000
+ */
+function getBackendBaseUrl(): string {
+  return process.env.ARCHESTRA_API_BASE_URL || DEFAULT_BACKEND_URL;
+}
+
+/**
+ * Next.js proxy handler for routing API requests to the backend.
+ *
+ * This replaces static rewrites in next.config.ts which are baked in at build time.
+ * By using the proxy file, we can read ARCHESTRA_API_BASE_URL at runtime, enabling
+ * split deployments where the backend URL is only known at deployment time (e.g., K8s service discovery).
+ *
+ * Routes handled:
+ * - /api/* -> backend /api/* (except /api/auth/* which uses a dedicated route handler)
+ * - /v1/* -> backend /v1/*
+ * - /health -> backend /health
+ *
+ * Note: /api/auth/* is handled by app/api/auth/[...path]/route.ts for proper Origin header handling.
+ */
 export function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
   if (shouldLogApiRequest(req)) {
     // biome-ignore lint/suspicious/noConsole: Intentional console log of API requests
     console.log(`API Request: ${req.method} ${req.nextUrl.href}`);
   }
 
-  // Handle SAML SSO callbacks by replacing the null Origin header
-  // This is needed because:
-  // 1. SAML IdPs POST to the ACS URL via cross-origin form submission
-  // 2. Browsers send Origin: null for such requests
-  // 3. Better Auth rejects Origin: null with MISSING_OR_NULL_ORIGIN error
-  // 4. We replace null with the legitimate frontend origin
-  if (isSamlCallback(req)) {
-    const origin = req.headers.get("origin");
+  // Skip /api/auth/* - handled by dedicated route handler for SAML Origin header handling
+  if (pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
 
-    if (origin === "null" || !origin) {
-      // Create a new request with the modified Origin header
-      const frontendOrigin =
-        process.env.ARCHESTRA_FRONTEND_URL || "http://localhost:3000";
+  // Skip /api/archestra-catalog/* - handled by static rewrite to external MCP catalog service
+  if (pathname.startsWith("/api/archestra-catalog")) {
+    return NextResponse.next();
+  }
 
-      // Create new headers with the replaced Origin
-      const newHeaders = new Headers(req.headers);
-      newHeaders.set("Origin", frontendOrigin);
+  // Proxy /api/* requests to backend
+  if (pathname.startsWith("/api/")) {
+    return proxyToBackend(req, pathname);
+  }
 
-      // Create the rewritten request with modified headers
-      const backendUrl =
-        process.env.ARCHESTRA_API_BASE_URL || "http://localhost:9000";
-      const backendRequestUrl = new URL(req.nextUrl.pathname, backendUrl);
-      backendRequestUrl.search = req.nextUrl.search;
+  // Proxy /v1/* requests to backend
+  if (pathname.startsWith("/v1/")) {
+    return proxyToBackend(req, pathname);
+  }
 
-      // Return a rewrite that fetches from the backend with modified headers
-      return NextResponse.rewrite(backendRequestUrl, {
-        request: {
-          headers: newHeaders,
-        },
-      });
-    }
+  // Proxy /health requests to backend
+  if (pathname === "/health") {
+    return proxyToBackend(req, pathname);
   }
 
   return NextResponse.next();
+}
+
+/**
+ * Rewrite the request to the backend URL.
+ */
+function proxyToBackend(request: NextRequest, pathname: string): NextResponse {
+  const backendUrl = getBackendBaseUrl();
+  const url = new URL(pathname, backendUrl);
+  url.search = request.nextUrl.search;
+
+  return NextResponse.rewrite(url);
 }
 
 const shouldLogApiRequest = (req: NextRequest) => {
@@ -50,14 +82,9 @@ const shouldLogApiRequest = (req: NextRequest) => {
     return false;
   }
   // log request before it is proxied via nextjs rewrites
-  // see rewrites() config in next.config.ts
-  return pathname.startsWith("/api") || pathname.startsWith("/v1");
-};
-
-const isSamlCallback = (req: NextRequest) => {
-  const { pathname } = req.nextUrl;
-  // Match SAML ACS callback URLs: /api/auth/sso/saml2/sp/acs/*
   return (
-    req.method === "POST" && pathname.startsWith("/api/auth/sso/saml2/sp/acs/")
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/v1") ||
+    pathname === "/health"
   );
 };

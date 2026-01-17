@@ -19,13 +19,11 @@ function createMockRequest(options: {
 
 describe("proxy", () => {
   const originalEnv = {
-    ARCHESTRA_FRONTEND_URL: process.env.ARCHESTRA_FRONTEND_URL,
     ARCHESTRA_API_BASE_URL: process.env.ARCHESTRA_API_BASE_URL,
   };
 
   beforeEach(() => {
     // Reset env vars before each test
-    delete process.env.ARCHESTRA_FRONTEND_URL;
     delete process.env.ARCHESTRA_API_BASE_URL;
     // Suppress console.log during tests
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -33,11 +31,6 @@ describe("proxy", () => {
 
   afterEach(() => {
     // Restore original env vars
-    if (originalEnv.ARCHESTRA_FRONTEND_URL) {
-      process.env.ARCHESTRA_FRONTEND_URL = originalEnv.ARCHESTRA_FRONTEND_URL;
-    } else {
-      delete process.env.ARCHESTRA_FRONTEND_URL;
-    }
     if (originalEnv.ARCHESTRA_API_BASE_URL) {
       process.env.ARCHESTRA_API_BASE_URL = originalEnv.ARCHESTRA_API_BASE_URL;
     } else {
@@ -46,11 +39,80 @@ describe("proxy", () => {
     vi.restoreAllMocks();
   });
 
-  describe("regular requests", () => {
-    it("should pass through regular GET requests", () => {
+  describe("backend API proxying", () => {
+    it("should rewrite /api/* requests to backend (default URL)", () => {
       const request = createMockRequest({
         method: "GET",
         url: "/api/profiles",
+      });
+
+      const response = proxy(request);
+
+      expect(response.headers.get("x-middleware-rewrite")).toContain(
+        "localhost:9000/api/profiles",
+      );
+    });
+
+    it("should rewrite /api/* requests to backend (custom URL)", () => {
+      process.env.ARCHESTRA_API_BASE_URL = "http://backend-service:9000";
+
+      const request = createMockRequest({
+        method: "GET",
+        url: "/api/profiles",
+      });
+
+      const response = proxy(request);
+
+      expect(response.headers.get("x-middleware-rewrite")).toContain(
+        "backend-service:9000/api/profiles",
+      );
+    });
+
+    it("should rewrite /v1/* requests to backend", () => {
+      const request = createMockRequest({
+        method: "POST",
+        url: "/v1/chat/completions",
+      });
+
+      const response = proxy(request);
+
+      expect(response.headers.get("x-middleware-rewrite")).toContain(
+        "localhost:9000/v1/chat/completions",
+      );
+    });
+
+    it("should rewrite /health requests to backend", () => {
+      const request = createMockRequest({
+        method: "GET",
+        url: "/health",
+      });
+
+      const response = proxy(request);
+
+      expect(response.headers.get("x-middleware-rewrite")).toContain(
+        "localhost:9000/health",
+      );
+    });
+
+    it("should preserve query parameters in rewrite", () => {
+      const request = createMockRequest({
+        method: "GET",
+        url: "/api/profiles?page=1&limit=10",
+      });
+
+      const response = proxy(request);
+
+      const rewriteUrl = response.headers.get("x-middleware-rewrite");
+      expect(rewriteUrl).toContain("page=1");
+      expect(rewriteUrl).toContain("limit=10");
+    });
+  });
+
+  describe("routes passed through to other handlers", () => {
+    it("should pass through /api/auth/* requests (handled by route handler)", () => {
+      const request = createMockRequest({
+        method: "POST",
+        url: "/api/auth/sign-in/email",
       });
 
       const response = proxy(request);
@@ -59,11 +121,11 @@ describe("proxy", () => {
       expect(response.headers.get("x-middleware-next")).toBe("1");
     });
 
-    it("should pass through regular POST requests", () => {
+    it("should pass through /api/auth/sso/* requests", () => {
       const request = createMockRequest({
         method: "POST",
-        url: "/api/profiles",
-        headers: { Origin: "http://localhost:3000" },
+        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
+        headers: { Origin: "null" },
       });
 
       const response = proxy(request);
@@ -71,7 +133,20 @@ describe("proxy", () => {
       expect(response.headers.get("x-middleware-next")).toBe("1");
     });
 
-    it("should pass through non-API requests", () => {
+    it("should pass through /api/archestra-catalog/* requests (handled by static rewrite)", () => {
+      const request = createMockRequest({
+        method: "GET",
+        url: "/api/archestra-catalog/servers",
+      });
+
+      const response = proxy(request);
+
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    });
+  });
+
+  describe("non-API requests", () => {
+    it("should pass through page requests", () => {
       const request = createMockRequest({
         method: "GET",
         url: "/settings",
@@ -81,123 +156,16 @@ describe("proxy", () => {
 
       expect(response.headers.get("x-middleware-next")).toBe("1");
     });
-  });
 
-  describe("SAML callback handling", () => {
-    it("should rewrite SAML callback with null origin", () => {
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        headers: { Origin: "null" },
-      });
-
-      const response = proxy(request);
-
-      // Should be a rewrite response (not next())
-      expect(response.headers.get("x-middleware-next")).toBeNull();
-      // Should rewrite to backend URL
-      expect(response.headers.get("x-middleware-rewrite")).toContain(
-        "localhost:9000",
-      );
-    });
-
-    it("should rewrite SAML callback with missing origin", () => {
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        // No Origin header
-      });
-
-      const response = proxy(request);
-
-      expect(response.headers.get("x-middleware-next")).toBeNull();
-      expect(response.headers.get("x-middleware-rewrite")).toContain(
-        "localhost:9000",
-      );
-    });
-
-    it("should pass through SAML callback with valid origin", () => {
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        headers: { Origin: "http://localhost:3000" },
-      });
-
-      const response = proxy(request);
-
-      // Should pass through (not rewrite)
-      expect(response.headers.get("x-middleware-next")).toBe("1");
-    });
-
-    it("should not intercept GET requests to SAML paths", () => {
+    it("should pass through static asset requests", () => {
       const request = createMockRequest({
         method: "GET",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        headers: { Origin: "null" },
+        url: "/_next/static/chunk.js",
       });
 
       const response = proxy(request);
 
-      // GET requests should pass through even with null origin
       expect(response.headers.get("x-middleware-next")).toBe("1");
-    });
-
-    it("should not intercept non-ACS SAML paths", () => {
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/metadata",
-        headers: { Origin: "null" },
-      });
-
-      const response = proxy(request);
-
-      // Non-ACS paths should pass through
-      expect(response.headers.get("x-middleware-next")).toBe("1");
-    });
-
-    it("should preserve query parameters in rewrite", () => {
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider?state=abc123&RelayState=xyz",
-        headers: { Origin: "null" },
-      });
-
-      const response = proxy(request);
-
-      const rewriteUrl = response.headers.get("x-middleware-rewrite");
-      expect(rewriteUrl).toContain("state=abc123");
-      expect(rewriteUrl).toContain("RelayState=xyz");
-    });
-
-    it("should use custom frontend URL from env var", () => {
-      process.env.ARCHESTRA_FRONTEND_URL = "https://app.example.com";
-
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        headers: { Origin: "null" },
-      });
-
-      const response = proxy(request);
-
-      // The rewrite should happen with the custom frontend origin
-      expect(response.headers.get("x-middleware-next")).toBeNull();
-    });
-
-    it("should use custom backend URL from env var", () => {
-      process.env.ARCHESTRA_API_BASE_URL = "https://api.example.com";
-
-      const request = createMockRequest({
-        method: "POST",
-        url: "/api/auth/sso/saml2/sp/acs/MyProvider",
-        headers: { Origin: "null" },
-      });
-
-      const response = proxy(request);
-
-      expect(response.headers.get("x-middleware-rewrite")).toContain(
-        "api.example.com",
-      );
     });
   });
 
@@ -227,6 +195,20 @@ describe("proxy", () => {
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining("API Request: POST"),
+      );
+    });
+
+    it("should log /health requests", () => {
+      const consoleSpy = vi.spyOn(console, "log");
+      const request = createMockRequest({
+        method: "GET",
+        url: "/health",
+      });
+
+      proxy(request);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("API Request: GET"),
       );
     });
 

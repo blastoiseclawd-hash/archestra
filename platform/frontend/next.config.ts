@@ -26,27 +26,13 @@ const nextConfig: NextConfig = {
     keepAlive: true,
   },
   async rewrites() {
-    const backendUrl =
-      process.env.ARCHESTRA_API_BASE_URL || "http://localhost:9000";
+    // Note: Backend API proxying (/api/*, /v1/*, /health) is handled by middleware.ts
+    // to support runtime configuration of ARCHESTRA_API_BASE_URL in split deployments.
+    // Only external service rewrites that use static URLs should be defined here.
     return [
       {
         source: "/api/archestra-catalog/:path*",
         destination: `${MCP_CATALOG_API_BASE_URL}/:path*`,
-      },
-      // /api/auth/* is handled by the API route at app/api/auth/[...path]/route.ts
-      // to properly forward the Origin header for SAML SSO callbacks.
-      // API routes take precedence over rewrites in Next.js.
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-      {
-        source: "/v1/:path*",
-        destination: `${backendUrl}/v1/:path*`,
-      },
-      {
-        source: "/health",
-        destination: `${backendUrl}/health`,
       },
     ];
   },
