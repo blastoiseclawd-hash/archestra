@@ -137,6 +137,40 @@ If ARCHESTRA_AUTH_SECRET env variable is explicitly set, it will override the au
 {{- end }}
 
 {{/*
+Frontend environment variables (subset of env vars needed for the frontend container)
+The frontend doesn't need database credentials, just the ARCHESTRA_* config vars.
+*/}}
+{{- define "archestra-platform.frontendEnv" -}}
+{{/*
+List of sensitive environment variables that should be stored in the Secret.
+For frontend, we only need a subset of these (no database-related vars).
+*/}}
+{{- $sensitiveEnvVars := list
+  "ARCHESTRA_AUTH_SECRET"
+  "ARCHESTRA_AUTH_ADMIN_PASSWORD"
+  "ARCHESTRA_METRICS_SECRET"
+}}
+{{- range $key, $value := .Values.archestra.env }}
+{{/* Skip database-related env vars - frontend doesn't need them */}}
+{{- if not (or (hasPrefix "ARCHESTRA_DATABASE" $key) (hasPrefix "DATABASE_" $key) (hasPrefix "PGPASSWORD" $key)) }}
+{{/* Check if env var is in the explicit sensitive list OR matches ARCHESTRA_CHAT_*_API_KEY pattern */}}
+{{- $isSensitive := or (has $key $sensitiveEnvVars) (and (hasPrefix "ARCHESTRA_CHAT_" $key) (hasSuffix "_API_KEY" $key)) }}
+{{/* Only use secretKeyRef for sensitive vars with non-empty values */}}
+{{- if and $isSensitive $value }}
+- name: {{ $key }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "archestra-platform.authSecretName" $ }}
+      key: {{ $key | lower | replace "_" "-" }}
+{{- else }}
+- name: {{ $key }}
+  value: {{ $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 PostgreSQL host for database connectivity checks
 */}}
 {{- define "archestra-platform.postgresql.host" -}}

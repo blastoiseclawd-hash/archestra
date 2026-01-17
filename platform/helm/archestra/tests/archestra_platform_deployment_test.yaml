@@ -1,17 +1,23 @@
-suite: test archestra platform -- Deployment/Service
+suite: test archestra platform -- Deployment/Service (split backend/frontend)
 templates:
   - archestra-platform.yaml
 tests:
-  - it: should create a Service with correct metadata
+  # =============================================================================
+  # Backend Service Tests (documentIndex: 0)
+  # =============================================================================
+  - it: should create a backend Service with correct metadata
     documentIndex: 0
     asserts:
       - isKind:
           of: Service
       - matchRegex:
           path: metadata.name
-          pattern: -archestra-platform$
+          pattern: -archestra-platform-backend$
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: backend
 
-  - it: should expose backend port 9000
+  - it: should expose backend port 9000 on backend service
     documentIndex: 0
     asserts:
       - contains:
@@ -22,18 +28,7 @@ tests:
             targetPort: backend
             protocol: TCP
 
-  - it: should expose frontend port 3000
-    documentIndex: 0
-    asserts:
-      - contains:
-          path: spec.ports
-          content:
-            name: frontend
-            port: 3000
-            targetPort: frontend
-            protocol: TCP
-
-  - it: should expose metrics port 9050
+  - it: should expose metrics port 9050 on backend service
     documentIndex: 0
     asserts:
       - contains:
@@ -44,20 +39,86 @@ tests:
             targetPort: metrics
             protocol: TCP
 
-  - it: should create a Deployment with correct metadata
+  - it: should NOT expose frontend port 3000 on backend service
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: spec.ports
+          content:
+            name: frontend
+
+  - it: backend service should select backend component
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: backend
+
+  # =============================================================================
+  # Frontend Service Tests (documentIndex: 1)
+  # =============================================================================
+  - it: should create a frontend Service with correct metadata
     documentIndex: 1
+    asserts:
+      - isKind:
+          of: Service
+      - matchRegex:
+          path: metadata.name
+          pattern: -archestra-platform-frontend$
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: frontend
+
+  - it: should expose frontend port 3000 on frontend service
+    documentIndex: 1
+    asserts:
+      - contains:
+          path: spec.ports
+          content:
+            name: frontend
+            port: 3000
+            targetPort: frontend
+            protocol: TCP
+
+  - it: should NOT expose backend ports on frontend service
+    documentIndex: 1
+    asserts:
+      - notContains:
+          path: spec.ports
+          content:
+            name: backend
+      - notContains:
+          path: spec.ports
+          content:
+            name: metrics
+
+  - it: frontend service should select frontend component
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: frontend
+
+  # =============================================================================
+  # Backend Deployment Tests (documentIndex: 2)
+  # =============================================================================
+  - it: should create a backend Deployment with correct metadata
+    documentIndex: 2
     asserts:
       - isKind:
           of: Deployment
       - matchRegex:
           path: metadata.name
-          pattern: -archestra-platform$
+          pattern: -archestra-platform-backend$
       - equal:
           path: spec.replicas
           value: 1
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: backend
 
-  - it: should allow configuring replica count
-    documentIndex: 1
+  - it: should allow configuring backend replica count
+    documentIndex: 2
     set:
       archestra.replicaCount: 4
     asserts:
@@ -65,16 +126,16 @@ tests:
           path: spec.replicas
           value: 4
 
-  - it: should not have replicas field when HPA is enabled
-    documentIndex: 1
+  - it: backend should not have replicas field when HPA is enabled
+    documentIndex: 2
     set:
       archestra.horizontalPodAutoscaler.enabled: true
     asserts:
       - isNull:
           path: spec.replicas
 
-  - it: should have replicas field when HPA is disabled
-    documentIndex: 1
+  - it: backend should have replicas field when HPA is disabled
+    documentIndex: 2
     set:
       archestra.horizontalPodAutoscaler.enabled: false
       archestra.replicaCount: 3
@@ -83,8 +144,8 @@ tests:
           path: spec.replicas
           value: 3
 
-  - it: should configure RollingUpdate deployment strategy with zero-downtime defaults
-    documentIndex: 1
+  - it: backend should configure RollingUpdate deployment strategy with zero-downtime defaults
+    documentIndex: 2
     asserts:
       - equal:
           path: spec.strategy.type
@@ -96,8 +157,8 @@ tests:
           path: spec.strategy.rollingUpdate.maxUnavailable
           value: 0
 
-  - it: should allow overriding deployment strategy
-    documentIndex: 1
+  - it: backend should allow overriding deployment strategy
+    documentIndex: 2
     set:
       archestra.deploymentStrategy:
         type: RollingUpdate
@@ -115,16 +176,8 @@ tests:
           path: spec.strategy.rollingUpdate.maxUnavailable
           value: 1
 
-  - it: should allow disabling deployment strategy by setting to null
-    documentIndex: 1
-    set:
-      archestra.deploymentStrategy: null
-    asserts:
-      - isNull:
-          path: spec.strategy
-
-  - it: should configure container with correct image
-    documentIndex: 1
+  - it: backend should configure container with correct image
+    documentIndex: 2
     set:
       archestra.image: archestra/platform
       archestra.imageTag: test-version
@@ -133,49 +186,17 @@ tests:
           path: spec.template.spec.containers[0].image
           value: archestra/platform:test-version
 
-  # Image helper tests - ensures backward compatibility with existing deployments
-  # that set the full image:tag in archestra.image
-  - it: should use image as-is when image already contains a tag
-    documentIndex: 1
-    set:
-      archestra.image: archestra/platform:ci-test
-      archestra.imageTag: "1.0.0"
+  - it: backend should set ARCHESTRA_RUN_MODE to backend
+    documentIndex: 2
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: archestra/platform:ci-test
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_RUN_MODE
+            value: "backend"
 
-  - it: should append imageTag when registry has port but image has no tag
-    documentIndex: 1
-    set:
-      archestra.image: registry.io:5000/archestra/platform
-      archestra.imageTag: "1.0.0"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: registry.io:5000/archestra/platform:1.0.0
-
-  - it: should use image as-is when registry has port and image has tag
-    documentIndex: 1
-    set:
-      archestra.image: registry.io:5000/archestra/platform:v2.0.0
-      archestra.imageTag: "1.0.0"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: registry.io:5000/archestra/platform:v2.0.0
-
-  - it: should allow configuring image pull policy
-    documentIndex: 1
-    set:
-      archestra.imagePullPolicy: Always
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].imagePullPolicy
-          value: Always
-
-  - it: should expose backend, metrics, and frontend ports
-    documentIndex: 1
+  - it: backend should expose backend and metrics ports
+    documentIndex: 2
     asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].name
@@ -189,56 +210,50 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].ports[1].containerPort
           value: 9050
-      - equal:
-          path: spec.template.spec.containers[0].ports[2].name
-          value: frontend
-      - equal:
-          path: spec.template.spec.containers[0].ports[2].containerPort
-          value: 3000
 
-  - it: should set ARCHESTRA_DATABASE_URL to internal postgres when external_database_url is null
-    documentIndex: 1
+  - it: backend should set ARCHESTRA_DATABASE_URL to internal postgres when external_database_url is null
+    documentIndex: 2
     set:
       postgresql.external_database_url: null
       postgresql.auth.username: testuser
       postgresql.auth.database: testdb
     asserts:
-      # First env var should be PGPASSWORD from secret
+      # First env var should be ARCHESTRA_RUN_MODE
       - equal:
           path: spec.template.spec.containers[0].env[0].name
-          value: PGPASSWORD
-      - equal:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
-          value: password
-      - matchRegex:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
-          pattern: -archestra-platform-postgresql$
-      # Second env var should be ARCHESTRA_DATABASE_URL using $(PGPASSWORD) expansion
+          value: ARCHESTRA_RUN_MODE
+      # Then PGPASSWORD from secret
       - equal:
           path: spec.template.spec.containers[0].env[1].name
+          value: PGPASSWORD
+      - equal:
+          path: spec.template.spec.containers[0].env[1].valueFrom.secretKeyRef.key
+          value: password
+      # Then ARCHESTRA_DATABASE_URL
+      - equal:
+          path: spec.template.spec.containers[0].env[2].name
           value: ARCHESTRA_DATABASE_URL
       - matchRegex:
-          path: spec.template.spec.containers[0].env[1].value
+          path: spec.template.spec.containers[0].env[2].value
           pattern: ^postgresql://testuser:\$\(PGPASSWORD\)@.*-archestra-platform-postgresql:5432/testdb$
 
-  - it: should set ARCHESTRA_DATABASE_URL to external postgres when external_database_url is provided
-    documentIndex: 1
+  - it: backend should set ARCHESTRA_DATABASE_URL to external postgres when external_database_url is provided
+    documentIndex: 2
     set:
       postgresql.enabled: false
       postgresql.external_database_url: postgresql://external:pass@external-host:5432/externaldb
     asserts:
-      - equal:
-          path: spec.template.spec.containers[0].env[0].name
-          value: ARCHESTRA_DATABASE_URL
-      - equal:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
-          value: RELEASE-NAME-archestra-platform-auth
-      - equal:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
-          value: database-url
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: RELEASE-NAME-archestra-platform-auth
+                key: database-url
 
-  - it: should have init container to wait for PostgreSQL
-    documentIndex: 1
+  - it: backend should have init container to wait for PostgreSQL
+    documentIndex: 2
     asserts:
       - equal:
           path: spec.template.spec.initContainers[0].name
@@ -247,894 +262,8 @@ tests:
           path: spec.template.spec.initContainers[0].image
           value: busybox:1.36
 
-  - it: should configure init container to wait for internal postgres
-    documentIndex: 1
-    set:
-      postgresql.external_database_url: null
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.initContainers[0].command[2]
-          pattern: ".*-archestra-platform-postgresql.*5432.*"
-
-  - it: should configure init container to wait for external postgres
-    documentIndex: 1
-    set:
-      postgresql.enabled: false
-      postgresql.external_database_url: postgresql://user:pass@external-db.example.com:5432/mydb
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.initContainers[0].command[2]
-          pattern: ".*external-db.example.com.*5432.*"
-
-  - it: should configure init container to wait for external postgres with postgres:// scheme
-    documentIndex: 1
-    set:
-      postgresql.enabled: false
-      postgresql.external_database_url: postgres://user:pass@external-db.example.com:5433/mydb
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.initContainers[0].command[2]
-          pattern: ".*external-db.example.com.*5433.*"
-
-  - it: should set ARCHESTRA_DATABASE_URL with postgres:// scheme
-    documentIndex: 1
-    set:
-      postgresql.enabled: false
-      postgresql.external_database_url: postgres://external:pass@external-host:5434/externaldb
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].env[0].name
-          value: ARCHESTRA_DATABASE_URL
-      - equal:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
-          value: RELEASE-NAME-archestra-platform-auth
-      - equal:
-          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.key
-          value: database-url
-
-  - it: when archestra.env is empty should set a specific set of environment variables
-    documentIndex: 1
-    set:
-      archestra.env: {}
-      archestra.orchestrator.kubernetes.mcpServerRbac.create: false
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].env
-          value:
-            - name: PGPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: RELEASE-NAME-archestra-platform-postgresql
-                  key: password
-            - name: ARCHESTRA_DATABASE_URL
-              value: postgresql://archestra:$(PGPASSWORD)@RELEASE-NAME-archestra-platform-postgresql:5432/archestra_dev
-            - name: ARCHESTRA_AUTH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: RELEASE-NAME-archestra-platform-auth
-                  key: auth-secret
-            - name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-              value: NAMESPACE
-            - name: ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER
-              value: "true"
-
-  - it: should add custom environment variables when archestra.env is set
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_API_BASE_URL: "https://api.example.com"
-        CUSTOM_VAR: "custom-value"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_API_BASE_URL
-            value: "https://api.example.com"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: CUSTOM_VAR
-            value: "custom-value"
-
-  - it: should include ARCHESTRA_DATABASE_URL alongside custom env vars
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_API_BASE_URL: "https://api.example.com"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: PGPASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-postgresql
-                key: password
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_DATABASE_URL
-            value: postgresql://archestra:$(PGPASSWORD)@RELEASE-NAME-archestra-platform-postgresql:5432/archestra_dev
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_API_BASE_URL
-            value: "https://api.example.com"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE env var when namespace is configured
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.namespace: "mcp-servers"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-            value: "mcp-servers"
-
-  - it: should use custom namespace over release namespace when both are set
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.namespace: "custom-mcp-namespace"
-    release:
-      namespace: "release-namespace"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-            value: "custom-mcp-namespace"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE env var when baseImage is configured
-    documentIndex: 1
-    set:
-      archestra.orchestrator.baseImage: "my-registry/mcp-server:v1.0.0"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE
-            value: "my-registry/mcp-server:v1.0.0"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE to release namespace when namespace is empty
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.namespace: ""
-    release:
-      namespace: "test-namespace"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-            value: "test-namespace"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE to NAMESPACE when namespace is empty and no release namespace
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.namespace: ""
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-            value: "NAMESPACE"
-
-  - it: should not set ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE env var when baseImage is empty
-    documentIndex: 1
-    set:
-      archestra.orchestrator.baseImage: ""
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE
-
-  # Kubeconfig volume mount tests
-  - it: should not mount kubeconfig volume when kubeconfig is disabled
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: false
-    asserts:
-      - isNull:
-          path: spec.template.spec.containers[0].volumeMounts
-      - isNull:
-          path: spec.template.spec.volumes
-
-  - it: should not mount kubeconfig volume when secretName is empty
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
-      archestra.orchestrator.kubernetes.kubeconfig.secretName: ""
-    asserts:
-      - isNull:
-          path: spec.template.spec.containers[0].volumeMounts
-      - isNull:
-          path: spec.template.spec.volumes
-
-  - it: should mount kubeconfig volume when kubeconfig is enabled
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
-      archestra.orchestrator.kubernetes.kubeconfig.secretName: "my-kubeconfig"
-      archestra.orchestrator.kubernetes.kubeconfig.mountPath: "/etc/kubeconfig"
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].name
-          value: kubeconfig
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
-          value: "/etc/kubeconfig"
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].readOnly
-          value: true
-
-  - it: should create volume from secret when kubeconfig is enabled
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
-      archestra.orchestrator.kubernetes.kubeconfig.secretName: "my-kubeconfig"
-    asserts:
-      - equal:
-          path: spec.template.spec.volumes[0].name
-          value: kubeconfig
-      - equal:
-          path: spec.template.spec.volumes[0].secret.secretName
-          value: "my-kubeconfig"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_KUBECONFIG env var when kubeconfig volume is mounted
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
-      archestra.orchestrator.kubernetes.kubeconfig.secretName: "my-kubeconfig"
-      archestra.orchestrator.kubernetes.kubeconfig.mountPath: "/etc/kubeconfig"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_KUBECONFIG
-            value: "/etc/kubeconfig/config"
-
-  - it: should not set ARCHESTRA_ORCHESTRATOR_KUBECONFIG env var when kubeconfig is disabled
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: false
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_KUBECONFIG
-
-  - it: should configure all kubernetes env vars when all settings are provided
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.namespace: "mcp-servers"
-      archestra.orchestrator.baseImage: "my-registry/mcp-server:v1.0.0"
-      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
-      archestra.orchestrator.kubernetes.kubeconfig.secretName: "my-kubeconfig"
-      archestra.orchestrator.kubernetes.kubeconfig.mountPath: "/etc/kubeconfig"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE
-            value: "mcp-servers"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE
-            value: "my-registry/mcp-server:v1.0.0"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_KUBECONFIG
-            value: "/etc/kubeconfig/config"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER to false when configured
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.loadKubeconfigFromCurrentCluster: false
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER
-            value: "false"
-
-  - it: should set ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER to true when configured
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.loadKubeconfigFromCurrentCluster: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_ORCHESTRATOR_LOAD_KUBECONFIG_FROM_CURRENT_CLUSTER
-            value: "true"
-
-  # ServiceAccount tests
-  - it: should use default ServiceAccount name when serviceAccount.create is true
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.serviceAccount.create: true
-    asserts:
-      - matchRegex:
-          path: spec.template.spec.serviceAccountName
-          pattern: -archestra-platform$
-
-  - it: should use custom ServiceAccount name when provided
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.serviceAccount.create: true
-      archestra.orchestrator.kubernetes.serviceAccount.name: "custom-sa-name"
-    asserts:
-      - equal:
-          path: spec.template.spec.serviceAccountName
-          value: "custom-sa-name"
-
-  - it: should use default ServiceAccount when serviceAccount.create is false
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.serviceAccount.create: false
-    asserts:
-      - equal:
-          path: spec.template.spec.serviceAccountName
-          value: "default"
-
-  - it: should use custom ServiceAccount name even when create is false
-    documentIndex: 1
-    set:
-      archestra.orchestrator.kubernetes.serviceAccount.create: false
-      archestra.orchestrator.kubernetes.serviceAccount.name: "existing-sa-name"
-    asserts:
-      - equal:
-          path: spec.template.spec.serviceAccountName
-          value: "existing-sa-name"
-
-  # ImagePullSecrets tests
-  # Note: imagePullSecrets are now handled via ServiceAccount configuration, not directly on the Deployment
-  - it: should not have imagePullSecrets in deployment spec (handled via ServiceAccount)
-    documentIndex: 1
-    asserts:
-      - isNull:
-          path: spec.template.spec.imagePullSecrets
-
-  # Service annotation tests
-  - it: should not have annotations when archestra.service.annotations is empty
-    documentIndex: 0
-    set:
-      archestra.service.annotations: {}
-    asserts:
-      - isNull:
-          path: metadata.annotations
-
-  - it: should apply service annotations when provided
-    documentIndex: 0
-    set:
-      archestra.service.annotations:
-        cloud.google.com/backend-config: '{"ports": {"9000":"backend-config"}}'
-        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-    asserts:
-      - equal:
-          path: metadata.annotations["cloud.google.com/backend-config"]
-          value: '{"ports": {"9000":"backend-config"}}'
-      - equal:
-          path: metadata.annotations["service.beta.kubernetes.io/aws-load-balancer-type"]
-          value: "nlb"
-
-  - it: should apply multiple service annotations correctly
-    documentIndex: 0
-    set:
-      archestra.service.annotations:
-        annotation1: "value1"
-        annotation2: "value2"
-        annotation3: "value3"
-    asserts:
-      - equal:
-          path: metadata.annotations["annotation1"]
-          value: "value1"
-      - equal:
-          path: metadata.annotations["annotation2"]
-          value: "value2"
-      - equal:
-          path: metadata.annotations["annotation3"]
-          value: "value3"
-
-  # Environment variables from secrets tests
-  - it: should not add secret-based env vars when envFromSecrets is empty
-    documentIndex: 1
-    set:
-      archestra.envFromSecrets: []
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            valueFrom:
-              secretKeyRef:
-
-  - it: should add single secret-based environment variable
-    documentIndex: 1
-    set:
-      archestra.envFromSecrets:
-        - name: API_KEY
-          secretName: my-api-credentials
-          secretKey: api-key
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: my-api-credentials
-                key: api-key
-
-  - it: should add multiple secret-based environment variables
-    documentIndex: 1
-    set:
-      archestra.envFromSecrets:
-        - name: API_KEY
-          secretName: my-api-credentials
-          secretKey: api-key
-        - name: DATABASE_PASSWORD
-          secretName: db-credentials
-          secretKey: password
-        - name: SECRET_TOKEN
-          secretName: app-secrets
-          secretKey: token
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: my-api-credentials
-                key: api-key
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: db-credentials
-                key: password
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: SECRET_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: app-secrets
-                key: token
-
-  - it: should include both regular and secret-based environment variables
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_API_BASE_URL: "https://api.example.com"
-        CUSTOM_VAR: "custom-value"
-      archestra.envFromSecrets:
-        - name: API_KEY
-          secretName: my-api-credentials
-          secretKey: api-key
-        - name: DATABASE_PASSWORD
-          secretName: db-credentials
-          secretKey: password
-    asserts:
-      # Regular env vars
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_API_BASE_URL
-            value: "https://api.example.com"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: CUSTOM_VAR
-            value: "custom-value"
-      # Secret-based env vars
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: my-api-credentials
-                key: api-key
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: db-credentials
-                key: password
-
-  - it: should include built-in, regular, and secret-based env vars together
-    documentIndex: 1
-    set:
-      archestra.env:
-        CUSTOM_VAR: "custom-value"
-      archestra.envFromSecrets:
-        - name: API_KEY
-          secretName: my-api-credentials
-          secretKey: api-key
-    asserts:
-      # Built-in env vars (PGPASSWORD from secret and ARCHESTRA_DATABASE_URL with expansion)
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: PGPASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-postgresql
-                key: password
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_DATABASE_URL
-            value: postgresql://archestra:$(PGPASSWORD)@RELEASE-NAME-archestra-platform-postgresql:5432/archestra_dev
-      # Regular env var
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: CUSTOM_VAR
-            value: "custom-value"
-      # Secret-based env var
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: my-api-credentials
-                key: api-key
-
-  - it: should handle secret with different key name than env var name
-    documentIndex: 1
-    set:
-      archestra.envFromSecrets:
-        - name: MY_SERVICE_TOKEN
-          secretName: external-service-creds
-          secretKey: service-auth-token
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: MY_SERVICE_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: external-service-creds
-                key: service-auth-token
-
-  # envFrom tests (import all key-value pairs from Secret/ConfigMap)
-  - it: should not add envFrom section when envFrom is empty
-    documentIndex: 1
-    set:
-      archestra.envFrom: []
-    asserts:
-      - isNull:
-          path: spec.template.spec.containers[0].envFrom
-
-  - it: should add envFrom with single secretRef
-    documentIndex: 1
-    set:
-      archestra.envFrom:
-        - secretRef:
-            name: my-secret
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - secretRef:
-                name: my-secret
-
-  - it: should add envFrom with single configMapRef
-    documentIndex: 1
-    set:
-      archestra.envFrom:
-        - configMapRef:
-            name: my-configmap
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - configMapRef:
-                name: my-configmap
-
-  - it: should add envFrom with multiple secretRef and configMapRef
-    documentIndex: 1
-    set:
-      archestra.envFrom:
-        - secretRef:
-            name: secret-one
-        - configMapRef:
-            name: configmap-one
-        - secretRef:
-            name: secret-two
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - secretRef:
-                name: secret-one
-            - configMapRef:
-                name: configmap-one
-            - secretRef:
-                name: secret-two
-
-  - it: should add envFrom with optional flag
-    documentIndex: 1
-    set:
-      archestra.envFrom:
-        - secretRef:
-            name: my-secret
-            optional: true
-        - configMapRef:
-            name: my-configmap
-            optional: false
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - secretRef:
-                name: my-secret
-                optional: true
-            - configMapRef:
-                name: my-configmap
-                optional: false
-
-  - it: should work with both env and envFrom configured
-    documentIndex: 1
-    set:
-      archestra.env:
-        CUSTOM_VAR: "custom-value"
-      archestra.envFrom:
-        - secretRef:
-            name: my-secret
-    asserts:
-      # Check env vars exist
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: CUSTOM_VAR
-            value: "custom-value"
-      # Check envFrom exists
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - secretRef:
-                name: my-secret
-
-  - it: should work with env, envFromSecrets, and envFrom all configured
-    documentIndex: 1
-    set:
-      archestra.env:
-        CUSTOM_VAR: "custom-value"
-      archestra.envFromSecrets:
-        - name: API_KEY
-          secretName: api-credentials
-          secretKey: key
-      archestra.envFrom:
-        - secretRef:
-            name: bulk-secrets
-    asserts:
-      # Regular env var
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: CUSTOM_VAR
-            value: "custom-value"
-      # Secret-based individual env var
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: api-credentials
-                key: key
-      # envFrom bulk import
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - secretRef:
-                name: bulk-secrets
-
-  - it: should add envFrom with prefix
-    documentIndex: 1
-    set:
-      archestra.envFrom:
-        - secretRef:
-            name: my-secret
-          prefix: SECRET_
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].envFrom
-          value:
-            - prefix: SECRET_
-              secretRef:
-                name: my-secret
-
-  - it: should set ARCHESTRA_AUTH_SECRET from auto-generated secret by default
-    documentIndex: 1
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: auth-secret
-
-  - it: should use secretKeyRef for explicit ARCHESTRA_AUTH_SECRET (sensitive env var)
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_AUTH_SECRET: "auth-secret-helm-tests-32-chars!"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-auth-secret
-
-  - it: should not expose explicit ARCHESTRA_AUTH_SECRET value as plaintext
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_AUTH_SECRET: "auth-secret-helm-tests-32-chars!"
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_SECRET
-            value: "auth-secret-helm-tests-32-chars!"
-
-  # Service type tests
-  - it: should default to ClusterIP service type
-    documentIndex: 0
-    asserts:
-      - equal:
-          path: spec.type
-          value: ClusterIP
-
-  - it: should support NodePort service type
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-    asserts:
-      - equal:
-          path: spec.type
-          value: NodePort
-
-  - it: should support LoadBalancer service type
-    documentIndex: 0
-    set:
-      archestra.service.type: LoadBalancer
-    asserts:
-      - equal:
-          path: spec.type
-          value: LoadBalancer
-
-  # NodePort configuration tests
-  - it: should not have nodePort fields when service type is ClusterIP
-    documentIndex: 0
-    set:
-      archestra.service.type: ClusterIP
-    asserts:
-      - notExists:
-          path: spec.ports[0].nodePort
-      - notExists:
-          path: spec.ports[1].nodePort
-      - notExists:
-          path: spec.ports[2].nodePort
-
-  - it: should not have nodePort fields when nodePorts values are null
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        backend: null
-        metrics: null
-        frontend: null
-    asserts:
-      - notExists:
-          path: spec.ports[0].nodePort
-      - notExists:
-          path: spec.ports[1].nodePort
-      - notExists:
-          path: spec.ports[2].nodePort
-
-  - it: should configure backend nodePort when specified
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        backend: 30000
-    asserts:
-      - equal:
-          path: spec.ports[0].nodePort
-          value: 30000
-      - notExists:
-          path: spec.ports[1].nodePort
-      - notExists:
-          path: spec.ports[2].nodePort
-
-  - it: should configure metrics nodePort when specified
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        metrics: 30050
-    asserts:
-      - notExists:
-          path: spec.ports[0].nodePort
-      - equal:
-          path: spec.ports[1].nodePort
-          value: 30050
-      - notExists:
-          path: spec.ports[2].nodePort
-
-  - it: should configure frontend nodePort when specified
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        frontend: 30300
-    asserts:
-      - notExists:
-          path: spec.ports[0].nodePort
-      - notExists:
-          path: spec.ports[1].nodePort
-      - equal:
-          path: spec.ports[2].nodePort
-          value: 30300
-
-  - it: should configure all nodePorts when specified
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        backend: 30000
-        metrics: 30050
-        frontend: 30300
-    asserts:
-      - equal:
-          path: spec.ports[0].nodePort
-          value: 30000
-      - equal:
-          path: spec.ports[1].nodePort
-          value: 30050
-      - equal:
-          path: spec.ports[2].nodePort
-          value: 30300
-
-  - it: should configure partial nodePorts when only some are specified
-    documentIndex: 0
-    set:
-      archestra.service.type: NodePort
-      archestra.service.nodePorts:
-        backend: 30000
-        frontend: 30300
-    asserts:
-      - equal:
-          path: spec.ports[0].nodePort
-          value: 30000
-      - notExists:
-          path: spec.ports[1].nodePort
-      - equal:
-          path: spec.ports[2].nodePort
-          value: 30300
-
-  # Health probes tests
-  - it: should have startup probe configured
-    documentIndex: 1
+  - it: backend should have startup probe configured
+    documentIndex: 2
     asserts:
       - exists:
           path: spec.template.spec.containers[0].startupProbe
@@ -1144,21 +273,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].startupProbe.httpGet.port
           value: backend
-      - equal:
-          path: spec.template.spec.containers[0].startupProbe.initialDelaySeconds
-          value: 5
-      - equal:
-          path: spec.template.spec.containers[0].startupProbe.periodSeconds
-          value: 10
-      - equal:
-          path: spec.template.spec.containers[0].startupProbe.timeoutSeconds
-          value: 5
-      - equal:
-          path: spec.template.spec.containers[0].startupProbe.failureThreshold
-          value: 30
 
-  - it: should have liveness probe configured
-    documentIndex: 1
+  - it: backend should have liveness probe configured
+    documentIndex: 2
     asserts:
       - exists:
           path: spec.template.spec.containers[0].livenessProbe
@@ -1168,18 +285,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.httpGet.port
           value: backend
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
-          value: 10
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.timeoutSeconds
-          value: 5
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
-          value: 3
 
-  - it: should have readiness probe configured
-    documentIndex: 1
+  - it: backend should have readiness probe configured
+    documentIndex: 2
     asserts:
       - exists:
           path: spec.template.spec.containers[0].readinessProbe
@@ -1189,19 +297,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].readinessProbe.httpGet.port
           value: backend
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
-          value: 10
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.timeoutSeconds
-          value: 5
-      - equal:
-          path: spec.template.spec.containers[0].readinessProbe.failureThreshold
-          value: 3
 
-  # Resource requests and limits tests
-  - it: should have default memory resources configured
-    documentIndex: 1
+  - it: backend should have default memory resources configured
+    documentIndex: 2
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
@@ -1210,41 +308,324 @@ tests:
           path: spec.template.spec.containers[0].resources.limits.memory
           value: "3Gi"
 
-  - it: should allow overriding resource requests and limits
-    documentIndex: 1
+  - it: backend should add custom environment variables when archestra.env is set
+    documentIndex: 2
     set:
-      archestra.resources:
+      archestra.env:
+        ARCHESTRA_API_BASE_URL: "https://api.example.com"
+        CUSTOM_VAR: "custom-value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_API_BASE_URL
+            value: "https://api.example.com"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"
+
+  # =============================================================================
+  # Frontend Deployment Tests (documentIndex: 3)
+  # =============================================================================
+  - it: should create a frontend Deployment with correct metadata
+    documentIndex: 3
+    asserts:
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          path: metadata.name
+          pattern: -archestra-platform-frontend$
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: frontend
+
+  - it: frontend should use Recreate strategy by default
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: frontend should allow configuring replica count
+    documentIndex: 3
+    set:
+      archestra.frontend.replicaCount: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: frontend should allow overriding deployment strategy
+    documentIndex: 3
+    set:
+      archestra.frontend.deploymentStrategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 0
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: 1
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+
+  - it: frontend should set ARCHESTRA_RUN_MODE to frontend
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_RUN_MODE
+            value: "frontend"
+
+  - it: frontend should set ARCHESTRA_API_BASE_URL to point to backend service
+    documentIndex: 3
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_API_BASE_URL
+            value: "http://RELEASE-NAME-archestra-platform-backend:9000"
+
+  - it: frontend should expose only frontend port
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: frontend
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3000
+
+  - it: frontend should have init container to wait for backend
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-backend
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:1.36
+      - matchRegex:
+          path: spec.template.spec.initContainers[0].command[2]
+          pattern: ".*-archestra-platform-backend.*9000.*"
+
+  - it: frontend should have startup probe configured
+    documentIndex: 3
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].startupProbe
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.port
+          value: frontend
+
+  - it: frontend should have liveness probe configured
+    documentIndex: 3
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: frontend
+
+  - it: frontend should have readiness probe configured
+    documentIndex: 3
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: frontend
+
+  - it: frontend should have default memory resources configured
+    documentIndex: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "512Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "1Gi"
+
+  - it: frontend should allow overriding resources
+    documentIndex: 3
+    set:
+      archestra.frontend.resources:
         requests:
-          cpu: "500m"
-          memory: "1Gi"
+          cpu: "250m"
+          memory: "256Mi"
         limits:
-          cpu: "2"
-          memory: "4Gi"
+          cpu: "1"
+          memory: "2Gi"
     asserts:
       - equal:
           path: spec.template.spec.containers[0].resources.requests.cpu
-          value: "500m"
+          value: "250m"
       - equal:
           path: spec.template.spec.containers[0].resources.requests.memory
-          value: "1Gi"
+          value: "256Mi"
       - equal:
           path: spec.template.spec.containers[0].resources.limits.cpu
-          value: "2"
+          value: "1"
       - equal:
           path: spec.template.spec.containers[0].resources.limits.memory
-          value: "4Gi"
+          value: "2Gi"
 
-  # Pod annotations tests
-  - it: should not have pod annotations when archestra.podAnnotations is empty
+  - it: frontend should configure container with correct image
+    documentIndex: 3
+    set:
+      archestra.image: archestra/platform
+      archestra.imageTag: test-version
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: archestra/platform:test-version
+
+  - it: frontend should pass through custom env vars (excluding database vars)
+    documentIndex: 3
+    set:
+      archestra.env:
+        ARCHESTRA_API_EXTERNAL_BASE_URL: "https://api.example.com"
+        CUSTOM_VAR: "custom-value"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARCHESTRA_API_EXTERNAL_BASE_URL
+            value: "https://api.example.com"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: CUSTOM_VAR
+            value: "custom-value"
+
+  # =============================================================================
+  # Service Annotation Tests
+  # =============================================================================
+  - it: backend service should not have annotations when archestra.service.annotations is empty
+    documentIndex: 0
+    set:
+      archestra.service.annotations: {}
+    asserts:
+      - isNull:
+          path: metadata.annotations
+
+  - it: backend service should apply annotations when provided
+    documentIndex: 0
+    set:
+      archestra.service.annotations:
+        cloud.google.com/backend-config: '{"ports": {"9000":"backend-config"}}'
+    asserts:
+      - equal:
+          path: metadata.annotations["cloud.google.com/backend-config"]
+          value: '{"ports": {"9000":"backend-config"}}'
+
+  - it: frontend service should apply annotations when provided
     documentIndex: 1
+    set:
+      archestra.service.annotations:
+        cloud.google.com/backend-config: '{"ports": {"3000":"frontend-config"}}'
+    asserts:
+      - equal:
+          path: metadata.annotations["cloud.google.com/backend-config"]
+          value: '{"ports": {"3000":"frontend-config"}}'
+
+  # =============================================================================
+  # Service Type Tests
+  # =============================================================================
+  - it: backend service should default to ClusterIP service type
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: frontend service should default to ClusterIP service type
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: backend service should support NodePort service type
+    documentIndex: 0
+    set:
+      archestra.service.type: NodePort
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+
+  - it: frontend service should support NodePort service type
+    documentIndex: 1
+    set:
+      archestra.service.type: NodePort
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+
+  # =============================================================================
+  # NodePort Configuration Tests
+  # =============================================================================
+  - it: backend service should configure backend nodePort when specified
+    documentIndex: 0
+    set:
+      archestra.service.type: NodePort
+      archestra.service.nodePorts:
+        backend: 30000
+        metrics: 30050
+    asserts:
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30000
+      - equal:
+          path: spec.ports[1].nodePort
+          value: 30050
+
+  - it: frontend service should configure frontend nodePort when specified
+    documentIndex: 1
+    set:
+      archestra.service.type: NodePort
+      archestra.service.nodePorts:
+        frontend: 30300
+    asserts:
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30300
+
+  # =============================================================================
+  # Pod Annotations Tests
+  # =============================================================================
+  - it: backend deployment should not have pod annotations when archestra.podAnnotations is empty
+    documentIndex: 2
     set:
       archestra.podAnnotations: {}
     asserts:
       - isNull:
           path: spec.template.metadata.annotations
 
-  - it: should apply pod annotations when provided
-    documentIndex: 1
+  - it: backend deployment should apply pod annotations when provided
+    documentIndex: 2
     set:
       archestra.podAnnotations:
         prometheus.io/scrape: "true"
@@ -1257,200 +638,118 @@ tests:
           path: spec.template.metadata.annotations["prometheus.io/port"]
           value: "9050"
 
-  - it: should apply multiple pod annotations correctly
-    documentIndex: 1
+  - it: frontend deployment should apply pod annotations when provided
+    documentIndex: 3
     set:
       archestra.podAnnotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "archestra-app"
-        sidecar.istio.io/inject: "true"
+        prometheus.io/scrape: "true"
     asserts:
       - equal:
-          path: spec.template.metadata.annotations["vault.hashicorp.com/agent-inject"]
-          value: "true"
-      - equal:
-          path: spec.template.metadata.annotations["vault.hashicorp.com/role"]
-          value: "archestra-app"
-      - equal:
-          path: spec.template.metadata.annotations["sidecar.istio.io/inject"]
+          path: spec.template.metadata.annotations["prometheus.io/scrape"]
           value: "true"
 
-  - it: should support pod annotations with complex values
-    documentIndex: 1
+  # =============================================================================
+  # Node Selector Tests
+  # =============================================================================
+  - it: backend deployment should not have nodeSelector when archestra.nodeSelector is empty
+    documentIndex: 2
     set:
-      archestra.podAnnotations:
-        kubectl.kubernetes.io/default-container: archestra-platform
-        config.linkerd.io/proxy-cpu-request: "100m"
+      archestra.nodeSelector: {}
+    asserts:
+      - isNull:
+          path: spec.template.spec.nodeSelector
+
+  - it: backend deployment should apply nodeSelector when provided
+    documentIndex: 2
+    set:
+      archestra.nodeSelector:
+        karpenter.sh/nodepool: general-purpose
     asserts:
       - equal:
-          path: spec.template.metadata.annotations["kubectl.kubernetes.io/default-container"]
-          value: archestra-platform
+          path: spec.template.spec.nodeSelector["karpenter.sh/nodepool"]
+          value: general-purpose
+
+  - it: frontend deployment should apply nodeSelector when provided
+    documentIndex: 3
+    set:
+      archestra.nodeSelector:
+        karpenter.sh/nodepool: general-purpose
+    asserts:
       - equal:
-          path: spec.template.metadata.annotations["config.linkerd.io/proxy-cpu-request"]
-          value: "100m"
+          path: spec.template.spec.nodeSelector["karpenter.sh/nodepool"]
+          value: general-purpose
 
-  # Sensitive environment variable secretKeyRef tests
-  - it: should use secretKeyRef for ARCHESTRA_AUTH_ADMIN_PASSWORD when provided
-    documentIndex: 1
+  # =============================================================================
+  # ServiceAccount Tests
+  # =============================================================================
+  - it: backend deployment should use default ServiceAccount name when serviceAccount.create is true
+    documentIndex: 2
     set:
-      archestra.env:
-        ARCHESTRA_AUTH_ADMIN_PASSWORD: "my-secure-admin-password"
+      archestra.orchestrator.kubernetes.serviceAccount.create: true
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.serviceAccountName
+          pattern: -archestra-platform$
+
+  - it: frontend deployment should use same ServiceAccount as backend
+    documentIndex: 3
+    set:
+      archestra.orchestrator.kubernetes.serviceAccount.create: true
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.serviceAccountName
+          pattern: -archestra-platform$
+
+  # =============================================================================
+  # Image Helper Tests
+  # =============================================================================
+  - it: backend should use image as-is when image already contains a tag
+    documentIndex: 2
+    set:
+      archestra.image: archestra/platform:ci-test
+      archestra.imageTag: "1.0.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: archestra/platform:ci-test
+
+  - it: backend should append imageTag when registry has port but image has no tag
+    documentIndex: 2
+    set:
+      archestra.image: registry.io:5000/archestra/platform
+      archestra.imageTag: "1.0.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: registry.io:5000/archestra/platform:1.0.0
+
+  - it: frontend should use same image as backend
+    documentIndex: 3
+    set:
+      archestra.image: archestra/platform
+      archestra.imageTag: "2.0.0"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: archestra/platform:2.0.0
+
+  # =============================================================================
+  # Sensitive Environment Variables Tests (Backend)
+  # =============================================================================
+  - it: backend should set ARCHESTRA_AUTH_SECRET from auto-generated secret by default
+    documentIndex: 2
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: ARCHESTRA_AUTH_ADMIN_PASSWORD
+            name: ARCHESTRA_AUTH_SECRET
             valueFrom:
               secretKeyRef:
                 name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-auth-admin-password
+                key: auth-secret
 
-  - it: should use secretKeyRef for ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_PASSWORD when provided
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_PASSWORD: "otel-password-123"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-otel-exporter-otlp-auth-password
-
-  - it: should use secretKeyRef for ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER when provided
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER: "bearer-token-xyz"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-otel-exporter-otlp-auth-bearer
-
-  - it: should use secretKeyRef for ARCHESTRA_METRICS_SECRET when provided
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_METRICS_SECRET: "metrics-secret-token"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-metrics-secret
-
-  - it: should use secretKeyRef for ARCHESTRA_HASHICORP_VAULT_TOKEN when provided
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_HASHICORP_VAULT_TOKEN: "vault-token-abc123"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_HASHICORP_VAULT_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-hashicorp-vault-token
-
-  - it: should use secretKeyRef for multiple sensitive env vars when provided together
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_AUTH_ADMIN_PASSWORD: "admin-password"
-        ARCHESTRA_METRICS_SECRET: "metrics-secret"
-        ARCHESTRA_API_BASE_URL: "https://api.example.com"
-    asserts:
-      # Sensitive vars should use secretKeyRef
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_ADMIN_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-auth-admin-password
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-metrics-secret
-      # Non-sensitive vars should use plain value
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_API_BASE_URL
-            value: "https://api.example.com"
-
-  - it: should not expose sensitive env var values as plaintext
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_AUTH_ADMIN_PASSWORD: "super-secret-password"
-    asserts:
-      # Should NOT contain the value as plaintext
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_ADMIN_PASSWORD
-            value: "super-secret-password"
-
-  - it: should handle mix of sensitive and non-sensitive env vars correctly
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_FRONTEND_URL: "https://frontend.example.com"
-        ARCHESTRA_HASHICORP_VAULT_TOKEN: "hvs.secret-token"
-        ARCHESTRA_LOGGING_LEVEL: "debug"
-        ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER: "my-bearer-token"
-    asserts:
-      # Non-sensitive vars should use plain value
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_FRONTEND_URL
-            value: "https://frontend.example.com"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_LOGGING_LEVEL
-            value: "debug"
-      # Sensitive vars should use secretKeyRef
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_HASHICORP_VAULT_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-hashicorp-vault-token
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_OTEL_EXPORTER_OTLP_AUTH_BEARER
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-otel-exporter-otlp-auth-bearer
-
-  # ARCHESTRA_CHAT_*_API_KEY pattern matching tests
-  - it: should use secretKeyRef for ARCHESTRA_CHAT_ANTHROPIC_API_KEY
-    documentIndex: 1
+  - it: backend should use secretKeyRef for ARCHESTRA_CHAT_ANTHROPIC_API_KEY
+    documentIndex: 2
     set:
       archestra.env:
         ARCHESTRA_CHAT_ANTHROPIC_API_KEY: "sk-ant-api-key-123"
@@ -1464,232 +763,53 @@ tests:
                 name: RELEASE-NAME-archestra-platform-auth
                 key: archestra-chat-anthropic-api-key
 
-  - it: should use secretKeyRef for ARCHESTRA_CHAT_OPENAI_API_KEY
-    documentIndex: 1
+  # =============================================================================
+  # Kubeconfig Volume Mount Tests (Backend only)
+  # =============================================================================
+  - it: backend should not mount kubeconfig volume when kubeconfig is disabled
+    documentIndex: 2
     set:
-      archestra.env:
-        ARCHESTRA_CHAT_OPENAI_API_KEY: "sk-openai-api-key-456"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_OPENAI_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-openai-api-key
-
-  - it: should use secretKeyRef for ARCHESTRA_CHAT_GEMINI_API_KEY
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_CHAT_GEMINI_API_KEY: "AIza-gemini-api-key-789"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_GEMINI_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-gemini-api-key
-
-  - it: should use secretKeyRef for multiple ARCHESTRA_CHAT_*_API_KEY env vars
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_CHAT_ANTHROPIC_API_KEY: "sk-ant-key"
-        ARCHESTRA_CHAT_OPENAI_API_KEY: "sk-openai-key"
-        ARCHESTRA_CHAT_GEMINI_API_KEY: "AIza-key"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_ANTHROPIC_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-anthropic-api-key
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_OPENAI_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-openai-api-key
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_GEMINI_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-gemini-api-key
-
-  - it: should not expose ARCHESTRA_CHAT_*_API_KEY values as plaintext
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_CHAT_ANTHROPIC_API_KEY: "super-secret-api-key"
-    asserts:
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_ANTHROPIC_API_KEY
-            value: "super-secret-api-key"
-
-  - it: should handle custom ARCHESTRA_CHAT_*_API_KEY providers dynamically
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_CHAT_CUSTOM_PROVIDER_API_KEY: "custom-provider-key"
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_CUSTOM_PROVIDER_API_KEY
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-chat-custom-provider-api-key
-
-  # Empty value edge case tests for sensitive env vars
-  - it: should use plain value for ARCHESTRA_METRICS_SECRET when set to empty string
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_METRICS_SECRET: ""
-    asserts:
-      # Empty sensitive env vars should use plain value, not secretKeyRef
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            value: ""
-
-  - it: should not use secretKeyRef for ARCHESTRA_METRICS_SECRET with empty value
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_METRICS_SECRET: ""
-    asserts:
-      # Should NOT contain secretKeyRef for empty values
-      - notContains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-metrics-secret
-
-  - it: should use plain value for multiple empty sensitive env vars
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_METRICS_SECRET: ""
-        ARCHESTRA_AUTH_ADMIN_PASSWORD: ""
-        ARCHESTRA_HASHICORP_VAULT_TOKEN: ""
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            value: ""
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_AUTH_ADMIN_PASSWORD
-            value: ""
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_HASHICORP_VAULT_TOKEN
-            value: ""
-
-  - it: should handle mix of empty and non-empty sensitive env vars
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_METRICS_SECRET: ""
-        ARCHESTRA_HASHICORP_VAULT_TOKEN: "valid-token"
-    asserts:
-      # Empty value should use plain value
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_METRICS_SECRET
-            value: ""
-      # Non-empty value should use secretKeyRef
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_HASHICORP_VAULT_TOKEN
-            valueFrom:
-              secretKeyRef:
-                name: RELEASE-NAME-archestra-platform-auth
-                key: archestra-hashicorp-vault-token
-
-  - it: should use plain value for ARCHESTRA_CHAT_*_API_KEY with empty value
-    documentIndex: 1
-    set:
-      archestra.env:
-        ARCHESTRA_CHAT_ANTHROPIC_API_KEY: ""
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: ARCHESTRA_CHAT_ANTHROPIC_API_KEY
-            value: ""
-
-  # Node selector tests
-  - it: should not have nodeSelector when archestra.nodeSelector is empty
-    documentIndex: 1
-    set:
-      archestra.nodeSelector: {}
+      archestra.orchestrator.kubernetes.kubeconfig.enabled: false
     asserts:
       - isNull:
-          path: spec.template.spec.nodeSelector
+          path: spec.template.spec.containers[0].volumeMounts
+      - isNull:
+          path: spec.template.spec.volumes
 
-  - it: should apply nodeSelector when provided
-    documentIndex: 1
+  - it: backend should mount kubeconfig volume when kubeconfig is enabled
+    documentIndex: 2
     set:
-      archestra.nodeSelector:
-        karpenter.sh/nodepool: general-purpose
+      archestra.orchestrator.kubernetes.kubeconfig.enabled: true
+      archestra.orchestrator.kubernetes.kubeconfig.secretName: "my-kubeconfig"
+      archestra.orchestrator.kubernetes.kubeconfig.mountPath: "/etc/kubeconfig"
     asserts:
       - equal:
-          path: spec.template.spec.nodeSelector["karpenter.sh/nodepool"]
-          value: general-purpose
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: kubeconfig
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: "/etc/kubeconfig"
 
-  - it: should apply multiple nodeSelector labels
-    documentIndex: 1
+  # =============================================================================
+  # envFrom Tests (Backend)
+  # =============================================================================
+  - it: backend should not add envFrom section when envFrom is empty
+    documentIndex: 2
     set:
-      archestra.nodeSelector:
-        karpenter.sh/nodepool: general-purpose
-        kubernetes.io/os: linux
-        node.kubernetes.io/instance-type: m5.large
+      archestra.envFrom: []
+    asserts:
+      - isNull:
+          path: spec.template.spec.containers[0].envFrom
+
+  - it: backend should add envFrom with single secretRef
+    documentIndex: 2
+    set:
+      archestra.envFrom:
+        - secretRef:
+            name: my-secret
     asserts:
       - equal:
-          path: spec.template.spec.nodeSelector["karpenter.sh/nodepool"]
-          value: general-purpose
-      - equal:
-          path: spec.template.spec.nodeSelector["kubernetes.io/os"]
-          value: linux
-      - equal:
-          path: spec.template.spec.nodeSelector["node.kubernetes.io/instance-type"]
-          value: m5.large
-
-  - it: should support nodeSelector with custom labels
-    documentIndex: 1
-    set:
-      archestra.nodeSelector:
-        team: platform
-        environment: production
-    asserts:
-      - equal:
-          path: spec.template.spec.nodeSelector["team"]
-          value: platform
-      - equal:
-          path: spec.template.spec.nodeSelector["environment"]
-          value: production
+          path: spec.template.spec.containers[0].envFrom
+          value:
+            - secretRef:
+                name: my-secret

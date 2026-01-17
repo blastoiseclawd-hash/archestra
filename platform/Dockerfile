@@ -69,6 +69,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 ENV ARCHESTRA_VERSION=${VERSION}
+# Run mode controls which services supervisord starts
+# Values: "all" (default for docker quickstart), "backend", "frontend"
+ENV ARCHESTRA_RUN_MODE="all"
 ENV ARCHESTRA_API_BASE_URL="http://localhost:9000"
 ENV ARCHESTRA_API_EXTERNAL_BASE_URL=""
 ENV ARCHESTRA_ANALYTICS="enabled"
@@ -139,7 +142,7 @@ COPY --from=builder /app/frontend/public ./frontend/public
 COPY --from=builder /app/frontend/.next/standalone ./
 COPY --from=builder /app/frontend/.next/static ./frontend/.next/static
 
-# Create base supervisord configuration (without postgres)
+# Create base supervisord configuration (without programs - they are added conditionally)
 #
 # Important notes about supervisord environment variable handling:
 # - Subprocesses automatically inherit ALL environment variables from the shell that starts supervisord
@@ -156,6 +159,10 @@ nodaemon=true
 user=root
 logfile=/var/log/supervisor/supervisord.log
 pidfile=/var/run/supervisord.pid
+EOF
+
+# Create backend program configuration (conditionally included based on ARCHESTRA_RUN_MODE)
+RUN cat > /etc/supervisord.backend.conf <<'EOF'
 
 [program:backend]
 directory=/app/backend
@@ -170,6 +177,10 @@ priority=10
 # DATABASE_URL is set to a placeholder here and replaced via sed in docker-entrypoint.sh
 # All other environment variables (NODE_ENV, ARCHESTRA_*, etc.) are inherited automatically
 environment=DATABASE_URL="placeholder"
+EOF
+
+# Create frontend program configuration (conditionally included based on ARCHESTRA_RUN_MODE)
+RUN cat > /etc/supervisord.frontend.conf <<'EOF'
 
 [program:frontend]
 directory=/app/frontend
@@ -189,7 +200,7 @@ priority=20
 environment=HOSTNAME="0.0.0.0",NEXT_PUBLIC_ARCHESTRA_API_BASE_URL="%(ENV_ARCHESTRA_API_BASE_URL)s",NEXT_PUBLIC_ARCHESTRA_API_EXTERNAL_BASE_URL="%(ENV_ARCHESTRA_API_EXTERNAL_BASE_URL)s",NEXT_PUBLIC_ARCHESTRA_ANALYTICS="%(ENV_ARCHESTRA_ANALYTICS)s",NEXT_PUBLIC_ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE="%(ENV_ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE)s",NEXT_PUBLIC_ARCHESTRA_SENTRY_FRONTEND_DSN="%(ENV_ARCHESTRA_SENTRY_FRONTEND_DSN)s",NEXT_PUBLIC_ARCHESTRA_SENTRY_ENVIRONMENT="%(ENV_ARCHESTRA_SENTRY_ENVIRONMENT)s",NEXT_PUBLIC_ARCHESTRA_ENTERPRISE_LICENSE_ACTIVATED="%(ENV_ARCHESTRA_ENTERPRISE_LICENSE_ACTIVATED)s",NEXT_PUBLIC_ARCHESTRA_AUTH_DISABLE_BASIC_AUTH="%(ENV_ARCHESTRA_AUTH_DISABLE_BASIC_AUTH)s",NEXT_PUBLIC_ARCHESTRA_AUTH_DISABLE_INVITATIONS="%(ENV_ARCHESTRA_AUTH_DISABLE_INVITATIONS)s"
 EOF
 
-# Create postgres program configuration (to be conditionally included)
+# Create postgres program configuration (conditionally included when using internal DB)
 RUN cat > /etc/supervisord.postgres.conf <<'EOF'
 
 [program:postgres]
@@ -420,16 +431,45 @@ else
     POSTGRES_DB=$(echo "$EFFECTIVE_DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
 fi
 
-# Update supervisord config with actual environment variables
-sed -i "s|DATABASE_URL=\"[^\"]*\"|DATABASE_URL=\"${EFFECTIVE_DATABASE_URL}\"|" /etc/supervisord.conf
+# Include backend/frontend configs based on ARCHESTRA_RUN_MODE
+# Default is "all" for docker quickstart compatibility
+RUN_MODE="${ARCHESTRA_RUN_MODE:-all}"
+echo "Run mode: ${RUN_MODE}"
+
+case "$RUN_MODE" in
+    all)
+        # Docker quickstart mode: run both backend and frontend
+        cat /etc/supervisord.backend.conf >> /etc/supervisord.conf
+        cat /etc/supervisord.frontend.conf >> /etc/supervisord.conf
+        ;;
+    backend)
+        # Helm backend pod: run only backend
+        cat /etc/supervisord.backend.conf >> /etc/supervisord.conf
+        ;;
+    frontend)
+        # Helm frontend pod: run only frontend
+        cat /etc/supervisord.frontend.conf >> /etc/supervisord.conf
+        ;;
+    *)
+        echo "ERROR: Invalid ARCHESTRA_RUN_MODE '${RUN_MODE}'. Must be 'all', 'backend', or 'frontend'."
+        exit 1
+        ;;
+esac
+
+# Update supervisord config with actual environment variables (only if backend is running)
+if [ "$RUN_MODE" = "all" ] || [ "$RUN_MODE" = "backend" ]; then
+    sed -i "s|DATABASE_URL=\"[^\"]*\"|DATABASE_URL=\"${EFFECTIVE_DATABASE_URL}\"|" /etc/supervisord.conf
+fi
 
 # Propagate analytics setting to frontend (enabled by default, set to "disabled" to opt-out)
-if [ -n "$ARCHESTRA_ANALYTICS" ]; then
+if [ -n "$ARCHESTRA_ANALYTICS" ] && { [ "$RUN_MODE" = "all" ] || [ "$RUN_MODE" = "frontend" ]; }; then
   sed -i "s|environment=\(.*\)|environment=\1,NEXT_PUBLIC_ARCHESTRA_ANALYTICS=\"${ARCHESTRA_ANALYTICS}\"|g" /etc/supervisord.conf
 fi
 
-# Add startup banner to supervisord (sleeps 12s to ensure it prints after Next.js logs)
-cat >> /etc/supervisord.conf <<CONF
+# Add startup banner to supervisord only in "all" mode (docker quickstart)
+# In helm deployments, each pod only runs one service so the banner doesn't make sense
+if [ "$RUN_MODE" = "all" ]; then
+    cat >> /etc/supervisord.conf <<CONF
 
 [program:startup-banner]
 command=/bin/sh -c "sleep 12 && /app/docker-banner.sh"
@@ -442,6 +482,7 @@ stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr
 stderr_logfile_maxbytes=0
 CONF
+fi
 
 # Set up signal handlers now that all initialization is complete
 trap cleanup SIGTERM SIGINT

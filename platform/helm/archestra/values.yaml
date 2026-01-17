@@ -15,10 +15,34 @@ archestra:
   # Options: Always, IfNotPresent, Never
   imagePullPolicy: IfNotPresent
 
-  # Number of pod replicas for the Archestra Platform deployment
+  # Number of pod replicas for the backend deployment
   # Note: This value is ignored when horizontalPodAutoscaler.enabled is true,
   # as the HPA will manage the replica count dynamically
   replicaCount: 1
+
+  # Frontend-specific configuration
+  # The frontend is deployed separately from the backend to avoid chunk 404 errors during upgrades.
+  # During rolling updates, old Next.js chunks become unavailable causing "client-side exception" errors.
+  # Using Recreate strategy with a single replica ensures atomic cutover without 404 errors.
+  frontend:
+    # Number of frontend replicas (recommended: 1 to avoid chunk 404 errors)
+    # Multiple replicas can cause issues during updates when browsers have cached old chunk references
+    replicaCount: 1
+
+    # Deployment strategy for the frontend
+    # Recreate is recommended to avoid chunk 404 errors during updates.
+    # With Recreate: old pod terminates first, then new pod starts - all users get new chunks simultaneously.
+    # With RollingUpdate: during the transition, users with cached old chunks may get 404 errors.
+    deploymentStrategy:
+      type: Recreate
+
+    # Resource requests and limits for the frontend container
+    # Frontend typically needs less resources than backend
+    resources:
+      requests:
+        memory: "512Mi"
+      limits:
+        memory: "1Gi"
 
   # Annotations to add to pods created by the Deployment
   # This is useful for integrations that require pod-level annotations, such as:

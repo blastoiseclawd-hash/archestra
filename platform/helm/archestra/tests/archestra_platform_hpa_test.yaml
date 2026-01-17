@@ -22,7 +22,10 @@ tests:
           value: autoscaling/v2
       - matchRegex:
           path: metadata.name
-          pattern: -archestra-platform$
+          pattern: -archestra-platform-backend$
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: backend
 
   - it: should have common labels
     set:
@@ -37,7 +40,7 @@ tests:
       - exists:
           path: metadata.labels["helm.sh/chart"]
 
-  - it: should target the correct deployment
+  - it: should target the backend deployment
     set:
       archestra.horizontalPodAutoscaler.enabled: true
       archestra.horizontalPodAutoscaler.minReplicas: 1
@@ -53,7 +56,7 @@ tests:
           value: Deployment
       - equal:
           path: spec.scaleTargetRef.name
-          value: "test-release-archestra-platform"
+          value: "test-release-archestra-platform-backend"
 
   - it: should configure default replica counts
     set:

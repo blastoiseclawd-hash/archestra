@@ -2,15 +2,16 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "archestra-platform.fullname" . }}
+  name: {{ include "archestra-platform.fullname" . }}-backend
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "archestra-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "archestra-platform.fullname" . }}
+    name: {{ include "archestra-platform.fullname" . }}-backend
   minReplicas: {{ .Values.archestra.horizontalPodAutoscaler.minReplicas }}
   maxReplicas: {{ .Values.archestra.horizontalPodAutoscaler.maxReplicas }}
   {{- with .Values.archestra.horizontalPodAutoscaler.metrics }}
