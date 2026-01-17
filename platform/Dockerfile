@@ -84,11 +84,15 @@ RUN apk --no-cache upgrade && \
     apk add --no-cache postgresql17 postgresql17-contrib su-exec wget && \
     # Remove NPM-related files and directories (as we do not use npm and it just brings extra dependencies/vulnerabilities)
     # See https://github.com/grafana/grafana-image-renderer/pull/625
+    # This includes removing corepack's npm cache to address CVE-2026-23745 in tar@7.5.2
     rm -rf /usr/local/lib/node_modules/npm && \
     rm -rf /usr/local/bin/npm && \
     rm -rf /usr/local/bin/npx && \
     rm -rf /root/.npm && \
     rm -rf /root/.node-gyp && \
+    rm -rf /root/.cache/node && \
+    rm -rf /pnpm/.npm && \
+    find /usr/local -name "npm" -type d -exec rm -rf {} + 2>/dev/null || true && \
     mkdir -p /var/log/supervisor && \
     # Clean up
     rm -rf /tmp/*
