@@ -19,6 +19,7 @@ import config from "@/config";
 import { extractAndIngestDocuments } from "@/knowledge-graph/chat-document-extractor";
 import logger from "@/logging";
 import {
+  AgentLabelModel,
   AgentModel,
   ChatApiKeyModel,
   ConversationEnabledToolModel,
@@ -143,15 +144,6 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       { body: { id: conversationId, messages }, user, organizationId, headers },
       reply,
     ) => {
-      // Extract and ingest documents to knowledge graph (fire and forget)
-      // This runs asynchronously to avoid blocking the chat response
-      extractAndIngestDocuments(messages).catch((error) => {
-        logger.warn(
-          { error: error instanceof Error ? error.message : String(error) },
-          "[Chat] Background document ingestion failed",
-        );
-      });
-
       const { success: userIsProfileAdmin } = await hasPermission(
         { profile: ["admin"] },
         headers,
@@ -167,6 +159,45 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       if (!conversation) {
         throw new ApiError(404, "Conversation not found");
       }
+
+      // Extract and ingest documents to knowledge graph (fire and forget)
+      // This runs asynchronously after we have the conversation context
+      // for Label-Based Access Control (LBAC)
+      (async () => {
+        // Try to get labels, but fall back to empty array if it fails
+        let labels: Awaited<
+          ReturnType<typeof AgentLabelModel.getLabelsForAgent>
+        > = [];
+        try {
+          labels = await AgentLabelModel.getLabelsForAgent(
+            conversation.agentId,
+          );
+        } catch (labelError) {
+          logger.warn(
+            {
+              error:
+                labelError instanceof Error
+                  ? labelError.message
+                  : String(labelError),
+              agentId: conversation.agentId,
+            },
+            "[Chat] Failed to get labels for document ingestion, proceeding without labels",
+          );
+        }
+
+        // Always attempt ingestion, even if label retrieval failed
+        await extractAndIngestDocuments(messages, {
+          organizationId,
+          userId: user.id,
+          agentId: conversation.agentId,
+          labels,
+        });
+      })().catch((error) => {
+        logger.warn(
+          { error: error instanceof Error ? error.message : String(error) },
+          "[Chat] Background document ingestion failed",
+        );
+      });
 
       // Use prompt ID as external agent ID if available, otherwise use header value
       // This allows prompt names to be displayed in LLM proxy logs
@@ -436,21 +467,16 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       schema: {
         operationId: RouteId.GetChatConversations,
         description:
-          "List all conversations for current user with agent details. Optionally filter by search query.",
+          "List all conversations for current user with agent details",
         tags: ["Chat"],
-        querystring: z.object({
-          search: z.string().optional(),
-        }),
         response: constructResponseSchema(z.array(SelectConversationSchema)),
       },
     },
     async (request, reply) => {
-      const { search } = request.query;
       return reply.send(
         await ConversationModel.findAll(
           request.user.id,
           request.organizationId,
-          search,
         ),
       );
     },
