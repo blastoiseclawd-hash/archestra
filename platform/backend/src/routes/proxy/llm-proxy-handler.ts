@@ -94,7 +94,7 @@ export async function handleLLMProxy<
   const { sessionId, sessionSource } = sessionInfo;
 
   const requestAdapter = provider.createRequestAdapter(body);
-  const streamAdapter = provider.createStreamAdapter();
+  const streamAdapter = provider.createStreamAdapter(body);
   const providerMessages = requestAdapter.getProviderMessages();
   const messagesCount = getProviderMessagesCount(providerMessages);
 
@@ -499,7 +499,12 @@ async function handleStreaming<
 
       // Stream non-tool-call data immediately
       if (result.sseData) {
-        reply.raw.write(result.sseData);
+        // Convert Uint8Array to Buffer for Node.js compatibility
+        const data =
+          result.sseData instanceof Uint8Array
+            ? Buffer.from(result.sseData)
+            : result.sseData;
+        reply.raw.write(data);
       }
 
       if (result.isFinal) {
@@ -562,7 +567,10 @@ async function handleStreaming<
       // Stream refusal
       const refusalEvents = streamAdapter.formatCompleteTextSSE(contentMessage);
       for (const event of refusalEvents) {
-        reply.raw.write(event);
+        // Convert Uint8Array to Buffer for Node.js compatibility
+        const data =
+          event instanceof Uint8Array ? Buffer.from(event) : event;
+        reply.raw.write(data);
       }
 
       reportBlockedTools(
@@ -574,20 +582,31 @@ async function handleStreaming<
       );
     } else if (toolCalls.length > 0) {
       // Tool calls approved - stream raw events
+      const rawEvents = streamAdapter.getRawToolCallEvents();
       logger.info(
-        { toolCallCount: toolCalls.length },
-        "Tool calls allowed, streaming them now",
+        {
+          toolCallCount: toolCalls.length,
+          bufferedEventsCount: rawEvents.length,
+          toolCallNames: toolCalls.map((tc) => tc.name),
+        },
+        "Tool calls allowed, streaming buffered events now",
       );
 
-      const rawEvents = streamAdapter.getRawToolCallEvents();
       for (const event of rawEvents) {
-        reply.raw.write(event);
+        // Convert Uint8Array to Buffer for Node.js compatibility
+        const data =
+          event instanceof Uint8Array ? Buffer.from(event) : event;
+        reply.raw.write(data);
       }
     }
 
     // Stream end events
-    reply.raw.write(streamAdapter.formatEndSSE());
+    const endSSE = streamAdapter.formatEndSSE();
+    if (endSSE) {
+      reply.raw.write(endSSE);
+    }
     reply.raw.end();
+    logger.debug("Stream ended, response completed");
 
     streamCompleted = true;
     return reply;

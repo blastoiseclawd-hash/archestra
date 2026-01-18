@@ -76,6 +76,43 @@ function encodeEventStreamMessage(
 // =============================================================================
 
 /**
+ * Nova models fail with "Model produced invalid sequence as part of ToolUse" when
+ * tool names contain hyphens. We replace hyphens with underscores before sending
+ * to Bedrock and use a name mapping to restore original names in responses.
+ */
+function encodeToolName(name: string): string {
+  return name.replaceAll("-", "_");
+}
+
+/**
+ * Build a mapping from encoded tool names back to original names.
+ */
+function buildToolNameMapping(
+  request: BedrockRequest,
+): Map<string, string> {
+  const mapping = new Map<string, string>();
+  const tools = request.toolConfig?.tools ?? [];
+  for (const tool of tools) {
+    const originalName = tool.toolSpec?.name;
+    if (originalName) {
+      const encodedName = encodeToolName(originalName);
+      mapping.set(encodedName, originalName);
+    }
+  }
+  return mapping;
+}
+
+/**
+ * Decode tool name using the mapping, falls back to encoded name if not found.
+ */
+function decodeToolName(
+  encodedName: string,
+  mapping: Map<string, string>,
+): string {
+  return mapping.get(encodedName) ?? encodedName;
+}
+
+/**
  * Check if a content block is a text block.
  * Works with both AWS SDK ContentBlock and our internal Zod types.
  */
@@ -136,9 +173,11 @@ class BedrockRequestAdapter
   private request: BedrockRequest;
   private modifiedModel: string | null = null;
   private toolResultUpdates: Record<string, string> = {};
+  private toolNameMapping: Map<string, string>;
 
   constructor(request: BedrockRequest) {
     this.request = request;
+    this.toolNameMapping = buildToolNameMapping(request);
   }
 
   // ---------------------------------------------------------------------------
@@ -293,7 +332,8 @@ class BedrockRequestAdapter
             isToolUseBlock(content) &&
             content.toolUse.toolUseId === toolUseId
           ) {
-            return content.toolUse.name ?? null;
+            const name = content.toolUse.name ?? null;
+            return name ? decodeToolName(name, this.toolNameMapping) : null;
           }
         }
       }
@@ -391,7 +431,8 @@ class BedrockRequestAdapter
             isToolUseBlock(content) &&
             content.toolUse.toolUseId === toolUseId
           ) {
-            return content.toolUse.name ?? null;
+            const name = content.toolUse.name ?? null;
+            return name ? decodeToolName(name, this.toolNameMapping) : null;
           }
         }
       }
@@ -500,6 +541,7 @@ class BedrockResponseAdapter implements LLMResponseAdapter<BedrockResponse> {
       if (isToolUseBlock(block)) {
         toolCalls.push({
           id: block.toolUse.toolUseId ?? "",
+          // Tool names are already decoded by execute() before response reaches here
           name: block.toolUse.name ?? "",
           arguments: (block.toolUse.input ?? {}) as Record<string, unknown>,
         });
@@ -553,11 +595,15 @@ class BedrockStreamAdapter
   readonly provider = "bedrock" as const;
   readonly state: StreamAccumulatorState;
   private currentToolCallIndex = -1;
+  private toolNameMapping: Map<string, string> = new Map();
 
   // Bedrock-specific extended state
   private bedrockState: {
     latencyMs: number | null;
     trace: unknown | null;
+    // Buffer for messageStop and metadata events when tool calls are pending
+    // These must be sent AFTER tool call events in the correct stream order
+    pendingFinalEvents: BedrockStreamEventWithRaw[];
   };
 
   constructor() {
@@ -577,7 +623,15 @@ class BedrockStreamAdapter
     this.bedrockState = {
       latencyMs: null,
       trace: null,
+      pendingFinalEvents: [],
     };
+  }
+
+  /**
+   * Set the tool name mapping from the request for decoding tool names in responses.
+   */
+  setToolNameMapping(request: BedrockRequest): void {
+    this.toolNameMapping = buildToolNameMapping(request);
   }
 
   processChunk(chunk: BedrockStreamEventWithRaw): ChunkProcessingResult {
@@ -608,7 +662,7 @@ class BedrockStreamAdapter
         this.currentToolCallIndex = this.state.toolCalls.length;
         this.state.toolCalls.push({
           id: toolUse.toolUseId ?? "",
-          name: toolUse.name ?? "",
+          name: decodeToolName(toolUse.name ?? "", this.toolNameMapping),
           arguments: "",
         });
         this.state.rawToolCallEvents.push(chunk);
@@ -658,8 +712,15 @@ class BedrockStreamAdapter
       }
     } else if ("messageStop" in chunk && chunk.messageStop) {
       this.state.stopReason = chunk.messageStop.stopReason ?? "end_turn";
-      sseData =
-        rawBytes ?? encodeEventStreamMessage("messageStop", chunk.messageStop);
+      // If we have pending tool calls, buffer this event to send after tool blocks
+      // The stream order must be: text blocks → tool blocks → messageStop → metadata
+      if (this.state.toolCalls.length > 0) {
+        this.bedrockState.pendingFinalEvents.push(chunk);
+        isToolCallChunk = true; // Mark as tool-related so it's not streamed yet
+      } else {
+        sseData =
+          rawBytes ?? encodeEventStreamMessage("messageStop", chunk.messageStop);
+      }
       // Don't set isFinal here - metadata chunk comes after messageStop
     } else if ("metadata" in chunk && chunk.metadata) {
       const metadata = chunk.metadata as {
@@ -679,8 +740,14 @@ class BedrockStreamAdapter
       if (metadata.trace) {
         this.bedrockState.trace = metadata.trace;
       }
-      // Pass through metadata chunk as-is - this is the final event
-      sseData = rawBytes ?? encodeEventStreamMessage("metadata", chunk.metadata);
+      // If we have pending tool calls, buffer this event to send after tool blocks
+      if (this.state.toolCalls.length > 0) {
+        this.bedrockState.pendingFinalEvents.push(chunk);
+        isToolCallChunk = true; // Mark as tool-related so it's not streamed yet
+      } else {
+        // Pass through metadata chunk as-is - this is the final event
+        sseData = rawBytes ?? encodeEventStreamMessage("metadata", chunk.metadata);
+      }
       isFinal = true;
     } else if (
       "internalServerException" in chunk &&
@@ -767,35 +834,70 @@ class BedrockStreamAdapter
   }
 
   getRawToolCallEvents(): Uint8Array[] {
-    // Use raw bytes if available (passthrough), otherwise re-encode
-    return this.state.rawToolCallEvents.map((rawEvent) => {
+    const result: Uint8Array[] = [];
+
+    // Re-encode all tool call content blocks with decoded tool names
+    // We cannot use raw bytes because they contain encoded names (hyphens replaced with underscores)
+    for (const rawEvent of this.state.rawToolCallEvents) {
       const event = rawEvent as BedrockStreamEventWithRaw;
 
-      // Use original raw bytes if available
+      if ("contentBlockStart" in event && event.contentBlockStart) {
+        const blockStart = event.contentBlockStart;
+        // Decode tool name if this is a tool use block
+        if (
+          blockStart.start &&
+          "toolUse" in blockStart.start &&
+          blockStart.start.toolUse
+        ) {
+          const decodedEvent = {
+            ...blockStart,
+            start: {
+              toolUse: {
+                ...blockStart.start.toolUse,
+                name: decodeToolName(
+                  blockStart.start.toolUse.name ?? "",
+                  this.toolNameMapping,
+                ),
+              },
+            },
+          };
+          result.push(encodeEventStreamMessage("contentBlockStart", decodedEvent));
+        } else {
+          result.push(
+            encodeEventStreamMessage("contentBlockStart", event.contentBlockStart),
+          );
+        }
+      } else if ("contentBlockDelta" in event && event.contentBlockDelta) {
+        result.push(
+          encodeEventStreamMessage("contentBlockDelta", event.contentBlockDelta),
+        );
+      } else if ("contentBlockStop" in event && event.contentBlockStop) {
+        result.push(
+          encodeEventStreamMessage("contentBlockStop", event.contentBlockStop),
+        );
+      }
+    }
+
+    // Then, add the buffered final events (messageStop and metadata) in order
+    // These must come AFTER all content blocks for correct stream order
+    for (const finalEvent of this.bedrockState.pendingFinalEvents) {
+      const event = finalEvent as BedrockStreamEventWithRaw;
+
+      // Use original raw bytes if available (these don't contain tool names)
       if (event.__rawBytes) {
-        return event.__rawBytes;
+        result.push(event.__rawBytes);
+        continue;
       }
 
       // Fallback to re-encoding
-      if ("contentBlockStart" in event && event.contentBlockStart) {
-        return encodeEventStreamMessage(
-          "contentBlockStart",
-          event.contentBlockStart,
-        );
-      } else if ("contentBlockDelta" in event && event.contentBlockDelta) {
-        return encodeEventStreamMessage(
-          "contentBlockDelta",
-          event.contentBlockDelta,
-        );
-      } else if ("contentBlockStop" in event && event.contentBlockStop) {
-        return encodeEventStreamMessage(
-          "contentBlockStop",
-          event.contentBlockStop,
-        );
+      if ("messageStop" in event && event.messageStop) {
+        result.push(encodeEventStreamMessage("messageStop", event.messageStop));
+      } else if ("metadata" in event && event.metadata) {
+        result.push(encodeEventStreamMessage("metadata", event.metadata));
       }
-      // Fallback - shouldn't happen
-      return new Uint8Array(0);
-    });
+    }
+
+    return result;
   }
 
   formatCompleteTextSSE(text: string): Uint8Array[] {
@@ -1055,7 +1157,10 @@ export function getCommandInput(request: BedrockRequest) {
           tools: request.toolConfig.tools?.map((t) => ({
             toolSpec: t.toolSpec
               ? {
-                  name: t.toolSpec.name,
+                  // Encode hyphens in tool names for Nova compatibility
+                  name: t.toolSpec.name
+                    ? encodeToolName(t.toolSpec.name)
+                    : undefined,
                   description: t.toolSpec.description,
                   inputSchema: t.toolSpec.inputSchema
                     ? {
@@ -1097,8 +1202,14 @@ export const bedrockAdapterFactory: LLMProvider<
     return new BedrockResponseAdapter(response);
   },
 
-  createStreamAdapter(): LLMStreamAdapter<BedrockStreamEvent, BedrockResponse> {
-    return new BedrockStreamAdapter();
+  createStreamAdapter(
+    request?: BedrockRequest,
+  ): LLMStreamAdapter<BedrockStreamEvent, BedrockResponse> {
+    const adapter = new BedrockStreamAdapter();
+    if (request) {
+      adapter.setToolNameMapping(request);
+    }
+    return adapter;
   },
 
   extractApiKey(headers: BedrockHeaders): string | undefined {
@@ -1201,6 +1312,7 @@ export const bedrockAdapterFactory: LLMProvider<
   ): Promise<BedrockResponse> {
     const bedrockClient = client as BedrockRuntimeClient;
     const commandInput = getCommandInput(request);
+    const toolNameMapping = buildToolNameMapping(request);
 
     // biome-ignore lint/suspicious/noExplicitAny: AWS SDK types are complex, casting to any for flexibility
     const command = new ConverseCommand(commandInput as any);
@@ -1226,7 +1338,7 @@ export const bedrockAdapterFactory: LLMProvider<
           outputContent.push({
             toolUse: {
               toolUseId: c.toolUse.toolUseId ?? "",
-              name: c.toolUse.name ?? "",
+              name: decodeToolName(c.toolUse.name ?? "", toolNameMapping),
               input: (c.toolUse.input ?? {}) as Record<string, unknown>,
             },
           });
@@ -1327,7 +1439,15 @@ export const bedrockAdapterFactory: LLMProvider<
 
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            if (buffer.length > 0) {
+              logger.warn(
+                { remainingBytes: buffer.length },
+                "[BedrockStream] Stream ended with remaining buffer data",
+              );
+            }
+            break;
+          }
 
           // Accumulate buffer
           const newBuffer = new Uint8Array(buffer.length + value.length);
@@ -1351,6 +1471,11 @@ export const bedrockAdapterFactory: LLMProvider<
               // Decode to get headers and body
               const message = eventStreamCodec.decode(msgBytes);
 
+              // Check message type - could be "event" or "exception"
+              const messageType = String(
+                message.headers[":message-type"]?.value ?? "event",
+              );
+
               // Extract event type from headers
               const eventType = String(
                 message.headers[":event-type"]?.value ?? "",
@@ -1365,6 +1490,19 @@ export const bedrockAdapterFactory: LLMProvider<
                 } catch {
                   // Keep empty object if parse fails
                 }
+              }
+
+              // Handle exception messages from Bedrock
+              if (messageType === "exception") {
+                const errorMessage =
+                  typeof bodyData.message === "string"
+                    ? bodyData.message
+                    : "Unknown Bedrock error";
+                logger.error(
+                  { eventType, bodyData },
+                  `[BedrockStream] Exception received: ${errorMessage}`,
+                );
+                throw new Error(`Bedrock error: ${errorMessage}`);
               }
 
               // Build event object matching SDK format, with raw bytes attached
@@ -1386,6 +1524,12 @@ export const bedrockAdapterFactory: LLMProvider<
                 event.messageStop = bodyData;
               } else if (eventType === "metadata") {
                 event.metadata = bodyData;
+              } else {
+                // Log unrecognized event types for debugging
+                logger.warn(
+                  { eventType, messageType, bodyDataKeys: Object.keys(bodyData) },
+                  "[BedrockStream] Unrecognized event type",
+                );
               }
 
               yield event as BedrockStreamEventWithRaw;

@@ -349,8 +349,8 @@ export interface LLMProvider<TRequest, TResponse, TMessages, TChunk, THeaders> {
   /** Create a response adapter */
   createResponseAdapter(response: TResponse): LLMResponseAdapter<TResponse>;
 
-  /** Create a stream adapter */
-  createStreamAdapter(): LLMStreamAdapter<TChunk, TResponse>;
+  /** Create a stream adapter. Request is optional and used by some providers (e.g., Bedrock for tool name mapping) */
+  createStreamAdapter(request?: TRequest): LLMStreamAdapter<TChunk, TResponse>;
 
   // ---------------------------------------------------------------------------
   // Client & Headers
