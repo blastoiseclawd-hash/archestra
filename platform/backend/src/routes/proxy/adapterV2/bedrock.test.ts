@@ -1358,7 +1358,10 @@ describe("bedrockAdapterFactory.execute", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    const client = { apiKey: "test-api-key", baseUrl: "https://bedrock.example.com" };
+    const client = {
+      apiKey: "test-api-key",
+      baseUrl: "https://bedrock.example.com",
+    };
     const request = createMockRequest([
       { role: "user", content: [{ text: "Hi" }] },
     ]);
@@ -1564,6 +1567,66 @@ describe("BedrockStreamAdapter tool name mapping", () => {
     // The tool call should have the original name with hyphens
     expect(streamAdapter.state.toolCalls[0].name).toBe(
       "github-copilot__issue-read",
+    );
+  });
+
+  test("getRawToolCallEvents returns events with decoded tool names", () => {
+    const request: Bedrock.Types.ConverseRequest = {
+      modelId: "us.amazon.nova-pro-v1:0",
+      messages: [{ role: "user", content: [{ text: "Hi" }] }],
+      toolConfig: {
+        tools: [
+          {
+            toolSpec: {
+              name: "github-copilot__issue-read",
+              description: "Read issues",
+              inputSchema: { json: {} },
+            },
+          },
+        ],
+      },
+    };
+
+    const streamAdapter = bedrockAdapterFactory.createStreamAdapter(request);
+
+    // Simulate chunks from Bedrock with ENCODED tool name (underscores)
+    const toolStartChunk = {
+      contentBlockStart: {
+        contentBlockIndex: 0,
+        start: {
+          toolUse: {
+            toolUseId: "tool-123",
+            name: "github_copilot__issue_read", // Encoded name from Bedrock
+          },
+        },
+      },
+    };
+
+    const toolDeltaChunk = {
+      contentBlockDelta: {
+        contentBlockIndex: 0,
+        delta: { toolUse: { input: '{"repo":"test"}' } },
+      },
+    };
+
+    const toolStopChunk = {
+      contentBlockStop: { contentBlockIndex: 0 },
+    };
+
+    streamAdapter.processChunk(toolStartChunk as any);
+    streamAdapter.processChunk(toolDeltaChunk as any);
+    streamAdapter.processChunk(toolStopChunk as any);
+
+    // Get raw events - these should have DECODED tool names
+    const events = streamAdapter.getRawToolCallEvents();
+
+    expect(events).toHaveLength(3);
+
+    // Decode the first event (contentBlockStart) and verify the tool name is decoded
+    const decoded = decodeEventStreamMessage(events[0] as Uint8Array);
+    expect(decoded.eventType).toBe("contentBlockStart");
+    expect((decoded.body as any).start.toolUse.name).toBe(
+      "github-copilot__issue-read", // Should have hyphens, not underscores
     );
   });
 });

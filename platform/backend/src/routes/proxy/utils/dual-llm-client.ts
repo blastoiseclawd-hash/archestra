@@ -665,7 +665,7 @@ export class BedrockDualLlmClient implements DualLlmClient {
   ) {
     logger.debug({ model }, "[dualLlmClient] Bedrock: initializing client");
     this.apiKey = credentials.apiKey || config.chat.bedrock.apiKey;
-    this.baseUrl = credentials.baseUrl || config.llm.bedrock.baseUrl
+    this.baseUrl = credentials.baseUrl || config.llm.bedrock.baseUrl;
     this.model = model;
   }
 

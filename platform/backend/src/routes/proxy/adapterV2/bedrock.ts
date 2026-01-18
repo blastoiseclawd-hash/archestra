@@ -94,7 +94,7 @@ function buildToolNameMapping(request: BedrockRequest): Map<string, string> {
 }
 
 /**
- * Decode tool name using the mapping, falls back to encoded name if not found.
+ * Decode tool name using the mapping (encoded → original).
  */
 function decodeToolName(
   encodedName: string,
@@ -850,15 +850,17 @@ class BedrockStreamAdapter
           "toolUse" in blockStart.start &&
           blockStart.start.toolUse
         ) {
+          const originalName = blockStart.start.toolUse.name ?? "";
+          const decodedName = decodeToolName(
+            originalName,
+            this.toolNameMapping,
+          );
           const decodedEvent = {
             ...blockStart,
             start: {
               toolUse: {
                 ...blockStart.start.toolUse,
-                name: decodeToolName(
-                  blockStart.start.toolUse.name ?? "",
-                  this.toolNameMapping,
-                ),
+                name: decodedName,
               },
             },
           };
