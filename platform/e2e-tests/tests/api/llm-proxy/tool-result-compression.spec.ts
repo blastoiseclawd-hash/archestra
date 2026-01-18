@@ -184,7 +184,7 @@ const cohereConfig: CompressionTestConfig = {
       },
       {
         role: "assistant",
-        content: null,
+        content: "",
         tool_calls: [
           {
             id: "call_123",

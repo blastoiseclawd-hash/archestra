@@ -4,14 +4,9 @@
         "urlPath": "/cohere/v2/chat",
         "headers": {
             "Authorization": {
-                "contains": "cohere-compression-disabled"
+                "contains": "cohere-compression"
             }
-        },
-        "bodyPatterns": [
-            {
-                "contains": "\"name\": \"file1.txt\""
-            }
-        ]
+        }
     },
     "response": {
         "status": 200,

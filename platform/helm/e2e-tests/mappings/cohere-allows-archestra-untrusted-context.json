@@ -28,7 +28,15 @@
                         "id": "call_123",
                         "type": "function",
                         "function": {
-                            "name": "archestra_whoami",
+                            "name": "read_file",
+                            "arguments": "{\"file_path\": \"/etc/passwd\"}"
+                        }
+                    },
+                    {
+                        "id": "call_124",
+                        "type": "function",
+                        "function": {
+                            "name": "archestra__whoami",
                             "arguments": "{}"
                         }
                     }
