@@ -453,10 +453,14 @@ async function fetchBedrockModels(credentials: string): Promise<ModelInfo[]> {
     return [];
   }
 
-  // Filter to only include models that support on-demand inference
+  // Filter to only include models that:
+  // 1. Support on-demand inference
+  // 2. Support TEXT input modality (excludes speech-only models like Nova Sonic)
   const models = response.modelSummaries
     .filter(
-      (model) => model.inferenceTypesSupported?.includes("ON_DEMAND") ?? false,
+      (model) =>
+        (model.inferenceTypesSupported?.includes("ON_DEMAND") ?? false) &&
+        (model.inputModalities?.includes("TEXT") ?? false),
     )
     .map((model) => {
       // Generate a readable display name
