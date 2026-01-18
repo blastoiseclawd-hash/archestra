@@ -31794,17 +31794,7 @@
         "tags": [
           "Chat"
         ],
-        "description": "List all conversations for current user with agent details. Optionally filter by search query.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "query",
-            "name": "search",
-            "required": false
-          }
-        ],
+        "description": "List all conversations for current user with agent details",
         "responses": {
           "200": {
             "description": "Default Response",

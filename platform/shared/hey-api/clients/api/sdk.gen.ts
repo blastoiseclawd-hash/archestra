@@ -387,7 +387,7 @@ export const streamChat = <ThrowOnError extends boolean = false>(options: Option
 });
 
 /**
- * List all conversations for current user with agent details. Optionally filter by search query.
+ * List all conversations for current user with agent details
  */
 export const getChatConversations = <ThrowOnError extends boolean = false>(options?: Options<GetChatConversationsData, ThrowOnError>) => (options?.client ?? client).get<GetChatConversationsResponses, GetChatConversationsErrors, ThrowOnError>({ url: '/api/chat/conversations', ...options });
 
