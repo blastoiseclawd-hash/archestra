@@ -1264,19 +1264,19 @@ export const bedrockAdapterFactory: LLMProvider<
   createClient(
     apiKey: string | undefined,
     _options?: CreateClientOptions,
-  ): { apiKey: string; baseUrl: string } {
-    // Use provided API key or fall back to config
-    const finalApiKey = apiKey || config.chat.bedrock.apiKey;
+  ): { apiKey: string | undefined; baseUrl: string } {
     const baseUrl = config.llm.bedrock.baseUrl;
-
-    return { apiKey: finalApiKey, baseUrl };
+    return { apiKey, baseUrl };
   },
 
   async execute(
     client: unknown,
     request: BedrockRequest,
   ): Promise<BedrockResponse> {
-    const { apiKey, baseUrl } = client as { apiKey: string; baseUrl: string };
+    const { apiKey, baseUrl } = client as {
+      apiKey: string | undefined;
+      baseUrl: string;
+    };
     const commandInput = getCommandInput(request);
     // Only build mapping for Nova models (which require tool name encoding)
     const toolNameMapping = isNovaModel(request.modelId)
@@ -1299,7 +1299,7 @@ export const bedrockAdapterFactory: LLMProvider<
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
       },
       body: bodyJson,
     });
@@ -1370,7 +1370,10 @@ export const bedrockAdapterFactory: LLMProvider<
     client: unknown,
     request: BedrockRequest,
   ): Promise<AsyncIterable<BedrockStreamEventWithRaw>> {
-    const { apiKey, baseUrl } = client as { apiKey: string; baseUrl: string };
+    const { apiKey, baseUrl } = client as {
+      apiKey: string | undefined;
+      baseUrl: string;
+    };
     const commandInput = getCommandInput(request);
 
     // Build request body matching SDK format - cast to any to access optional fields
@@ -1395,7 +1398,7 @@ export const bedrockAdapterFactory: LLMProvider<
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
       },
       body: bodyJson,
     });
