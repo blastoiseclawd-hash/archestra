@@ -171,6 +171,7 @@ export function ModelSelector({
         <ModelSelectorContent
           title="Select Model"
           onCloseAutoFocus={(e) => e.preventDefault()}
+          defaultValue={selectedModel}
         >
           <ModelSelectorInput placeholder="Search models..." />
           <ModelSelectorList>
