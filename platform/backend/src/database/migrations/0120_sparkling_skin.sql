@@ -1,0 +1,1 @@
+ALTER TABLE "prompts" ALTER COLUMN "agent_id" DROP NOT NULL;

@@ -28,6 +28,7 @@ export { default as OrganizationModel } from "./organization";
 export { default as OrganizationRoleModel } from "./organization-role";
 export { default as PromptModel } from "./prompt";
 export { default as PromptAgentModel } from "./prompt-agent";
+export { default as PromptToolModel } from "./prompt-tool";
 export { default as SecretModel } from "./secret";
 export { default as SessionModel } from "./session";
 export { default as StatisticsModel } from "./statistics";

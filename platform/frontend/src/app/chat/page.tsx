@@ -663,8 +663,8 @@ export default function ChatPage() {
 
   // Handle initial prompt change (when no conversation exists)
   const handleInitialPromptChange = useCallback(
-    (promptId: string | null, agentId: string) => {
-      setInitialAgentId(agentId);
+    (promptId: string | null, agentId: string | null) => {
+      setInitialAgentId(agentId ?? "");
       setInitialPromptId(promptId);
     },
     [],

@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface InitialAgentSelectorProps {
   currentPromptId: string | null;
-  onPromptChange: (promptId: string | null, agentId: string) => void;
+  onPromptChange: (promptId: string | null, agentId: string | null) => void;
   defaultAgentId: string;
 }
 
@@ -38,7 +38,10 @@ export function InitialAgentSelector({
     [prompts, currentPromptId],
   );
 
-  const handlePromptSelect = (promptId: string | null, agentId: string) => {
+  const handlePromptSelect = (
+    promptId: string | null,
+    agentId: string | null,
+  ) => {
     onPromptChange(promptId, agentId);
     setOpen(false);
   };

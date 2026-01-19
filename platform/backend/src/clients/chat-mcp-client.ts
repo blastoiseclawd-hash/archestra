@@ -13,6 +13,7 @@ import mcpClient from "@/clients/mcp-client";
 import logger from "@/logging";
 import {
   McpGatewayTeamModel,
+  PromptToolModel,
   TeamModel,
   TeamTokenModel,
   ToolModel,
@@ -495,8 +496,8 @@ export async function getChatMcpTools({
   }
 
   logger.info(
-    { agentId, userId },
-    "getChatMcpTools() called - fetching client...",
+    { agentId, userId, promptId },
+    "getChatMcpTools() called - fetching tools...",
   );
 
   // Get token for direct tool execution (bypasses HTTP for security)
@@ -513,7 +514,26 @@ export async function getChatMcpTools({
     return {};
   }
 
-  // Still use MCP client for listing tools (via MCP Gateway)
+  // If promptId is provided, get tools directly from prompt_tools table
+  // This is the new architecture for A2A and Chat
+  if (promptId) {
+    return await getToolsFromPromptTools({
+      agentName,
+      agentId,
+      userId,
+      userIsProfileAdmin,
+      promptId,
+      organizationId,
+      conversationId,
+      sessionId,
+      delegationChain,
+      mcpGwToken,
+      enabledToolIds,
+      toolCacheKey,
+    });
+  }
+
+  // Fallback: use MCP Gateway for listing tools (legacy path)
   const client = await getChatMcpClient(agentId, userId, userIsProfileAdmin);
 
   if (!client) {
@@ -525,7 +545,10 @@ export async function getChatMcpTools({
   }
 
   try {
-    logger.info({ agentId, userId }, "MCP client available, listing tools...");
+    logger.info(
+      { agentId, userId },
+      "MCP client available, listing tools via MCP Gateway...",
+    );
     const { tools: mcpTools } = await client.listTools();
 
     logger.info(
@@ -925,4 +948,397 @@ async function filterToolsByEnabledIds(
   );
 
   return filteredTools;
+}
+
+/**
+ * Get tools directly from prompt_tools table (new architecture for A2A/Chat)
+ * This bypasses the MCP Gateway and queries the database directly
+ */
+async function getToolsFromPromptTools({
+  agentName,
+  agentId,
+  userId,
+  userIsProfileAdmin,
+  promptId,
+  organizationId,
+  conversationId,
+  sessionId,
+  delegationChain,
+  mcpGwToken,
+  enabledToolIds,
+  toolCacheKey,
+}: {
+  agentName: string;
+  agentId: string;
+  userId: string;
+  userIsProfileAdmin: boolean;
+  promptId: string;
+  organizationId?: string;
+  conversationId?: string;
+  sessionId?: string;
+  delegationChain?: string;
+  mcpGwToken: {
+    tokenValue: string;
+    tokenId: string;
+    teamId: string | null;
+    isOrganizationToken: boolean;
+    organizationId: string;
+    isUserToken?: boolean;
+  };
+  enabledToolIds?: string[];
+  toolCacheKey: `${typeof CacheKey.ChatMcpTools}-${string}`;
+}): Promise<Record<string, Tool>> {
+  logger.info(
+    { agentId, userId, promptId },
+    "Getting tools from prompt_tools table (new architecture)",
+  );
+
+  // Get tools assigned to this prompt
+  const promptTools = await PromptToolModel.getToolsForPrompt(promptId);
+
+  logger.info(
+    {
+      agentId,
+      userId,
+      promptId,
+      toolCount: promptTools.length,
+      toolNames: promptTools.map((t) => t.toolName),
+    },
+    "Fetched tools from prompt_tools table",
+  );
+
+  // Build context for archestra tools
+  const archestraContext: ArchestraContext = {
+    profile: { id: agentId, name: agentName },
+    promptId,
+    organizationId,
+    conversationId,
+    sessionId,
+    delegationChain,
+    tokenAuth: {
+      tokenId: mcpGwToken.tokenId,
+      teamId: mcpGwToken.teamId,
+      isOrganizationToken: mcpGwToken.isOrganizationToken,
+      organizationId: mcpGwToken.organizationId,
+      isUserToken: mcpGwToken.isUserToken,
+      userId: mcpGwToken.isUserToken ? userId : undefined,
+    },
+  };
+
+  // Convert prompt tools to AI SDK Tool format
+  const aiTools: Record<string, Tool> = {};
+
+  for (const promptTool of promptTools) {
+    try {
+      // Normalize the schema
+      const normalizedSchema = normalizeJsonSchemaForPromptTool(
+        promptTool.toolParameters,
+      );
+
+      logger.debug(
+        {
+          toolName: promptTool.toolName,
+          schemaType: normalizedSchema.type,
+          hasProperties: !!normalizedSchema.properties,
+        },
+        "Converting prompt tool with JSON Schema",
+      );
+
+      // Construct Tool using jsonSchema() to wrap JSON Schema
+      aiTools[promptTool.toolName] = {
+        description:
+          promptTool.toolDescription || `Tool: ${promptTool.toolName}`,
+        inputSchema: jsonSchema(normalizedSchema),
+        execute: async (args: unknown) => {
+          logger.info(
+            {
+              agentId,
+              userId,
+              promptId,
+              toolName: promptTool.toolName,
+              arguments: args,
+            },
+            "Executing tool from prompt_tools (direct)",
+          );
+
+          const toolArguments = isRecord(args) ? args : undefined;
+
+          try {
+            // For browser tools, ensure the correct conversation tab is selected first
+            const { browserStreamFeature } = await import(
+              "@/services/browser-stream-feature"
+            );
+
+            if (
+              conversationId &&
+              isBrowserMcpTool(promptTool.toolName) &&
+              browserStreamFeature.isEnabled()
+            ) {
+              logger.info(
+                {
+                  agentId,
+                  userId,
+                  conversationId,
+                  toolName: promptTool.toolName,
+                },
+                "Selecting conversation browser tab before executing browser tool",
+              );
+
+              const tabResult = await browserStreamFeature.selectOrCreateTab(
+                agentId,
+                conversationId,
+                { userId, userIsProfileAdmin },
+              );
+
+              if (!tabResult.success) {
+                logger.warn(
+                  {
+                    agentId,
+                    conversationId,
+                    toolName: promptTool.toolName,
+                    error: tabResult.error,
+                  },
+                  "Failed to select conversation tab for browser tool, continuing anyway",
+                );
+              }
+            }
+
+            // Check if this is an Archestra tool - handle directly without DB lookup
+            if (isArchestraMcpServerTool(promptTool.toolName)) {
+              const archestraResponse = await executeArchestraTool(
+                promptTool.toolName,
+                toolArguments,
+                archestraContext,
+              );
+
+              if (archestraResponse.isError) {
+                const errorText = (
+                  archestraResponse.content as Array<{
+                    type: string;
+                    text?: string;
+                  }>
+                )
+                  .map((item) =>
+                    item.type === "text" && item.text
+                      ? item.text
+                      : JSON.stringify(item),
+                  )
+                  .join("\n");
+                throw new Error(errorText);
+              }
+
+              return (
+                archestraResponse.content as Array<{
+                  type: string;
+                  text?: string;
+                }>
+              )
+                .map((item) =>
+                  item.type === "text" && item.text
+                    ? item.text
+                    : JSON.stringify(item),
+                )
+                .join("\n");
+            }
+
+            // Execute non-Archestra MCP tools via mcpClient using prompt-based credentials
+            const toolCall = {
+              id: randomUUID(),
+              name: promptTool.toolName,
+              arguments: toolArguments ?? {},
+            };
+
+            // Use the new prompt-based tool execution
+            const result = await mcpClient.executeToolCallForPrompt(
+              toolCall,
+              promptId,
+              {
+                tokenId: mcpGwToken.tokenId,
+                teamId: mcpGwToken.teamId,
+                isOrganizationToken: mcpGwToken.isOrganizationToken,
+                organizationId: mcpGwToken.organizationId,
+                userId, // Pass userId for user-owned server priority
+              },
+            );
+
+            if (result.isError) {
+              const extractedError = Array.isArray(result.content)
+                ? result.content
+                    .map((item: { type: string; text?: string }) =>
+                      item.type === "text" && item.text
+                        ? item.text
+                        : JSON.stringify(item),
+                    )
+                    .join("\n")
+                : null;
+              const errorMessage =
+                extractedError || result.error || "Tool execution failed";
+              throw new Error(errorMessage);
+            }
+
+            return (result.content as Array<{ type: string; text?: string }>)
+              .map((item: { type: string; text?: string }) => {
+                if (item.type === "text" && item.text) {
+                  return item.text;
+                }
+                return JSON.stringify(item);
+              })
+              .join("\n");
+          } catch (error) {
+            logger.error(
+              {
+                agentId,
+                userId,
+                promptId,
+                toolName: promptTool.toolName,
+                err: error,
+                errorMessage:
+                  error instanceof Error ? error.message : String(error),
+              },
+              "Prompt tool execution failed",
+            );
+            throw error;
+          }
+        },
+      };
+    } catch (error) {
+      logger.error(
+        { agentId, userId, promptId, toolName: promptTool.toolName, error },
+        "Failed to convert prompt tool to AI SDK format, skipping",
+      );
+    }
+  }
+
+  // Add agent delegation tools if available
+  if (organizationId) {
+    try {
+      const agentToolsList = await getAgentTools({
+        promptId,
+        organizationId,
+        userId,
+      });
+
+      for (const agentTool of agentToolsList) {
+        const normalizedSchema = normalizeJsonSchemaForPromptTool(
+          agentTool.inputSchema,
+        );
+
+        aiTools[agentTool.name] = {
+          description: agentTool.description || `Agent tool: ${agentTool.name}`,
+          inputSchema: jsonSchema(normalizedSchema),
+          execute: async (args: Record<string, unknown>) => {
+            logger.info(
+              {
+                agentId,
+                userId,
+                toolName: agentTool.name,
+                promptId,
+                arguments: args,
+              },
+              "Executing agent tool from prompt_tools",
+            );
+
+            try {
+              const response = await executeArchestraTool(
+                agentTool.name,
+                args,
+                archestraContext,
+              );
+
+              if (response.isError) {
+                const errorText = (
+                  response.content as Array<{ type: string; text?: string }>
+                )
+                  .map((item) =>
+                    item.type === "text" && item.text
+                      ? item.text
+                      : JSON.stringify(item),
+                  )
+                  .join("\n");
+                throw new Error(errorText);
+              }
+
+              return (
+                response.content as Array<{ type: string; text?: string }>
+              )
+                .map((item) =>
+                  item.type === "text" && item.text
+                    ? item.text
+                    : JSON.stringify(item),
+                )
+                .join("\n");
+            } catch (error) {
+              logger.error(
+                {
+                  agentId,
+                  userId,
+                  toolName: agentTool.name,
+                  promptId,
+                  err: error,
+                  errorMessage:
+                    error instanceof Error ? error.message : String(error),
+                },
+                "Agent tool execution failed",
+              );
+              throw error;
+            }
+          },
+        };
+      }
+
+      logger.info(
+        {
+          agentId,
+          userId,
+          promptId,
+          agentToolCount: agentToolsList.length,
+          totalToolCount: Object.keys(aiTools).length,
+        },
+        "Added agent delegation tools to prompt tools",
+      );
+    } catch (error) {
+      logger.error(
+        { agentId, userId, promptId, error },
+        "Failed to fetch agent delegation tools, continuing without them",
+      );
+    }
+  }
+
+  logger.info(
+    {
+      agentId,
+      userId,
+      promptId,
+      convertedToolCount: Object.keys(aiTools).length,
+    },
+    "Successfully converted prompt tools to AI SDK Tool format",
+  );
+
+  // Cache the tools
+  await cacheManager.set(toolCacheKey, aiTools, TOOL_CACHE_TTL_MS);
+
+  // Apply filtering if enabledToolIds provided
+  return await filterToolsByEnabledIds(aiTools, enabledToolIds);
+}
+
+/**
+ * Validate and normalize JSON Schema for prompt tools
+ */
+function normalizeJsonSchemaForPromptTool(schema: unknown): JSONSchema7 {
+  const fallbackSchema: JSONSchema7 = { type: "object", properties: {} };
+
+  if (!isRecord(schema)) {
+    return fallbackSchema;
+  }
+
+  const schemaType = schema.type;
+  if (typeof schemaType !== "string") {
+    return fallbackSchema;
+  }
+
+  if (schemaType === "None" || schemaType === "null") {
+    return fallbackSchema;
+  }
+
+  return schema as JSONSchema7;
 }

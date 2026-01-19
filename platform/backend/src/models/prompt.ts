@@ -33,8 +33,8 @@ class PromptModel {
       .values({
         organizationId,
         name: input.name,
-        // agentId is kept for backward compatibility, set from llmProxyId
-        agentId: input.agentId ?? input.llmProxyId,
+        // agentId is optional (kept for backward compatibility)
+        agentId: input.llmProxyId ?? null,
         llmProxyId: input.llmProxyId,
         mcpGatewayId: input.mcpGatewayId,
         userPrompt: input.userPrompt || null,

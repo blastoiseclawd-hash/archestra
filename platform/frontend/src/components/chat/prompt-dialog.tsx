@@ -4,7 +4,6 @@ import type { archestraApiTypes } from "@shared";
 import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ChatToolsDisplay } from "@/components/chat/chat-tools-display";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,25 +15,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useLlmProxies } from "@/lib/llm-proxy.query";
-import { useMcpGateways } from "@/lib/mcp-gateway-entity.query";
 import {
   usePromptAgents,
   useSyncPromptAgents,
 } from "@/lib/prompt-agents.query";
 import {
+  usePromptAssignedTools,
+  useSyncPromptTools,
+} from "@/lib/prompt-tools.query";
+import {
   useCreatePrompt,
   usePrompts,
   useUpdatePrompt,
 } from "@/lib/prompts.query";
+import { useTools } from "@/lib/tool.query";
 
 type Prompt = archestraApiTypes.GetPromptsResponses["200"][number];
 
@@ -51,35 +46,40 @@ export function PromptDialog({
   prompt,
   onViewVersionHistory,
 }: PromptDialogProps) {
-  const { data: mcpGateways = [] } = useMcpGateways();
-  const { data: llmProxies = [] } = useLlmProxies();
   const { data: allPrompts = [] } = usePrompts();
+  const { data: allTools } = useTools({});
   const createPrompt = useCreatePrompt();
   const updatePrompt = useUpdatePrompt();
   const syncPromptAgents = useSyncPromptAgents();
+  const syncPromptTools = useSyncPromptTools();
   const { data: currentAgents = [] } = usePromptAgents(prompt?.id);
+  const { data: currentTools = [] } = usePromptAssignedTools(prompt?.id);
 
   const [name, setName] = useState("");
-  const [mcpGatewayId, setMcpGatewayId] = useState<string | null>(null);
-  const [llmProxyId, setLlmProxyId] = useState<string | null>(null);
   const [userPrompt, setUserPrompt] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [selectedAgentPromptIds, setSelectedAgentPromptIds] = useState<
     string[]
   >([]);
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
 
   // Available prompts that can be used as agents (excluding self)
   const availableAgentPrompts = useMemo(() => {
     return allPrompts
       .filter((p) => p.id !== prompt?.id)
-      .map((p) => {
-        const gateway = mcpGateways.find((g) => g.id === p.mcpGatewayId);
-        return {
-          value: p.id,
-          label: gateway ? `${p.name} (${gateway.name})` : p.name,
-        };
-      });
-  }, [allPrompts, mcpGateways, prompt?.id]);
+      .map((p) => ({
+        value: p.id,
+        label: p.name,
+      }));
+  }, [allPrompts, prompt?.id]);
+
+  // Available tools for assignment
+  const availableTools = useMemo(() => {
+    return (allTools ?? []).map((t) => ({
+      value: t.id,
+      label: t.name,
+    }));
+  }, [allTools]);
 
   // Reset form when dialog opens/closes or prompt changes
   useEffect(() => {
@@ -87,33 +87,28 @@ export function PromptDialog({
       // edit
       if (prompt) {
         setName(prompt.name);
-        setMcpGatewayId(prompt.mcpGatewayId ?? null);
-        setLlmProxyId(prompt.llmProxyId ?? null);
         setUserPrompt(prompt.userPrompt || "");
         setSystemPrompt(prompt.systemPrompt || "");
-        // Note: agents are loaded separately via currentAgents query
+        // Note: agents and tools are loaded separately via queries
       } else {
         // create
         setName("");
-        setMcpGatewayId(null);
-        setLlmProxyId(null);
         setUserPrompt("");
         setSystemPrompt("");
         setSelectedAgentPromptIds([]);
+        setSelectedToolIds([]);
       }
     } else {
       // reset form
       setName("");
-      setMcpGatewayId(null);
-      setLlmProxyId(null);
       setUserPrompt("");
       setSystemPrompt("");
       setSelectedAgentPromptIds([]);
+      setSelectedToolIds([]);
     }
   }, [open, prompt]);
 
   // Sync selectedAgentPromptIds with currentAgents when data loads
-  // Use a stable string representation to avoid infinite loops
   const currentAgentIds = currentAgents.map((a) => a.agentPromptId).join(",");
   const promptId = prompt?.id;
 
@@ -123,8 +118,16 @@ export function PromptDialog({
     }
   }, [open, promptId, currentAgentIds]);
 
+  // Sync selectedToolIds with currentTools when data loads
+  const currentToolIds = currentTools.map((t) => t.id).join(",");
+
+  useEffect(() => {
+    if (open && promptId && currentToolIds) {
+      setSelectedToolIds(currentToolIds.split(",").filter(Boolean));
+    }
+  }, [open, promptId, currentToolIds]);
+
   const handleSave = useCallback(async () => {
-    // Trim values once at the start
     const trimmedName = name.trim();
     const trimmedUserPrompt = userPrompt.trim();
     const trimmedSystemPrompt = systemPrompt.trim();
@@ -134,58 +137,53 @@ export function PromptDialog({
       return;
     }
 
-    // Use mcpGatewayId as agentId for backward compatibility
-    // (they have the same IDs from the migration)
-    const agentId = mcpGatewayId || mcpGateways[0]?.id;
-
-    if (!agentId) {
-      toast.error("MCP Gateway is required");
-      return;
-    }
-
     try {
-      let promptId: string;
+      let savedPromptId: string;
 
       if (prompt) {
-        // Update increments version (ID stays the same with JSONB history)
+        // Update existing prompt
         const updated = await updatePrompt.mutateAsync({
           id: prompt.id,
           data: {
             name: trimmedName,
-            agentId,
-            mcpGatewayId: mcpGatewayId || undefined,
-            llmProxyId: llmProxyId || undefined,
             userPrompt: trimmedUserPrompt || undefined,
             systemPrompt: trimmedSystemPrompt || undefined,
           },
         });
-        promptId = updated?.id ?? prompt.id;
+        savedPromptId = updated?.id ?? prompt.id;
         toast.success("Agent updated successfully");
       } else {
+        // Create new prompt
         const created = await createPrompt.mutateAsync({
           name: trimmedName,
-          agentId,
-          mcpGatewayId: mcpGatewayId || undefined,
-          llmProxyId: llmProxyId || undefined,
           userPrompt: trimmedUserPrompt || undefined,
           systemPrompt: trimmedSystemPrompt || undefined,
         });
-        promptId = created?.id ?? "";
+        savedPromptId = created?.id ?? "";
         toast.success("Agent created successfully");
       }
 
-      // Sync agents if any were selected and we have a valid promptId
-      if (promptId && selectedAgentPromptIds.length > 0) {
-        await syncPromptAgents.mutateAsync({
-          promptId,
-          agentPromptIds: selectedAgentPromptIds,
-        });
-      } else if (promptId && prompt && currentAgents.length > 0) {
-        // Clear agents if none selected but there were some before
-        await syncPromptAgents.mutateAsync({
-          promptId,
-          agentPromptIds: [],
-        });
+      // Sync agents
+      if (savedPromptId) {
+        if (selectedAgentPromptIds.length > 0) {
+          await syncPromptAgents.mutateAsync({
+            promptId: savedPromptId,
+            agentPromptIds: selectedAgentPromptIds,
+          });
+        } else if (prompt && currentAgents.length > 0) {
+          await syncPromptAgents.mutateAsync({
+            promptId: savedPromptId,
+            agentPromptIds: [],
+          });
+        }
+
+        // Sync tools
+        if (selectedToolIds.length > 0 || (prompt && currentTools.length > 0)) {
+          await syncPromptTools.mutateAsync({
+            promptId: savedPromptId,
+            toolIds: selectedToolIds,
+          });
+        }
       }
 
       onOpenChange(false);
@@ -194,17 +192,17 @@ export function PromptDialog({
     }
   }, [
     name,
-    mcpGatewayId,
-    mcpGateways,
-    llmProxyId,
     userPrompt,
     systemPrompt,
     prompt,
     selectedAgentPromptIds,
+    selectedToolIds,
     currentAgents.length,
+    currentTools.length,
     updatePrompt,
     createPrompt,
     syncPromptAgents,
+    syncPromptTools,
     onOpenChange,
   ]);
 
@@ -236,58 +234,29 @@ export function PromptDialog({
               id="promptName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter prompt name"
+              placeholder="Enter agent name"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mcpGatewayId">MCP Gateway</Label>
+            <Label>Tools</Label>
             <p className="text-sm text-muted-foreground">
-              Select the MCP Gateway with the tools that will be available
+              Select tools available to this agent
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select
-                value={mcpGatewayId ?? ""}
-                onValueChange={(v) => setMcpGatewayId(v || null)}
-              >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select MCP Gateway..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {mcpGateways.map((gateway) => (
-                    <SelectItem key={gateway.id} value={gateway.id}>
-                      {gateway.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {mcpGatewayId && (
-                <ChatToolsDisplay agentId={mcpGatewayId} readOnly />
-              )}
-            </div>
+            <MultiSelect
+              value={selectedToolIds}
+              onValueChange={setSelectedToolIds}
+              items={availableTools}
+              placeholder="Select tools..."
+              disabled={availableTools.length === 0}
+            />
+            {availableTools.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No tools available
+              </p>
+            )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="llmProxyId">LLM Proxy</Label>
-            <p className="text-sm text-muted-foreground">
-              Select the LLM Proxy for policy evaluation and observability
-            </p>
-            <Select
-              value={llmProxyId ?? ""}
-              onValueChange={(v) => setLlmProxyId(v || null)}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select LLM Proxy..." />
-              </SelectTrigger>
-              <SelectContent>
-                {llmProxies.map((proxy) => (
-                  <SelectItem key={proxy.id} value={proxy.id}>
-                    {proxy.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Agents</Label>
+            <Label>Delegate to Agents</Label>
             <p className="text-sm text-muted-foreground">
               Select other agents to delegate tasks
             </p>
@@ -300,7 +269,7 @@ export function PromptDialog({
             />
             {availableAgentPrompts.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No other agent available
+                No other agents available
               </p>
             )}
           </div>

@@ -24,6 +24,7 @@ import {
 } from "@/models";
 import { assignToolToMcpGateway } from "@/routes/agent-tool";
 import type { TokenAuthResult } from "@/routes/mcp-gateway.utils";
+import { assignToolToPrompt } from "@/routes/prompt-tools";
 import type { InternalMcpCatalog } from "@/types";
 import {
   AutonomyPolicyOperator,
@@ -57,6 +58,7 @@ const TOOL_GET_TRUSTED_DATA_POLICY_NAME = "get_trusted_data_policy";
 const TOOL_UPDATE_TRUSTED_DATA_POLICY_NAME = "update_trusted_data_policy";
 const TOOL_DELETE_TRUSTED_DATA_POLICY_NAME = "delete_trusted_data_policy";
 const TOOL_BULK_ASSIGN_TOOLS_TO_PROFILES_NAME = "bulk_assign_tools_to_profiles";
+const TOOL_BULK_ASSIGN_TOOLS_TO_PROMPTS_NAME = "bulk_assign_tools_to_prompts";
 const TOOL_GET_MCP_SERVERS_NAME = "get_mcp_servers";
 const TOOL_GET_MCP_SERVER_TOOLS_NAME = "get_mcp_server_tools";
 const TOOL_GET_PROFILE_NAME = "get_profile";
@@ -92,6 +94,7 @@ const TOOL_GET_TRUSTED_DATA_POLICY_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MC
 const TOOL_UPDATE_TRUSTED_DATA_POLICY_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_UPDATE_TRUSTED_DATA_POLICY_NAME}`;
 const TOOL_DELETE_TRUSTED_DATA_POLICY_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_DELETE_TRUSTED_DATA_POLICY_NAME}`;
 const TOOL_BULK_ASSIGN_TOOLS_TO_PROFILES_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_BULK_ASSIGN_TOOLS_TO_PROFILES_NAME}`;
+const TOOL_BULK_ASSIGN_TOOLS_TO_PROMPTS_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_BULK_ASSIGN_TOOLS_TO_PROMPTS_NAME}`;
 const TOOL_GET_MCP_SERVERS_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_GET_MCP_SERVERS_NAME}`;
 const TOOL_GET_MCP_SERVER_TOOLS_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_GET_MCP_SERVER_TOOLS_NAME}`;
 const TOOL_GET_PROFILE_FULL_NAME = `${ARCHESTRA_MCP_SERVER_NAME}${MCP_SERVER_TOOL_NAME_SEPARATOR}${TOOL_GET_PROFILE_NAME}`;
@@ -1513,6 +1516,111 @@ export async function executeArchestraTool(
     }
   }
 
+  if (toolName === TOOL_BULK_ASSIGN_TOOLS_TO_PROMPTS_FULL_NAME) {
+    logger.info(
+      { profileId: profile.id, assignments: args?.assignments },
+      "bulk_assign_tools_to_prompts tool called",
+    );
+
+    try {
+      const assignments = args?.assignments as Array<{
+        promptId: string;
+        toolId: string;
+        credentialSourceMcpServerId?: string | null;
+        executionSourceMcpServerId?: string | null;
+      }>;
+
+      if (!assignments || !Array.isArray(assignments)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: assignments parameter is required and must be an array",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Get organization ID from context
+      const effectiveOrgId = organizationId ?? tokenAuth?.organizationId;
+      if (!effectiveOrgId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Organization context not available. Cannot assign tools to prompts.",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const results = await Promise.allSettled(
+        assignments.map((assignment) =>
+          assignToolToPrompt(
+            assignment.promptId,
+            assignment.toolId,
+            effectiveOrgId,
+            assignment.credentialSourceMcpServerId,
+            assignment.executionSourceMcpServerId,
+          ),
+        ),
+      );
+
+      const succeeded: { promptId: string; toolId: string }[] = [];
+      const failed: { promptId: string; toolId: string; error: string }[] = [];
+      const duplicates: { promptId: string; toolId: string }[] = [];
+
+      results.forEach((result, index) => {
+        const { promptId, toolId } = assignments[index];
+        if (result.status === "fulfilled") {
+          if (result.value === null || result.value === "updated") {
+            // Success (created or updated)
+            succeeded.push({ promptId, toolId });
+          } else if (result.value === "duplicate") {
+            // Already assigned with same credentials
+            duplicates.push({ promptId, toolId });
+          } else {
+            // Validation error
+            const error = result.value.error.message || "Unknown error";
+            failed.push({ promptId, toolId, error });
+          }
+        } else if (result.status === "rejected") {
+          // Runtime error
+          const error =
+            result.reason instanceof Error
+              ? result.reason.message
+              : "Unknown error";
+          failed.push({ promptId, toolId, error });
+        }
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ succeeded, failed, duplicates }, null, 2),
+          },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      logger.error({ err: error }, "Error bulk assigning tools to prompts");
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error bulk assigning tools to prompts: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  }
+
   if (toolName === TOOL_GET_MCP_SERVERS_FULL_NAME) {
     logger.info(
       { profileId: profile.id, filters: args },
@@ -2353,6 +2461,49 @@ export function getArchestraMcpTools(): Tool[] {
                 },
               },
               required: ["profileId", "toolId"],
+            },
+          },
+        },
+        required: ["assignments"],
+      },
+      annotations: {},
+      _meta: {},
+    },
+    {
+      name: TOOL_BULK_ASSIGN_TOOLS_TO_PROMPTS_FULL_NAME,
+      title: "Bulk Assign Tools to Prompts",
+      description:
+        "Assign multiple tools to multiple prompts (agents) in bulk with validation and error handling. This assigns tools directly to prompts for A2A and Chat tool execution.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          assignments: {
+            type: "array",
+            description: "Array of tool assignments to create",
+            items: {
+              type: "object",
+              properties: {
+                promptId: {
+                  type: "string",
+                  description:
+                    "The ID of the prompt (agent) to assign the tool to",
+                },
+                toolId: {
+                  type: "string",
+                  description: "The ID of the tool to assign",
+                },
+                credentialSourceMcpServerId: {
+                  type: "string",
+                  description:
+                    "Optional ID of the MCP server to use as credential source",
+                },
+                executionSourceMcpServerId: {
+                  type: "string",
+                  description:
+                    "Optional ID of the MCP server to use as execution source",
+                },
+              },
+              required: ["promptId", "toolId"],
             },
           },
         },

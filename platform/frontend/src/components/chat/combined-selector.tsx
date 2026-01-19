@@ -39,7 +39,7 @@ interface CombinedSelectorProps {
   /** If provided, this is an existing conversation */
   conversationId?: string;
   /** Callback for prompt change (initial chat mode) */
-  onPromptChange?: (promptId: string | null, agentId: string) => void;
+  onPromptChange?: (promptId: string | null, agentId: string | null) => void;
   /** Callback to open edit agent dialog (when agent is selected) */
   onEditAgent?: (promptId: string) => void;
 }
@@ -58,7 +58,7 @@ export function CombinedSelector({
   const [pendingPrompt, setPendingPrompt] = useState<{
     id: string | null;
     name: string;
-    agentId: string;
+    agentId: string | null;
   } | null>(null);
 
   const currentPrompt = useMemo(
@@ -72,7 +72,7 @@ export function CombinedSelector({
   const handleAgentSelect = (
     promptId: string | null,
     promptName: string,
-    agentId: string,
+    agentId: string | null,
   ) => {
     if (promptId === currentPromptId) {
       setOpen(false);
@@ -95,7 +95,7 @@ export function CombinedSelector({
 
     // Create a new conversation with the selected agent
     const newConversation = await createConversationMutation.mutateAsync({
-      agentId: pendingPrompt.agentId,
+      agentId: pendingPrompt.agentId ?? "",
       promptId: pendingPrompt.id ?? undefined,
       selectedModel: currentModel,
     });

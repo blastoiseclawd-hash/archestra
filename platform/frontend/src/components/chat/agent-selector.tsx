@@ -49,7 +49,7 @@ export function AgentSelector({
   const [pendingPrompt, setPendingPrompt] = useState<{
     id: string | null;
     name: string;
-    agentId: string;
+    agentId: string | null;
   } | null>(null);
 
   const currentPrompt = useMemo(
@@ -60,7 +60,7 @@ export function AgentSelector({
   const handlePromptSelect = (
     newPromptId: string | null,
     promptName: string,
-    agentId: string,
+    agentId: string | null,
   ) => {
     if (newPromptId === currentPromptId) {
       setOpen(false);
@@ -77,7 +77,7 @@ export function AgentSelector({
 
     // Create a new conversation with the selected agent
     const newConversation = await createConversationMutation.mutateAsync({
-      agentId: pendingPrompt.agentId,
+      agentId: pendingPrompt.agentId ?? "",
       promptId: pendingPrompt.id ?? undefined,
       selectedModel: currentModel,
     });

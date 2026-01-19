@@ -24,6 +24,7 @@ export * from "./message";
 export * from "./optimization-rule";
 export * from "./organization";
 export * from "./prompt";
+export * from "./prompt-tool";
 export * from "./role";
 export * from "./secret";
 export * from "./secrets-manager";

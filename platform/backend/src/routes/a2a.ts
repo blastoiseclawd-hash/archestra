@@ -109,7 +109,11 @@ const a2aRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       // Fetch the LLM proxy (profile) associated with this prompt for token validation
-      const llmProxy = await LlmProxyModel.findById(prompt.agentId);
+      const llmProxyId = prompt.llmProxyId ?? prompt.agentId;
+      if (!llmProxyId) {
+        throw new ApiError(404, "LLM proxy not configured for prompt");
+      }
+      const llmProxy = await LlmProxyModel.findById(llmProxyId);
       if (!llmProxy) {
         throw new ApiError(404, "LLM proxy not found for prompt");
       }
@@ -194,7 +198,10 @@ const a2aRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       // Fetch the LLM proxy (profile) associated with this prompt
-      const llmProxy = await LlmProxyModel.findById(prompt.agentId);
+      const llmProxyId = prompt.llmProxyId ?? prompt.agentId;
+      const llmProxy = llmProxyId
+        ? await LlmProxyModel.findById(llmProxyId)
+        : null;
 
       if (!llmProxy) {
         return reply.send({

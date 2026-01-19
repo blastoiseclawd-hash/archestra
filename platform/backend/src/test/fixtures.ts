@@ -58,6 +58,8 @@ interface TestFixtures {
   makeAgentTool: typeof makeAgentTool;
   makeMcpGateway: typeof makeMcpGateway;
   makeMcpGatewayTool: typeof makeMcpGatewayTool;
+  makePrompt: typeof makePrompt;
+  makePromptTool: typeof makePromptTool;
   makeToolPolicy: typeof makeToolPolicy;
   makeTrustedDataPolicy: typeof makeTrustedDataPolicy;
   makeCustomRole: typeof makeCustomRole;
@@ -344,6 +346,65 @@ async function makeMcpGatewayTool(
     })
     .returning();
   return gatewayTool;
+}
+
+/**
+ * Creates a test prompt in the database
+ */
+async function makePrompt(
+  llmProxyId: string,
+  organizationId: string,
+  overrides: Partial<{
+    name: string;
+    agentId: string;
+    mcpGatewayId: string;
+    userPrompt: string;
+    systemPrompt: string;
+  }> = {},
+) {
+  const [prompt] = await db
+    .insert(schema.promptsTable)
+    .values({
+      id: crypto.randomUUID(),
+      name: `Test Prompt ${crypto.randomUUID().substring(0, 8)}`,
+      organizationId,
+      llmProxyId,
+      agentId: overrides.agentId ?? llmProxyId,
+      mcpGatewayId: overrides.mcpGatewayId ?? llmProxyId,
+      userPrompt: overrides.userPrompt ?? null,
+      systemPrompt: overrides.systemPrompt ?? null,
+      version: 1,
+      history: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...overrides,
+    })
+    .returning();
+  return prompt;
+}
+
+/**
+ * Creates a test prompt-tool relationship
+ */
+async function makePromptTool(
+  promptId: string,
+  toolId: string,
+  overrides: Partial<{
+    responseModifierTemplate: string;
+    credentialSourceMcpServerId: string;
+    executionSourceMcpServerId: string;
+    useDynamicTeamCredential: boolean;
+  }> = {},
+) {
+  const [promptTool] = await db
+    .insert(schema.promptToolsTable)
+    .values({
+      promptId,
+      toolId,
+      ...overrides,
+    })
+    .returning();
+  return promptTool;
 }
 
 /**
@@ -879,6 +940,12 @@ export const test = baseTest.extend<TestFixtures>({
   },
   makeMcpGatewayTool: async ({}, use) => {
     await use(makeMcpGatewayTool);
+  },
+  makePrompt: async ({}, use) => {
+    await use(makePrompt);
+  },
+  makePromptTool: async ({}, use) => {
+    await use(makePromptTool);
   },
   makeToolPolicy: async ({}, use) => {
     await use(makeToolPolicy);

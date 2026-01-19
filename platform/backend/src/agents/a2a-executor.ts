@@ -58,7 +58,11 @@ export async function executeA2AMessage(
   }
 
   // Fetch the LLM proxy (profile) associated with this prompt
-  const llmProxy = await LlmProxyModel.findById(prompt.agentId);
+  const llmProxyId = prompt.llmProxyId ?? prompt.agentId;
+  if (!llmProxyId) {
+    throw new Error(`LLM proxy not configured for prompt ${promptId}`);
+  }
+  const llmProxy = await LlmProxyModel.findById(llmProxyId);
   if (!llmProxy) {
     throw new Error(`LLM proxy not found for prompt ${promptId}`);
   }

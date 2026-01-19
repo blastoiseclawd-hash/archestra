@@ -198,6 +198,15 @@ export const RouteId = {
   UpdatePrompt: "updatePrompt",
   DeletePrompt: "deletePrompt",
 
+  // Prompt Tool Routes (direct tool assignment for A2A/Chat)
+  GetAllPromptTools: "getAllPromptTools",
+  GetPromptAssignedTools: "getPromptAssignedTools",
+  AssignToolToPrompt: "assignToolToPrompt",
+  UnassignToolFromPrompt: "unassignToolFromPrompt",
+  UpdatePromptTool: "updatePromptTool",
+  SyncPromptTools: "syncPromptTools",
+  BulkAssignToolsToPrompts: "bulkAssignToolsToPrompts",
+
   // Agent Prompt Routes
   GetAgentPrompts: "getAgentPrompts",
   AssignAgentPrompts: "assignAgentPrompts",

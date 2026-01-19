@@ -29,14 +29,12 @@ describe("PromptAgentModel Route Logic", () => {
 
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
         systemPrompt: "Parent system prompt",
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
-        agentId: childAgent.id,
         llmProxyId: childAgent.id,
         systemPrompt: "Child system prompt",
       });
@@ -67,7 +65,6 @@ describe("PromptAgentModel Route Logic", () => {
       const agent = await makeAgent({ name: "Test Agent", teams: [] });
       const prompt = await PromptModel.create(org.id, {
         name: "Test Prompt",
-        agentId: agent.id,
         llmProxyId: agent.id,
       });
 
@@ -103,19 +100,16 @@ describe("PromptAgentModel Route Logic", () => {
 
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
-        agentId: childAgent1.id,
         llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
-        agentId: childAgent2.id,
         llmProxyId: childAgent2.id,
       });
 
@@ -156,19 +150,16 @@ describe("PromptAgentModel Route Logic", () => {
 
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
-        agentId: childAgent1.id,
         llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
-        agentId: childAgent2.id,
         llmProxyId: childAgent2.id,
       });
 
@@ -215,13 +206,11 @@ describe("PromptAgentModel Route Logic", () => {
 
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
-        agentId: childAgent.id,
         llmProxyId: childAgent.id,
       });
 
@@ -269,19 +258,16 @@ describe("PromptAgentModel Route Logic", () => {
 
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
-        agentId: childAgent1.id,
         llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
-        agentId: childAgent2.id,
         llmProxyId: childAgent2.id,
       });
 
@@ -314,7 +300,6 @@ describe("PromptAgentModel Route Logic", () => {
       const agent = await makeAgent({ name: "Test Agent", teams: [] });
       const prompt = await PromptModel.create(org.id, {
         name: "Test Prompt",
-        agentId: agent.id,
         llmProxyId: agent.id,
       });
 
@@ -338,7 +323,6 @@ describe("PromptAgentModel Route Logic", () => {
       const agent = await makeAgent({ name: "Test Agent", teams: [] });
       const prompt = await PromptModel.create(org1.id, {
         name: "Test Prompt",
-        agentId: agent.id,
         llmProxyId: agent.id,
       });
 
@@ -376,14 +360,12 @@ describe("PromptAgentModel Route Logic", () => {
       // Create parent prompt in org1 (not used, but shows the scenario)
       await PromptModel.create(org1.id, {
         name: "Parent Prompt",
-        agentId: parentAgent.id,
         llmProxyId: parentAgent.id,
       });
 
       // Create child prompt in org2 (different organization)
       const childPrompt = await PromptModel.create(org2.id, {
         name: "Child Prompt",
-        agentId: childAgent.id,
         llmProxyId: childAgent.id,
       });
 
@@ -406,7 +388,6 @@ describe("PromptAgentModel Route Logic", () => {
       const agent = await makeAgent({ name: "Test Agent", teams: [] });
       const prompt = await PromptModel.create(org.id, {
         name: "Test Prompt",
-        agentId: agent.id,
         llmProxyId: agent.id,
       });
 

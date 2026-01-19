@@ -19926,7 +19926,7 @@ export type GetPromptsResponses = {
         id: string;
         organizationId: string;
         name: string;
-        agentId: string;
+        agentId: string | null;
         mcpGatewayId: string | null;
         llmProxyId: string | null;
         userPrompt: string | null;
@@ -19945,7 +19945,6 @@ export type GetPromptsResponse = GetPromptsResponses[keyof GetPromptsResponses];
 export type CreatePromptData = {
     body: {
         name: string;
-        agentId: string;
         mcpGatewayId?: string | null;
         llmProxyId?: string | null;
         userPrompt?: string | null;
@@ -20024,7 +20023,7 @@ export type CreatePromptResponses = {
         id: string;
         organizationId: string;
         name: string;
-        agentId: string;
+        agentId: string | null;
         mcpGatewayId: string | null;
         llmProxyId: string | null;
         userPrompt: string | null;
@@ -20195,7 +20194,7 @@ export type GetPromptResponses = {
         id: string;
         organizationId: string;
         name: string;
-        agentId: string;
+        agentId: string | null;
         mcpGatewayId: string | null;
         llmProxyId: string | null;
         userPrompt: string | null;
@@ -20214,7 +20213,7 @@ export type GetPromptResponse = GetPromptResponses[keyof GetPromptResponses];
 export type UpdatePromptData = {
     body?: {
         name?: string;
-        agentId?: string;
+        agentId?: string | null;
         mcpGatewayId?: string | null;
         llmProxyId?: string | null;
         userPrompt?: string | null;
@@ -20294,7 +20293,7 @@ export type UpdatePromptResponses = {
         id: string;
         organizationId: string;
         name: string;
-        agentId: string;
+        agentId: string | null;
         mcpGatewayId: string | null;
         llmProxyId: string | null;
         userPrompt: string | null;
@@ -20387,7 +20386,7 @@ export type GetPromptVersionsResponses = {
             id: string;
             organizationId: string;
             name: string;
-            agentId: string;
+            agentId: string | null;
             mcpGatewayId: string | null;
             llmProxyId: string | null;
             userPrompt: string | null;
@@ -20595,7 +20594,7 @@ export type RollbackPromptResponses = {
         id: string;
         organizationId: string;
         name: string;
-        agentId: string;
+        agentId: string | null;
         mcpGatewayId: string | null;
         llmProxyId: string | null;
         userPrompt: string | null;
@@ -20610,6 +20609,692 @@ export type RollbackPromptResponses = {
 };
 
 export type RollbackPromptResponse = RollbackPromptResponses[keyof RollbackPromptResponses];
+
+export type GetAllPromptToolsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        search?: string;
+        promptId?: string;
+        /**
+         * Can be 'llm-proxy' or a catalogId
+         */
+        origin?: string;
+        /**
+         * Filter by MCP server owner user ID
+         */
+        mcpServerOwnerId?: string;
+        /**
+         * For test isolation
+         */
+        excludeArchestraTools?: boolean;
+        sortBy?: 'name' | 'prompt' | 'origin' | 'createdAt';
+        sortDirection?: 'asc' | 'desc';
+        skipPagination?: boolean;
+        limit?: number;
+        offset?: number;
+    };
+    url: '/api/prompt-tools';
+};
+
+export type GetAllPromptToolsErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type GetAllPromptToolsError = GetAllPromptToolsErrors[keyof GetAllPromptToolsErrors];
+
+export type GetAllPromptToolsResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        data: Array<{
+            id: string;
+            responseModifierTemplate: string | null;
+            credentialSourceMcpServerId: string | null;
+            executionSourceMcpServerId: string | null;
+            useDynamicTeamCredential: boolean;
+            createdAt: string;
+            updatedAt: string;
+            prompt: {
+                id: string;
+                name: string;
+            };
+            tool: {
+                id: string;
+                name: string;
+                description: string | null;
+                /**
+                 *
+                 * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+                 *
+                 * The parameters the functions accepts, described as a JSON Schema object. See the
+                 * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+                 * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+                 * documentation about the format.
+                 *
+                 * Omitting parameters defines a function with an empty parameter list.
+                 *
+                 */
+                parameters?: {
+                    [key: string]: unknown;
+                };
+                createdAt: string;
+                updatedAt: string;
+                catalogId: string | null;
+                mcpServerId: string | null;
+                mcpServerName: string | null;
+                mcpServerCatalogId: string | null;
+            };
+        }>;
+        pagination: {
+            currentPage: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+            hasNext: boolean;
+            hasPrev: boolean;
+        };
+    };
+};
+
+export type GetAllPromptToolsResponse = GetAllPromptToolsResponses[keyof GetAllPromptToolsResponses];
+
+export type GetPromptAssignedToolsData = {
+    body?: never;
+    path: {
+        promptId: string;
+    };
+    query?: {
+        excludeLlmProxyOrigin?: boolean;
+    };
+    url: '/api/prompts/{promptId}/assigned-tools';
+};
+
+export type GetPromptAssignedToolsErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type GetPromptAssignedToolsError = GetPromptAssignedToolsErrors[keyof GetPromptAssignedToolsErrors];
+
+export type GetPromptAssignedToolsResponses = {
+    /**
+     * Default Response
+     */
+    200: Array<{
+        id: string;
+        agentId: string | null;
+        llmProxyId: string | null;
+        catalogId: string | null;
+        mcpServerId: string | null;
+        promptAgentId: string | null;
+        name: string;
+        /**
+         *
+         * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
+         *
+         * The parameters the functions accepts, described as a JSON Schema object. See the
+         * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
+         * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
+         * documentation about the format.
+         *
+         * Omitting parameters defines a function with an empty parameter list.
+         *
+         */
+        parameters?: {
+            [key: string]: unknown;
+        };
+        description: string | null;
+        policiesAutoConfiguredAt: string | null;
+        policiesAutoConfiguringStartedAt: string | null;
+        policiesAutoConfiguredReasoning: string | null;
+        createdAt: string;
+        updatedAt: string;
+    }>;
+};
+
+export type GetPromptAssignedToolsResponse = GetPromptAssignedToolsResponses[keyof GetPromptAssignedToolsResponses];
+
+export type UnassignToolFromPromptData = {
+    body?: never;
+    path: {
+        promptId: string;
+        toolId: string;
+    };
+    query?: never;
+    url: '/api/prompts/{promptId}/tools/{toolId}';
+};
+
+export type UnassignToolFromPromptErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type UnassignToolFromPromptError = UnassignToolFromPromptErrors[keyof UnassignToolFromPromptErrors];
+
+export type UnassignToolFromPromptResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type UnassignToolFromPromptResponse = UnassignToolFromPromptResponses[keyof UnassignToolFromPromptResponses];
+
+export type AssignToolToPromptData = {
+    body?: {
+        credentialSourceMcpServerId?: string | null;
+        executionSourceMcpServerId?: string | null;
+        useDynamicTeamCredential?: boolean;
+    } | null;
+    path: {
+        promptId: string;
+        toolId: string;
+    };
+    query?: never;
+    url: '/api/prompts/{promptId}/tools/{toolId}';
+};
+
+export type AssignToolToPromptErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type AssignToolToPromptError = AssignToolToPromptErrors[keyof AssignToolToPromptErrors];
+
+export type AssignToolToPromptResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type AssignToolToPromptResponse = AssignToolToPromptResponses[keyof AssignToolToPromptResponses];
+
+export type BulkAssignToolsToPromptsData = {
+    body: {
+        assignments: Array<{
+            promptId: string;
+            toolId: string;
+            credentialSourceMcpServerId?: string | null;
+            executionSourceMcpServerId?: string | null;
+            useDynamicTeamCredential?: boolean;
+        }>;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/prompts/tools/bulk-assign';
+};
+
+export type BulkAssignToolsToPromptsErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type BulkAssignToolsToPromptsError = BulkAssignToolsToPromptsErrors[keyof BulkAssignToolsToPromptsErrors];
+
+export type BulkAssignToolsToPromptsResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        succeeded: Array<{
+            promptId: string;
+            toolId: string;
+        }>;
+        failed: Array<{
+            promptId: string;
+            toolId: string;
+            error: string;
+        }>;
+        duplicates: Array<{
+            promptId: string;
+            toolId: string;
+        }>;
+    };
+};
+
+export type BulkAssignToolsToPromptsResponse = BulkAssignToolsToPromptsResponses[keyof BulkAssignToolsToPromptsResponses];
+
+export type UpdatePromptToolData = {
+    body?: {
+        responseModifierTemplate?: string | null;
+        credentialSourceMcpServerId?: string | null;
+        executionSourceMcpServerId?: string | null;
+        useDynamicTeamCredential?: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/prompt-tools/{id}';
+};
+
+export type UpdatePromptToolErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type UpdatePromptToolError = UpdatePromptToolErrors[keyof UpdatePromptToolErrors];
+
+export type UpdatePromptToolResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        id?: string;
+        promptId?: string;
+        toolId?: string;
+        responseModifierTemplate?: string | null;
+        credentialSourceMcpServerId?: string | null;
+        executionSourceMcpServerId?: string | null;
+        useDynamicTeamCredential?: boolean;
+        createdAt?: string;
+        updatedAt?: string;
+    };
+};
+
+export type UpdatePromptToolResponse = UpdatePromptToolResponses[keyof UpdatePromptToolResponses];
+
+export type SyncPromptToolsData = {
+    body: {
+        toolIds: Array<string>;
+    };
+    path: {
+        promptId: string;
+    };
+    query?: never;
+    url: '/api/prompts/{promptId}/tools/sync';
+};
+
+export type SyncPromptToolsErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type SyncPromptToolsError = SyncPromptToolsErrors[keyof SyncPromptToolsErrors];
+
+export type SyncPromptToolsResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        added: number;
+        removed: number;
+    };
+};
+
+export type SyncPromptToolsResponse = SyncPromptToolsResponses[keyof SyncPromptToolsResponses];
 
 export type GetSecretsTypeData = {
     body?: never;

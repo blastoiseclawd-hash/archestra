@@ -34,6 +34,7 @@ export { default as organizationRoutes } from "./organization";
 export { default as organizationRoleRoutes } from "./organization-role";
 export { default as policyConfigSubagentRoutes } from "./policy-config-subagent";
 export { default as promptAgentRoutes } from "./prompt-agents";
+export { default as promptToolRoutes } from "./prompt-tools";
 export { default as promptRoutes } from "./prompts";
 // All proxy routes use the unified V2 handler
 export const anthropicProxyRoutes = anthropicProxyRoutesV2;

@@ -332,7 +332,6 @@ return $input.all().map(item => ({
 
     await PromptModel.create(org.id, {
       name: "n8n Expert",
-      agentId: defaultLlmProxy.id,
       llmProxyId: defaultLlmProxy.id,
       systemPrompt: n8nSystemPromptContent,
     });
@@ -379,7 +378,6 @@ async function seedDefaultRegularPrompts(): Promise<void> {
     if (!exists) {
       await PromptModel.create(org.id, {
         name: promptData.name,
-        agentId: defaultLlmProxy.id,
         llmProxyId: defaultLlmProxy.id,
         userPrompt: promptData.userPrompt,
       });

@@ -488,17 +488,20 @@ export async function processIncomingEmail(
   }
 
   // Get organization from LLM proxy's team
-  // Note: prompt.agentId refers to the LLM Proxy ID
-  const llmProxyTeamIds = await LlmProxyTeamModel.getTeamsForLlmProxy(
-    prompt.agentId,
-  );
+  // Note: prompt.llmProxyId (or legacy agentId) refers to the LLM Proxy ID
+  const llmProxyId = prompt.llmProxyId ?? prompt.agentId;
+  if (!llmProxyId) {
+    throw new Error(`LLM proxy not configured for prompt ${prompt.id}`);
+  }
+  const llmProxyTeamIds =
+    await LlmProxyTeamModel.getTeamsForLlmProxy(llmProxyId);
   if (llmProxyTeamIds.length === 0) {
-    throw new Error(`No teams found for LLM proxy ${prompt.agentId}`);
+    throw new Error(`No teams found for LLM proxy ${llmProxyId}`);
   }
 
   const teams = await TeamModel.findByIds(llmProxyTeamIds);
   if (teams.length === 0 || !teams[0].organizationId) {
-    throw new Error(`No organization found for LLM proxy ${prompt.agentId}`);
+    throw new Error(`No organization found for LLM proxy ${llmProxyId}`);
   }
   const organization = teams[0].organizationId;
 

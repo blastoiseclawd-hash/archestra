@@ -282,6 +282,166 @@ class McpClient {
   }
 
   /**
+   * Execute a single tool call against its assigned MCP server
+   * Uses prompt_tools table for credential resolution (for A2A and Chat)
+   */
+  async executeToolCallForPrompt(
+    toolCall: CommonToolCall,
+    promptId: string,
+    tokenAuth?: TokenAuthContext,
+  ): Promise<CommonToolResult> {
+    // Validate and get tool metadata from prompt_tools
+    const validationResult = await this.validateAndGetToolForPrompt(
+      toolCall,
+      promptId,
+    );
+    if ("error" in validationResult) {
+      return validationResult.error;
+    }
+    const { tool, catalogItem } = validationResult;
+
+    const targetLocalMcpServerIdResult =
+      await this.determineTargetMcpServerIdForCatalogItem({
+        tool,
+        toolCall,
+        agentId: promptId, // Using promptId for logging
+        tokenAuth,
+        catalogItem,
+      });
+    if ("error" in targetLocalMcpServerIdResult) {
+      return targetLocalMcpServerIdResult.error;
+    }
+    const { targetLocalMcpServerId } = targetLocalMcpServerIdResult;
+    const secretsResult = await this.getSecretsForMcpServer({
+      targetMcpServerId: targetLocalMcpServerId,
+      toolCall,
+      agentId: promptId, // Using promptId for logging
+    });
+    if ("error" in secretsResult) {
+      return secretsResult.error;
+    }
+    const { secrets } = secretsResult;
+
+    // Build connection cache key using the resolved target server ID
+    const connectionKey = `prompt:${catalogItem.id}:${targetLocalMcpServerId}`;
+
+    const executeToolCall = async (
+      getTransport: () => Promise<Transport>,
+    ): Promise<CommonToolResult> => {
+      try {
+        const transport = await getTransport();
+        const client = await this.getOrCreateClient(connectionKey, transport);
+
+        const prefixName = tool.catalogName || tool.mcpServerName || "unknown";
+        const mcpToolName = this.stripServerPrefix(toolCall.name, prefixName);
+
+        const result = await client.callTool({
+          name: mcpToolName,
+          arguments: toolCall.arguments,
+        });
+
+        return await this.createSuccessResult(
+          toolCall,
+          promptId,
+          tool.mcpServerName || "unknown",
+          result.content,
+          !!result.isError,
+          tool.responseModifierTemplate,
+        );
+      } catch (error) {
+        return await this.createErrorResult(
+          toolCall,
+          promptId,
+          error instanceof Error ? error.message : "Unknown error",
+          tool.mcpServerName || "unknown",
+        );
+      }
+    };
+
+    if (!this.shouldLimitConcurrency()) {
+      return executeToolCall(() =>
+        this.getTransport(catalogItem, targetLocalMcpServerId, secrets),
+      );
+    }
+
+    const transportKind = await this.getTransportKind(
+      catalogItem,
+      targetLocalMcpServerId,
+    );
+    const concurrencyLimit = this.getConcurrencyLimit(transportKind);
+
+    return this.connectionLimiter.runWithLimit(
+      connectionKey,
+      concurrencyLimit,
+      () =>
+        executeToolCall(() =>
+          this.getTransportWithKind(
+            catalogItem,
+            targetLocalMcpServerId,
+            secrets,
+            transportKind,
+          ),
+        ),
+    );
+  }
+
+  /**
+   * Validate tool and get metadata from prompt_tools table
+   * Used for A2A and Chat tool execution
+   */
+  private async validateAndGetToolForPrompt(
+    toolCall: CommonToolCall,
+    promptId: string,
+  ): Promise<
+    | { tool: McpToolWithServerMetadata; catalogItem: InternalMcpCatalog }
+    | { error: CommonToolResult }
+  > {
+    // Get MCP tool from prompt_tools
+    const mcpTools = await ToolModel.getMcpToolsAssignedToPrompt(
+      [toolCall.name],
+      promptId,
+    );
+    const tool = mcpTools[0];
+
+    if (!tool) {
+      return {
+        error: await this.createErrorResult(
+          toolCall,
+          promptId,
+          "Tool not found or not assigned to prompt",
+        ),
+      };
+    }
+
+    // Validate catalogId
+    if (!tool.catalogId) {
+      return {
+        error: await this.createErrorResult(
+          toolCall,
+          promptId,
+          "Tool is missing catalogId",
+          tool.mcpServerName || "unknown",
+        ),
+      };
+    }
+
+    // Get catalog item
+    const catalogItem = await InternalMcpCatalogModel.findById(tool.catalogId);
+    if (!catalogItem) {
+      return {
+        error: await this.createErrorResult(
+          toolCall,
+          promptId,
+          `No catalog item found for tool catalog ID ${tool.catalogId}`,
+          tool.mcpServerName || "unknown",
+        ),
+      };
+    }
+
+    return { tool, catalogItem };
+  }
+
+  /**
    * Validate tool and get metadata
    */
   private async validateAndGetTool(

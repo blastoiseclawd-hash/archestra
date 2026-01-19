@@ -42,6 +42,7 @@ import LlmProxyTeamModel from "./llm-proxy-team";
 import McpGatewayTeamModel from "./mcp-gateway-team";
 import McpGatewayToolModel from "./mcp-gateway-tool";
 import McpServerModel from "./mcp-server";
+import PromptToolModel from "./prompt-tool";
 import ToolInvocationPolicyModel from "./tool-invocation-policy";
 import TrustedDataPolicyModel from "./trusted-data-policy";
 
@@ -792,6 +793,205 @@ class ToolModel {
       );
 
     return mcpTools;
+  }
+
+  /**
+   * Get all tools assigned to a prompt (for A2A and Chat execution)
+   * This includes MCP tools assigned via the prompt_tools junction table
+   * and agent delegation tools
+   */
+  static async getToolsByPrompt(promptId: string): Promise<Tool[]> {
+    // Get tool IDs assigned via junction table
+    const assignedToolIds = await PromptToolModel.findToolIdsByPrompt(promptId);
+
+    if (assignedToolIds.length === 0) {
+      return [];
+    }
+
+    // Query for tools that are assigned via junction table
+    const tools = await db
+      .select()
+      .from(schema.toolsTable)
+      .where(inArray(schema.toolsTable.id, assignedToolIds))
+      .orderBy(desc(schema.toolsTable.createdAt));
+
+    return tools;
+  }
+
+  /**
+   * Get only MCP tools assigned to a prompt (those from connected MCP servers)
+   * Includes:
+   * - MCP server tools (catalogId set, including Archestra builtin tools)
+   * - Agent delegation tools (promptAgentId set)
+   * Excludes: proxy-discovered tools (llmProxyId set, catalogId null, promptAgentId null)
+   */
+  static async getMcpToolsByPrompt(promptId: string): Promise<Tool[]> {
+    // Get tool IDs assigned via junction table
+    const assignedToolIds = await PromptToolModel.findToolIdsByPrompt(promptId);
+
+    if (assignedToolIds.length === 0) {
+      return [];
+    }
+
+    // Return tools that are assigned via junction table AND either:
+    // - Have catalogId set (MCP server tools and Archestra builtin tools)
+    // - Have promptAgentId set (agent delegation tools)
+    const tools = await db
+      .select()
+      .from(schema.toolsTable)
+      .where(
+        and(
+          inArray(schema.toolsTable.id, assignedToolIds),
+          or(
+            isNotNull(schema.toolsTable.catalogId),
+            isNotNull(schema.toolsTable.promptAgentId),
+          ),
+        ),
+      )
+      .orderBy(desc(schema.toolsTable.createdAt));
+
+    return tools;
+  }
+
+  /**
+   * Get MCP tools assigned to a prompt with full details
+   * Used for tool execution in A2A and Chat
+   */
+  static async getMcpToolsAssignedToPrompt(
+    toolNames: string[],
+    promptId: string,
+  ): Promise<
+    Array<{
+      toolName: string;
+      responseModifierTemplate: string | null;
+      mcpServerSecretId: string | null;
+      mcpServerName: string | null;
+      mcpServerCatalogId: string | null;
+      mcpServerId: string | null;
+      credentialSourceMcpServerId: string | null;
+      executionSourceMcpServerId: string | null;
+      useDynamicTeamCredential: boolean;
+      catalogId: string | null;
+      catalogName: string | null;
+    }>
+  > {
+    if (toolNames.length === 0) {
+      return [];
+    }
+
+    const mcpTools = await db
+      .select({
+        toolName: schema.toolsTable.name,
+        responseModifierTemplate:
+          schema.promptToolsTable.responseModifierTemplate,
+        mcpServerSecretId: schema.mcpServersTable.secretId,
+        mcpServerName: schema.mcpServersTable.name,
+        mcpServerCatalogId: schema.mcpServersTable.catalogId,
+        credentialSourceMcpServerId:
+          schema.promptToolsTable.credentialSourceMcpServerId,
+        executionSourceMcpServerId:
+          schema.promptToolsTable.executionSourceMcpServerId,
+        useDynamicTeamCredential:
+          schema.promptToolsTable.useDynamicTeamCredential,
+        mcpServerId: schema.mcpServersTable.id,
+        catalogId: schema.toolsTable.catalogId,
+        catalogName: schema.internalMcpCatalogTable.name,
+      })
+      .from(schema.toolsTable)
+      .innerJoin(
+        schema.promptToolsTable,
+        eq(schema.promptToolsTable.toolId, schema.toolsTable.id),
+      )
+      .leftJoin(
+        schema.mcpServersTable,
+        eq(schema.toolsTable.mcpServerId, schema.mcpServersTable.id),
+      )
+      .leftJoin(
+        schema.internalMcpCatalogTable,
+        eq(schema.toolsTable.catalogId, schema.internalMcpCatalogTable.id),
+      )
+      .where(
+        and(
+          eq(schema.promptToolsTable.promptId, promptId),
+          inArray(schema.toolsTable.name, toolNames),
+          isNotNull(schema.toolsTable.catalogId), // Only MCP tools (have catalogId)
+        ),
+      );
+
+    return mcpTools;
+  }
+
+  /**
+   * Assign Archestra built-in tools to a prompt.
+   * Assumes tools have already been seeded via seedArchestraTools().
+   */
+  static async assignArchestraToolsToPrompt(
+    promptId: string,
+    catalogId: string,
+  ): Promise<void> {
+    // Get all Archestra tools from the catalog
+    const archestraTools = await db
+      .select()
+      .from(schema.toolsTable)
+      .where(eq(schema.toolsTable.catalogId, catalogId));
+
+    const toolIds = archestraTools.map((t) => t.id);
+
+    // Assign all tools to prompt in bulk to avoid N+1
+    await PromptToolModel.createManyIfNotExists(promptId, toolIds);
+  }
+
+  /**
+   * Assign default Archestra tools (artifact_write, todo_write) to a prompt.
+   * These tools are automatically assigned to new prompts for task tracking and artifact management.
+   */
+  static async assignDefaultArchestraToolsToPrompt(
+    promptId: string,
+  ): Promise<void> {
+    // Find the default tools by name
+    const defaultToolNames = [
+      TOOL_ARTIFACT_WRITE_FULL_NAME,
+      TOOL_TODO_WRITE_FULL_NAME,
+    ];
+
+    const defaultTools = await db
+      .select({ id: schema.toolsTable.id })
+      .from(schema.toolsTable)
+      .where(inArray(schema.toolsTable.name, defaultToolNames));
+
+    if (defaultTools.length === 0) {
+      // Tools not yet seeded, skip assignment
+      return;
+    }
+
+    const toolIds = defaultTools.map((t) => t.id);
+
+    // Assign tools to prompt in bulk
+    await PromptToolModel.createManyIfNotExists(promptId, toolIds);
+  }
+
+  /**
+   * Get names of all MCP tools assigned to a prompt
+   * Used to prevent autodiscovery of tools already available via MCP servers
+   */
+  static async getMcpToolNamesByPrompt(promptId: string): Promise<string[]> {
+    const mcpTools = await db
+      .select({
+        name: schema.toolsTable.name,
+      })
+      .from(schema.toolsTable)
+      .innerJoin(
+        schema.promptToolsTable,
+        eq(schema.promptToolsTable.toolId, schema.toolsTable.id),
+      )
+      .where(
+        and(
+          eq(schema.promptToolsTable.promptId, promptId),
+          isNotNull(schema.toolsTable.mcpServerId), // Only MCP tools
+        ),
+      );
+
+    return mcpTools.map((tool) => tool.name);
   }
 
   /**

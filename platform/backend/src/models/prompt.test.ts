@@ -21,7 +21,6 @@ describe("PromptModel Fix", () => {
     // 2. Create a prompt associated with Agent 1
     const prompt = await PromptModel.create(org.id, {
       name: "Test Prompt",
-      agentId: agent1.id,
       llmProxyId: agent1.id,
       userPrompt: "Hello",
     });
@@ -32,7 +31,6 @@ describe("PromptModel Fix", () => {
     // 3. Update the prompt to change agentId to Agent 2
     // This previously caused a 404 because it couldn't find the previous version under the new agentId
     const updatedPrompt = await PromptModel.update(prompt.id, {
-      agentId: agent2.id,
       llmProxyId: agent2.id,
     });
 

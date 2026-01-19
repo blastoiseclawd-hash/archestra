@@ -23,8 +23,8 @@ const promptsTable = pgTable("prompts", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: text("organization_id").notNull(),
   name: text("name").notNull(),
-  // agentId kept for backward compatibility but no FK constraint
-  agentId: uuid("agent_id").notNull(),
+  // agentId kept for backward compatibility but no FK constraint (optional)
+  agentId: uuid("agent_id"),
   // MCP Gateway for tool execution (optional)
   mcpGatewayId: uuid("mcp_gateway_id").references(() => mcpGatewaysTable.id, {
     onDelete: "set null",

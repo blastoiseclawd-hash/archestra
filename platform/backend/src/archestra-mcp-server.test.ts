@@ -14,10 +14,10 @@ import {
 } from "./archestra-mcp-server";
 
 describe("getArchestraMcpTools", () => {
-  test("should return an array of 26 tools", () => {
+  test("should return an array of 27 tools", () => {
     const tools = getArchestraMcpTools();
 
-    expect(tools).toHaveLength(26);
+    expect(tools).toHaveLength(27);
     expect(tools[0]).toHaveProperty("name");
     expect(tools[0]).toHaveProperty("title");
     expect(tools[0]).toHaveProperty("description");

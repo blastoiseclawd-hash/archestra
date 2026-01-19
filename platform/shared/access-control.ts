@@ -533,6 +533,31 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.DeletePromptAgent]: {
     prompt: ["update"],
   },
+  // Prompt Tool Routes (direct tool assignment for A2A/Chat)
+  [RouteId.GetAllPromptTools]: {
+    prompt: ["read"],
+    tool: ["read"],
+  },
+  [RouteId.GetPromptAssignedTools]: {
+    prompt: ["read"],
+    tool: ["read"],
+  },
+  [RouteId.AssignToolToPrompt]: {
+    prompt: ["update"],
+  },
+  [RouteId.UnassignToolFromPrompt]: {
+    prompt: ["update"],
+  },
+  [RouteId.UpdatePromptTool]: {
+    prompt: ["update"],
+    tool: ["update"],
+  },
+  [RouteId.SyncPromptTools]: {
+    prompt: ["update"],
+  },
+  [RouteId.BulkAssignToolsToPrompts]: {
+    prompt: ["update"],
+  },
   [RouteId.GetAgentPrompts]: {
     profile: ["read"],
     prompt: ["read"],
