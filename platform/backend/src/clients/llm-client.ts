@@ -57,8 +57,6 @@ export function detectProviderFromModel(model: string): SupportedChatProvider {
   if (lowerModel.includes("command")) {
     return "cohere";
   }
-
-
   if (lowerModel.includes("glm") || lowerModel.includes("chatglm")) {
     return "zhipuai";
   }
