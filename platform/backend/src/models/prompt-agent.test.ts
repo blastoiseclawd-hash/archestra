@@ -26,11 +26,13 @@ describe("PromptAgentModel", () => {
       const prompt1 = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: agent1.id,
+        llmProxyId: agent1.id,
       });
 
       const prompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: agent2.id,
+        llmProxyId: agent2.id,
       });
 
       const result = await PromptAgentModel.create({
@@ -65,11 +67,13 @@ describe("PromptAgentModel", () => {
       const prompt1 = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: agent1.id,
+        llmProxyId: agent1.id,
       });
 
       const prompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: agent2.id,
+        llmProxyId: agent2.id,
       });
 
       await PromptAgentModel.create({
@@ -105,6 +109,7 @@ describe("PromptAgentModel", () => {
       const prompt1 = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: agent1.id,
+        llmProxyId: agent1.id,
       });
 
       const deleted = await PromptAgentModel.delete({
@@ -141,16 +146,19 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
         agentId: childAgent1.id,
+        llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
         agentId: childAgent2.id,
+        llmProxyId: childAgent2.id,
       });
 
       await PromptAgentModel.create({
@@ -192,11 +200,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
         systemPrompt: "You are a helpful assistant.",
       });
 
@@ -246,21 +256,25 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
         agentId: childAgent1.id,
+        llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
         agentId: childAgent2.id,
+        llmProxyId: childAgent2.id,
       });
 
       const childPrompt3 = await PromptModel.create(org.id, {
         name: "Child Prompt 3",
         agentId: childAgent3.id,
+        llmProxyId: childAgent3.id,
       });
 
       // Initially assign child1 and child2
@@ -315,16 +329,19 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Child Prompt 1",
         agentId: childAgent1.id,
+        llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Child Prompt 2",
         agentId: childAgent2.id,
+        llmProxyId: childAgent2.id,
       });
 
       // Assign child1 first
@@ -363,11 +380,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
       });
 
       await PromptAgentModel.create({
@@ -397,6 +416,7 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const hasAgent = await PromptAgentModel.hasAgent({
@@ -429,11 +449,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Research Bot",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
         systemPrompt: "You are a research assistant.",
       });
 
@@ -473,11 +495,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Helper Bot",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
       });
 
       await PromptAgentModel.create({
@@ -526,16 +550,19 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt1 = await PromptModel.create(org.id, {
         name: "Bot One",
         agentId: childAgent1.id,
+        llmProxyId: childAgent1.id,
       });
 
       const childPrompt2 = await PromptModel.create(org.id, {
         name: "Bot Two",
         agentId: childAgent2.id,
+        llmProxyId: childAgent2.id,
       });
 
       // Sync to add both agents
@@ -577,11 +604,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Original Name",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
       });
 
       await PromptAgentModel.create({
@@ -625,11 +654,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
       });
 
       await PromptAgentModel.create({
@@ -677,11 +708,13 @@ describe("PromptAgentModel", () => {
       const parentPrompt = await PromptModel.create(org.id, {
         name: "Parent Prompt",
         agentId: parentAgent.id,
+        llmProxyId: parentAgent.id,
       });
 
       const childPrompt = await PromptModel.create(org.id, {
         name: "Child Prompt",
         agentId: childAgent.id,
+        llmProxyId: childAgent.id,
       });
 
       await PromptAgentModel.create({

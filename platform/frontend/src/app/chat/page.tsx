@@ -1161,16 +1161,14 @@ export default function ChatPage() {
                   allowFileUploads={organization?.allowChatFileUploads ?? false}
                   mcpGatewayId={
                     conversationId && conversation?.llmProxy?.id
-                      ? (conversation?.mcpGatewayId ?? conversation?.agentId)
+                      ? (conversation?.mcpGatewayId ?? undefined)
                       : (() => {
                           const selectedPrompt = prompts.find(
                             (p) => p.id === initialPromptId,
                           );
-                          return (
-                            selectedPrompt?.mcpGatewayId ??
-                            initialAgentId ??
-                            undefined
-                          );
+                          // Only use mcpGatewayId from prompt - don't fallback to LLM Proxy ID
+                          // LLM Proxies and MCP Gateways are separate entities
+                          return selectedPrompt?.mcpGatewayId ?? undefined;
                         })()
                   }
                   agentId={

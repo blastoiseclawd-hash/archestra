@@ -21,6 +21,7 @@ describe("GET /api/prompts/:id/tools", () => {
     const parentPrompt = await PromptModel.create(org.id, {
       name: "Parent Prompt",
       agentId: parentAgent.id,
+      llmProxyId: parentAgent.id,
     });
 
     // Create child agent and prompt
@@ -32,6 +33,7 @@ describe("GET /api/prompts/:id/tools", () => {
     const childPrompt = await PromptModel.create(org.id, {
       name: "Child Prompt",
       agentId: childAgent.id,
+      llmProxyId: childAgent.id,
       systemPrompt: "I am a child agent",
     });
 

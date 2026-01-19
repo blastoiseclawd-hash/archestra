@@ -333,6 +333,7 @@ return $input.all().map(item => ({
     await PromptModel.create(org.id, {
       name: "n8n Expert",
       agentId: defaultLlmProxy.id,
+      llmProxyId: defaultLlmProxy.id,
       systemPrompt: n8nSystemPromptContent,
     });
     logger.info("✓ Seeded n8n Expert system prompt");
@@ -379,6 +380,7 @@ async function seedDefaultRegularPrompts(): Promise<void> {
       await PromptModel.create(org.id, {
         name: promptData.name,
         agentId: defaultLlmProxy.id,
+        llmProxyId: defaultLlmProxy.id,
         userPrompt: promptData.userPrompt,
       });
       logger.info(`✓ Seeded regular prompt: ${promptData.name}`);

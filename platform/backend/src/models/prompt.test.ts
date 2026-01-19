@@ -22,6 +22,7 @@ describe("PromptModel Fix", () => {
     const prompt = await PromptModel.create(org.id, {
       name: "Test Prompt",
       agentId: agent1.id,
+      llmProxyId: agent1.id,
       userPrompt: "Hello",
     });
 
@@ -32,6 +33,7 @@ describe("PromptModel Fix", () => {
     // This previously caused a 404 because it couldn't find the previous version under the new agentId
     const updatedPrompt = await PromptModel.update(prompt.id, {
       agentId: agent2.id,
+      llmProxyId: agent2.id,
     });
 
     expect(updatedPrompt).not.toBeNull();

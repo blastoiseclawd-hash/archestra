@@ -11,13 +11,18 @@ export type { PromptHistoryEntry } from "@/database/schemas/prompt";
 
 export const SelectPromptSchema = createSelectSchema(schema.promptsTable);
 
-export const InsertPromptSchema = createInsertSchema(schema.promptsTable).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  organizationId: true,
-  history: true,
-});
+export const InsertPromptSchema = createInsertSchema(schema.promptsTable)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    organizationId: true,
+    history: true,
+  })
+  .extend({
+    // Require llmProxyId for new prompts
+    llmProxyId: z.string().uuid(),
+  });
 
 export const UpdatePromptSchema = createUpdateSchema(schema.promptsTable).omit({
   id: true,

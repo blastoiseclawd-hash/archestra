@@ -33,9 +33,10 @@ class PromptModel {
       .values({
         organizationId,
         name: input.name,
-        agentId: input.agentId,
-        // Auto-set llmProxyId from agentId if not provided (backward compatibility)
-        llmProxyId: input.llmProxyId ?? input.agentId,
+        // agentId is kept for backward compatibility, set from llmProxyId
+        agentId: input.agentId ?? input.llmProxyId,
+        llmProxyId: input.llmProxyId,
+        mcpGatewayId: input.mcpGatewayId,
         userPrompt: input.userPrompt || null,
         systemPrompt: input.systemPrompt || null,
         version: 1,
@@ -60,14 +61,14 @@ class PromptModel {
   }
 
   /**
-   * Find all prompts for an organization filtered by accessible agent IDs
-   * Returns only prompts assigned to agents the user has access to
+   * Find all prompts for an organization filtered by accessible LLM Proxy IDs
+   * Returns only prompts assigned to LLM Proxies the user has access to
    */
   static async findByOrganizationIdAndAccessibleAgents(
     organizationId: string,
-    accessibleAgentIds: string[],
+    accessibleLlmProxyIds: string[],
   ): Promise<Prompt[]> {
-    if (accessibleAgentIds.length === 0) {
+    if (accessibleLlmProxyIds.length === 0) {
       return [];
     }
 
@@ -77,7 +78,7 @@ class PromptModel {
       .where(
         and(
           eq(schema.promptsTable.organizationId, organizationId),
-          inArray(schema.promptsTable.agentId, accessibleAgentIds),
+          inArray(schema.promptsTable.llmProxyId, accessibleLlmProxyIds),
         ),
       )
       .orderBy(desc(schema.promptsTable.createdAt));
