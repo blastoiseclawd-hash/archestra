@@ -78,10 +78,10 @@ export function BulkAssignProfileDialog({
       credentialSourceMcpServerId === DYNAMIC_CREDENTIAL_VALUE ||
       executionSourceMcpServerId === DYNAMIC_CREDENTIAL_VALUE;
 
-    // Assign each tool to each selected agent
+    // Assign each tool to each selected MCP gateway
     const assignments = tools.flatMap((tool) =>
-      selectedProfileIds.map((agentId) => ({
-        agentId,
+      selectedProfileIds.map((mcpGatewayId) => ({
+        mcpGatewayId,
         toolId: tool.id,
         credentialSourceMcpServerId: isLocalServer
           ? null

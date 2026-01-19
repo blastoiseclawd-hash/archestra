@@ -11,7 +11,6 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import type { InteractionRequest, InteractionResponse } from "@/types";
-import agentsTable from "./agent";
 import llmProxiesTable from "./llm-proxy";
 import usersTable from "./user";
 
@@ -19,10 +18,8 @@ const interactionsTable = pgTable(
   "interactions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    // profileId is deprecated - use llmProxyId instead
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => agentsTable.id, { onDelete: "cascade" }),
+    // profileId is deprecated - kept for backward compatibility but no FK constraint
+    profileId: uuid("profile_id").notNull(),
     // llmProxyId links interactions to their LLM Proxy for observability
     llmProxyId: uuid("llm_proxy_id").references(() => llmProxiesTable.id, {
       onDelete: "cascade",

@@ -6,7 +6,7 @@ import { getObservableFetch } from "@/llm-metrics";
 import logger from "@/logging";
 import InteractionModel from "@/models/interaction";
 import LlmProxyModel from "@/models/llm-proxy";
-import type { Agent, Tool } from "@/types";
+import type { LlmProxy, Tool } from "@/types";
 
 const PolicyConfigSchema = z.object({
   allowUsageWhenUntrustedDataIsPresent: z
@@ -74,11 +74,11 @@ Examples:
 - External APIs (raw data): allowUsage=false, treatment="untrusted"
 - Code execution: allowUsage=false, treatment="untrusted"`;
 
-  // Virtual agent representing the subagent for observability
-  private static readonly VIRTUAL_AGENT: Agent = {
+  // Virtual proxy representing the subagent for observability
+  private static readonly VIRTUAL_PROXY: LlmProxy = {
     id: PolicyConfigSubagent.SUBAGENT_ID,
+    organizationId: "system",
     name: PolicyConfigSubagent.SUBAGENT_NAME,
-    isDemo: false,
     isDefault: false,
     considerContextUntrusted: false,
     createdAt: new Date(),
@@ -121,7 +121,7 @@ Examples:
       baseURL: `${config.llm.anthropic.baseUrl}/v1`,
       fetch: getObservableFetch(
         "anthropic",
-        PolicyConfigSubagent.VIRTUAL_AGENT,
+        PolicyConfigSubagent.VIRTUAL_PROXY,
         PolicyConfigSubagent.SUBAGENT_ID, // Use subagent ID as external agent ID
       ),
     });

@@ -10,8 +10,6 @@ import {
 import { beforeEach as baseBeforeEach, test as baseTest } from "vitest";
 import db, { schema } from "@/database";
 import {
-  AgentModel,
-  AgentToolModel,
   InternalMcpCatalogModel,
   SessionModel,
   TeamModel,
@@ -20,14 +18,12 @@ import {
   TrustedDataPolicyModel,
 } from "@/models";
 import type {
-  Agent,
-  AgentTool,
   InsertAccount,
-  InsertAgent,
   InsertConversation,
   InsertInteraction,
   InsertInternalMcpCatalog,
   InsertInvitation,
+  InsertLlmProxy,
   InsertMcpServer,
   InsertMember,
   InsertOrganization,
@@ -35,6 +31,7 @@ import type {
   InsertSession,
   InsertTeam,
   InsertUser,
+  LlmProxy,
   OrganizationRole,
   TeamMember,
   Tool,
@@ -176,57 +173,54 @@ async function makeTeamMember(
 }
 
 /**
- * Creates a test agent using the Agent model
+ * Creates a test profile.
+ * Creates entries in llm_proxies and mcp_gateways tables with the same ID.
+ * @deprecated Use makeLlmProxy instead for clarity
  */
-async function makeAgent(overrides: Partial<InsertAgent> = {}): Promise<Agent> {
-  const defaults: InsertAgent = {
-    name: `Test Agent ${crypto.randomUUID().substring(0, 8)}`,
-    teams: [],
-    labels: [],
-  };
-  const agent = await AgentModel.create({
-    ...defaults,
-    ...overrides,
-  });
+async function makeAgent(
+  overrides: Partial<Omit<InsertLlmProxy, "organizationId">> = {},
+): Promise<LlmProxy> {
+  const id = crypto.randomUUID();
+  const name = overrides.name ?? `Test Agent ${id.substring(0, 8)}`;
+  const teamIds = overrides.teams ?? [];
+  const organizationId = "default-org-id";
+  const now = new Date();
 
-  // Also create a corresponding MCP Gateway with the same ID for profile split compatibility
-  // This ensures tests that use makeAgent can also use mcp_gateway_tools
+  // Create LLM Proxy record
+  const [createdProxy] = await db
+    .insert(schema.llmProxiesTable)
+    .values({
+      id,
+      name,
+      organizationId,
+      isDefault: overrides.isDefault ?? false,
+      considerContextUntrusted: overrides.considerContextUntrusted ?? false,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning();
+
+  // Create MCP Gateway record with same ID
   await db
     .insert(schema.mcpGatewaysTable)
     .values({
-      id: agent.id,
-      name: agent.name,
-      organizationId: "test-org-id",
-      isDefault: agent.isDefault,
-      createdAt: agent.createdAt,
-      updatedAt: agent.updatedAt,
+      id,
+      name,
+      organizationId,
+      isDefault: overrides.isDefault ?? false,
+      createdAt: now,
+      updatedAt: now,
     })
     .onConflictDoNothing();
 
-  // Also create a corresponding LLM Proxy with the same ID
-  await db
-    .insert(schema.llmProxiesTable)
-    .values({
-      id: agent.id,
-      name: agent.name,
-      organizationId: "test-org-id",
-      isDefault: agent.isDefault,
-      considerContextUntrusted: agent.considerContextUntrusted,
-      createdAt: agent.createdAt,
-      updatedAt: agent.updatedAt,
-    })
-    .onConflictDoNothing();
-
-  // Copy team assignments to llm_proxy_team and mcp_gateway_team
-  // This ensures access control works correctly after the profile split migration
-  const teamIds = overrides.teams ?? defaults.teams;
-  if (teamIds && teamIds.length > 0) {
+  // Assign teams
+  if (teamIds.length > 0) {
     // Insert into llm_proxy_team
     await db
       .insert(schema.llmProxyTeamsTable)
       .values(
         teamIds.map((teamId) => ({
-          llmProxyId: agent.id,
+          llmProxyId: id,
           teamId,
         })),
       )
@@ -237,14 +231,20 @@ async function makeAgent(overrides: Partial<InsertAgent> = {}): Promise<Agent> {
       .insert(schema.mcpGatewayTeamsTable)
       .values(
         teamIds.map((teamId) => ({
-          mcpGatewayId: agent.id,
+          mcpGatewayId: id,
           teamId,
         })),
       )
       .onConflictDoNothing();
   }
 
-  return agent;
+  // Return proxy with expected shape
+  return {
+    ...createdProxy,
+    tools: [],
+    teams: [], // Teams not fetched for simplicity - tests can query if needed
+    labels: [],
+  };
 }
 
 /**
@@ -285,19 +285,19 @@ async function makeTool(
 }
 
 /**
- * Creates a test agent-tool relationship using the AgentTool model
+ * @deprecated Use makeMcpGatewayTool instead
+ * Creates a test agent-tool relationship (actually creates in mcp_gateway_tools table)
  */
 async function makeAgentTool(
   agentId: string,
   toolId: string,
-  overrides: Partial<
-    Pick<
-      AgentTool,
-      "credentialSourceMcpServerId" | "executionSourceMcpServerId"
-    >
-  > = {},
+  overrides: Partial<{
+    credentialSourceMcpServerId: string;
+    executionSourceMcpServerId: string;
+  }> = {},
 ) {
-  return await AgentToolModel.create(agentId, toolId, overrides);
+  // Agent IDs are the same as MCP Gateway IDs after the profile split
+  return makeMcpGatewayTool(agentId, toolId, overrides);
 }
 
 /**
@@ -823,7 +823,9 @@ async function seedArchestraCatalog(): Promise<void> {
  * Creates the Archestra catalog entry if it doesn't exist, then seeds tools.
  * This is useful for tests that need Archestra tools to be available.
  */
-async function seedAndAssignArchestraTools(agentId: string): Promise<void> {
+async function seedAndAssignArchestraTools(
+  mcpGatewayId: string,
+): Promise<void> {
   // Create Archestra catalog entry if it doesn't exist
   const existing = await InternalMcpCatalogModel.findById(
     ARCHESTRA_MCP_CATALOG_ID,
@@ -840,8 +842,8 @@ async function seedAndAssignArchestraTools(agentId: string): Promise<void> {
 
   // Seed and assign Archestra tools
   await ToolModel.seedArchestraTools(ARCHESTRA_MCP_CATALOG_ID);
-  await ToolModel.assignArchestraToolsToAgent(
-    agentId,
+  await ToolModel.assignArchestraToolsToMcpGateway(
+    mcpGatewayId,
     ARCHESTRA_MCP_CATALOG_ID,
   );
 }

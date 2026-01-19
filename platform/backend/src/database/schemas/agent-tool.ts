@@ -6,7 +6,6 @@ import {
   unique,
   uuid,
 } from "drizzle-orm/pg-core";
-import agentsTable from "./agent";
 import mcpServerTable from "./mcp-server";
 import toolsTable from "./tool";
 
@@ -14,9 +13,8 @@ const agentToolsTable = pgTable(
   "agent_tools",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agentId: uuid("agent_id")
-      .notNull()
-      .references(() => agentsTable.id, { onDelete: "cascade" }),
+    // agentId kept for backward compatibility but no FK constraint
+    agentId: uuid("agent_id").notNull(),
     toolId: uuid("tool_id")
       .notNull()
       .references(() => toolsTable.id, { onDelete: "cascade" }),

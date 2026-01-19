@@ -18,7 +18,7 @@ import {
 
 const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.get(
-    "/api/mcp-gateway-entities",
+    "/api/mcp-gateways",
     {
       schema: {
         operationId: RouteId.GetMcpGatewayEntities,
@@ -70,7 +70,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/mcp-gateway-entities/all",
+    "/api/mcp-gateways/all",
     {
       schema: {
         operationId: RouteId.GetAllMcpGatewayEntities,
@@ -95,7 +95,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/mcp-gateway-entities/default",
+    "/api/mcp-gateways/default",
     {
       schema: {
         operationId: RouteId.GetDefaultMcpGatewayEntity,
@@ -112,7 +112,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.post(
-    "/api/mcp-gateway-entities",
+    "/api/mcp-gateways",
     {
       schema: {
         operationId: RouteId.CreateMcpGatewayEntity,
@@ -166,7 +166,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/mcp-gateway-entities/:id",
+    "/api/mcp-gateways/:id",
     {
       schema: {
         operationId: RouteId.GetMcpGatewayEntity,
@@ -199,7 +199,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.put(
-    "/api/mcp-gateway-entities/:id",
+    "/api/mcp-gateways/:id",
     {
       schema: {
         operationId: RouteId.UpdateMcpGatewayEntity,
@@ -256,7 +256,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.delete(
-    "/api/mcp-gateway-entities/:id",
+    "/api/mcp-gateways/:id",
     {
       schema: {
         operationId: RouteId.DeleteMcpGatewayEntity,
@@ -280,7 +280,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/mcp-gateway-entities/labels/keys",
+    "/api/mcp-gateways/labels/keys",
     {
       schema: {
         operationId: RouteId.GetMcpGatewayEntityLabelKeys,
@@ -295,7 +295,7 @@ const mcpGatewayEntityRoutes: FastifyPluginAsyncZod = async (fastify) => {
   );
 
   fastify.get(
-    "/api/mcp-gateway-entities/labels/values",
+    "/api/mcp-gateways/labels/values",
     {
       schema: {
         operationId: RouteId.GetMcpGatewayEntityLabelValues,

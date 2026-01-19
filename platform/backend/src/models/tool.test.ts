@@ -1,6 +1,6 @@
 import { MCP_SERVER_TOOL_NAME_SEPARATOR } from "@shared";
 import { describe, expect, test } from "@/test";
-import AgentToolModel from "./agent-tool";
+import McpGatewayToolModel from "./mcp-gateway-tool";
 import TeamModel from "./team";
 import ToolModel from "./tool";
 
@@ -657,7 +657,7 @@ describe("ToolModel", () => {
     });
   });
 
-  describe("assignArchestraToolsToAgent", () => {
+  describe("assignArchestraToolsToMcpGateway", () => {
     test("assigns Archestra built-in tools to agent in bulk", async ({
       makeAgent,
       seedAndAssignArchestraTools,
@@ -665,16 +665,15 @@ describe("ToolModel", () => {
       const agent = await makeAgent();
 
       // Agents should NOT have Archestra tools auto-assigned (they must be explicitly assigned)
-      const toolIdsBeforeAssign = await AgentToolModel.findToolIdsByAgent(
-        agent.id,
-      );
+      const toolIdsBeforeAssign =
+        await McpGatewayToolModel.findToolIdsByMcpGateway(agent.id);
       expect(toolIdsBeforeAssign.length).toBe(0);
 
       // Explicitly assign Archestra tools
       await seedAndAssignArchestraTools(agent.id);
 
       // Verify Archestra tools are assigned after explicit assignment
-      const mcpTools = await ToolModel.getMcpToolsByAgent(agent.id);
+      const mcpTools = await ToolModel.getMcpToolsByMcpGateway(agent.id);
       const archestraToolNames = mcpTools
         .map((tool) => tool.name)
         .filter((name) => name.startsWith("archestra__"));
@@ -690,14 +689,12 @@ describe("ToolModel", () => {
       const agent = await makeAgent();
 
       await seedAndAssignArchestraTools(agent.id);
-      const toolIdsAfterFirst = await AgentToolModel.findToolIdsByAgent(
-        agent.id,
-      );
+      const toolIdsAfterFirst =
+        await McpGatewayToolModel.findToolIdsByMcpGateway(agent.id);
 
       await seedAndAssignArchestraTools(agent.id);
-      const toolIdsAfterSecond = await AgentToolModel.findToolIdsByAgent(
-        agent.id,
-      );
+      const toolIdsAfterSecond =
+        await McpGatewayToolModel.findToolIdsByMcpGateway(agent.id);
 
       expect(toolIdsAfterSecond.length).toBe(toolIdsAfterFirst.length);
     });

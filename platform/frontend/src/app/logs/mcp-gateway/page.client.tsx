@@ -42,7 +42,7 @@ export default function McpGatewayLogsPage({
 }: {
   initialData?: {
     mcpToolCalls: archestraApiTypes.GetMcpToolCallsResponses["200"];
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
 }) {
   return (
@@ -59,7 +59,7 @@ function McpToolCallsTable({
 }: {
   initialData?: {
     mcpToolCalls: archestraApiTypes.GetMcpToolCallsResponses["200"];
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
 }) {
   const router = useRouter();

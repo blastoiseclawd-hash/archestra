@@ -6,8 +6,8 @@ import { McpServerRuntimeManager } from "@/mcp-server-runtime";
 import { secretManager } from "@/secrets-manager";
 import { computeSecretStorageType } from "@/secrets-manager/utils";
 import type { InsertMcpServer, McpServer, UpdateMcpServer } from "@/types";
-import AgentToolModel from "./agent-tool";
 import InternalMcpCatalogModel from "./internal-mcp-catalog";
+import McpGatewayToolModel from "./mcp-gateway-tool";
 import McpServerUserModel from "./mcp-server-user";
 import ToolModel from "./tool";
 
@@ -337,29 +337,29 @@ class McpServerModel {
       return false;
     }
 
-    // Clean up agent_tools that reference this server
-    // Must be done before deletion to ensure agents do not retain unusable tool assignments
+    // Clean up mcp_gateway_tools that reference this server
+    // Must be done before deletion to ensure gateways do not retain unusable tool assignments
     // FK constraint would only null out the reference, not remove the assignment
     try {
-      let deletedAgentTools = 0;
+      let deletedGatewayTools = 0;
       if (mcpServer.serverType === "local") {
-        deletedAgentTools =
-          await AgentToolModel.deleteByExecutionSourceMcpServerId(id);
+        deletedGatewayTools =
+          await McpGatewayToolModel.deleteByExecutionSourceMcpServerId(id);
       } else {
-        deletedAgentTools =
-          await AgentToolModel.deleteByCredentialSourceMcpServerId(id);
+        deletedGatewayTools =
+          await McpGatewayToolModel.deleteByCredentialSourceMcpServerId(id);
       }
-      if (deletedAgentTools > 0) {
+      if (deletedGatewayTools > 0) {
         logger.info(
-          `Deleted ${deletedAgentTools} agent tool assignments for MCP server: ${mcpServer.name}`,
+          `Deleted ${deletedGatewayTools} MCP gateway tool assignments for MCP server: ${mcpServer.name}`,
         );
       }
     } catch (error) {
       logger.error(
         { err: error },
-        `Failed to clean up agent tools for MCP server ${mcpServer.name}:`,
+        `Failed to clean up MCP gateway tools for MCP server ${mcpServer.name}:`,
       );
-      // Continue with deletion even if agent tool cleanup fails
+      // Continue with deletion even if gateway tool cleanup fails
     }
 
     // For local servers, stop and remove the K8s deployment

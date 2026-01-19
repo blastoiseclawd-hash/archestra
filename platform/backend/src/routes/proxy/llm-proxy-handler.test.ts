@@ -16,7 +16,7 @@ import { vi } from "vitest";
 import config from "@/config";
 import { TokenPriceModel } from "@/models";
 import { afterEach, beforeEach, describe, expect, test } from "@/test";
-import type { Agent } from "@/types";
+import type { LlmProxy } from "@/types";
 
 // Mock prom-client at module level (like llm-metrics.test.ts)
 const counterInc = vi.fn();
@@ -48,7 +48,7 @@ import openAiProxyRoutesV2 from "./routesv2/openai";
 
 describe("LLM Proxy Handler V2 Prometheus Metrics", () => {
   let app: FastifyInstance;
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();

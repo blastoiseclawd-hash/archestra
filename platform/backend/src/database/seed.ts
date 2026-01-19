@@ -8,10 +8,10 @@ import {
 import { auth } from "@/auth/better-auth";
 import logger from "@/logging";
 import {
-  AgentModel,
-  AgentTeamModel,
   DualLlmConfigModel,
   InternalMcpCatalogModel,
+  LlmProxyModel,
+  LlmProxyTeamModel,
   MemberModel,
   OrganizationModel,
   PromptModel,
@@ -143,14 +143,13 @@ async function seedN8NSystemPrompt(): Promise<void> {
     return;
   }
 
-  // Get or create default agent first
-  const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+  // Get or create default LLM Proxy first
+  const defaultLlmProxy = await LlmProxyModel.getOrCreateDefault(org.id);
 
-  // Check if N8N system prompt already exists for the default agent
+  // Check if N8N system prompt already exists - only check by name to avoid duplicates
+  // when the default LLM Proxy ID changes (e.g., after re-seeding)
   const existingPrompts = await PromptModel.findByOrganizationId(org.id);
-  const n8nPrompt = existingPrompts.find(
-    (p) => p.name === "n8n Expert" && p.agentId === defaultAgent.id,
-  );
+  const n8nPrompt = existingPrompts.find((p) => p.name === "n8n Expert");
 
   if (!n8nPrompt) {
     const n8nSystemPromptContent = `You are an expert in n8n automation software using n8n-MCP tools. Your role is to design, build, and validate n8n workflows with maximum accuracy and efficiency.
@@ -333,7 +332,7 @@ return $input.all().map(item => ({
 
     await PromptModel.create(org.id, {
       name: "n8n Expert",
-      agentId: defaultAgent.id,
+      agentId: defaultLlmProxy.id,
       systemPrompt: n8nSystemPromptContent,
     });
     logger.info("✓ Seeded n8n Expert system prompt");
@@ -355,8 +354,8 @@ async function seedDefaultRegularPrompts(): Promise<void> {
     return;
   }
 
-  // Get or create default agent first
-  const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+  // Get or create default LLM Proxy first
+  const defaultLlmProxy = await LlmProxyModel.getOrCreateDefault(org.id);
 
   const defaultPrompts = [
     {
@@ -370,17 +369,16 @@ async function seedDefaultRegularPrompts(): Promise<void> {
     },
   ];
 
-  // Check existing regular prompts for the default agent
+  // Check existing regular prompts - only check by name to avoid duplicates
+  // when the default LLM Proxy ID changes (e.g., after re-seeding)
   const existingPrompts = await PromptModel.findByOrganizationId(org.id);
 
   for (const promptData of defaultPrompts) {
-    const exists = existingPrompts.find(
-      (p) => p.name === promptData.name && p.agentId === defaultAgent.id,
-    );
+    const exists = existingPrompts.find((p) => p.name === promptData.name);
     if (!exists) {
       await PromptModel.create(org.id, {
         name: promptData.name,
-        agentId: defaultAgent.id,
+        agentId: defaultLlmProxy.id,
         userPrompt: promptData.userPrompt,
       });
       logger.info(`✓ Seeded regular prompt: ${promptData.name}`);
@@ -418,7 +416,7 @@ async function seedAgentDelegationCatalog(): Promise<void> {
 async function seedDefaultTeam(): Promise<void> {
   const org = await OrganizationModel.getOrCreateDefaultOrganization();
   const user = await UserModel.createOrGetExistingDefaultAdminUser(auth);
-  const defaultAgent = await AgentModel.getAgentOrCreateDefault();
+  const defaultLlmProxy = await LlmProxyModel.getOrCreateDefault(org.id);
 
   if (!user) {
     logger.error(
@@ -451,7 +449,9 @@ async function seedDefaultTeam(): Promise<void> {
   }
 
   // Assign team to default profile (idempotent)
-  await AgentTeamModel.assignTeamsToAgent(defaultAgent.id, [defaultTeam.id]);
+  await LlmProxyTeamModel.assignTeamsToLlmProxy(defaultLlmProxy.id, [
+    defaultTeam.id,
+  ]);
   logger.info("✓ Assigned default team to default profile");
 }
 
@@ -529,8 +529,9 @@ async function seedTeamTokens(): Promise<void> {
 export async function seedRequiredStartingData(): Promise<void> {
   await seedDefaultUserAndOrg();
   await seedDualLlmConfig();
-  // Create default agent before seeding prompts (prompts need agentId)
-  await AgentModel.getAgentOrCreateDefault();
+  // Create default LLM Proxy before seeding prompts (prompts need agentId)
+  const org = await OrganizationModel.getOrCreateDefaultOrganization();
+  await LlmProxyModel.getOrCreateDefault(org.id);
   await seedDefaultTeam();
   await seedN8NSystemPrompt();
   await seedDefaultRegularPrompts();

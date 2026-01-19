@@ -18,10 +18,10 @@ import {
 import config from "@/config";
 import logger from "@/logging";
 import {
-  AgentModel,
   ChatApiKeyModel,
   ConversationEnabledToolModel,
   ConversationModel,
+  LlmProxyModel,
   MessageModel,
   PromptModel,
   TeamModel,
@@ -494,7 +494,11 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       );
 
       // Verify agent exists and user has access
-      const agent = await AgentModel.findById(agentId, user.id, isAgentAdmin);
+      const agent = await LlmProxyModel.findById(
+        agentId,
+        user.id,
+        isAgentAdmin,
+      );
 
       if (!agent) {
         return [];
@@ -571,7 +575,11 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
       );
 
       // Validate that the agent exists and user has access to it
-      const agent = await AgentModel.findById(agentId, user.id, isAgentAdmin);
+      const agent = await LlmProxyModel.findById(
+        agentId,
+        user.id,
+        isAgentAdmin,
+      );
 
       if (!agent) {
         throw new ApiError(404, "Agent not found");
@@ -662,7 +670,7 @@ const chatRoutes: FastifyPluginAsyncZod = async (fastify) => {
           headers,
         );
 
-        const agent = await AgentModel.findById(
+        const agent = await LlmProxyModel.findById(
           body.agentId,
           user.id,
           isAgentAdmin,

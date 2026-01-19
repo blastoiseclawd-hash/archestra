@@ -84,9 +84,9 @@ export function AssignProfileDialog({
       executionSourceMcpServerId === DYNAMIC_CREDENTIAL_VALUE;
 
     const results = await Promise.allSettled(
-      selectedProfileIds.map((agentId) =>
+      selectedProfileIds.map((mcpGatewayId) =>
         assignMutation.mutateAsync({
-          agentId,
+          mcpGatewayId,
           toolId: tool.tool.id,
           credentialSourceMcpServerId: isLocalServer
             ? null

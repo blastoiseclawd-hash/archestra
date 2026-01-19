@@ -102,7 +102,9 @@ class McpGatewayToolModel {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
-  static async findToolIdsByMcpGateway(mcpGatewayId: string): Promise<string[]> {
+  static async findToolIdsByMcpGateway(
+    mcpGatewayId: string,
+  ): Promise<string[]> {
     const results = await db
       .select({ toolId: schema.mcpGatewayToolsTable.toolId })
       .from(schema.mcpGatewayToolsTable)
@@ -526,7 +528,10 @@ class McpGatewayToolModel {
       .from(schema.mcpGatewayToolsTable)
       .innerJoin(
         schema.mcpGatewaysTable,
-        eq(schema.mcpGatewayToolsTable.mcpGatewayId, schema.mcpGatewaysTable.id),
+        eq(
+          schema.mcpGatewayToolsTable.mcpGatewayId,
+          schema.mcpGatewaysTable.id,
+        ),
       )
       .innerJoin(
         schema.toolsTable,

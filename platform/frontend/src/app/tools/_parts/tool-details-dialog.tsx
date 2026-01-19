@@ -1,7 +1,7 @@
 "use client";
 
 import { ARCHESTRA_MCP_CATALOG_ID } from "@shared";
-import { ChevronDown, ChevronRight, Layers, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Layers, Server } from "lucide-react";
 import { useState } from "react";
 import { TruncatedText } from "@/components/truncated-text";
 import { Badge } from "@/components/ui/badge";
@@ -103,41 +103,38 @@ export function ToolDetailsDialog({
             <div className="flex gap-6 text-sm ml-6">
               <div>
                 <div className="text-xs font-medium text-muted-foreground">
-                  Origin
+                  Source
                 </div>
-                <div className="mt-0.5">
-                  {isMcpToolByProperties(tool) ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge variant="default" className="bg-indigo-500">
-                            MCP Server
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{catalogItem?.name || "MCP Server"}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge variant="secondary" className="bg-orange-800">
-                            Intercepted
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Tool discovered via agent-LLM communication</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant={
+                            isMcpToolByProperties(tool)
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="text-xs"
+                        >
+                          {isMcpToolByProperties(tool) ? "MCP" : "Sniffed"}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isMcpToolByProperties(tool)
+                          ? "Tool from MCP server catalog"
+                          : "Tool discovered from LLM proxy traffic"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {catalogItem && (
+                    <span className="text-foreground">{catalogItem.name}</span>
                   )}
                 </div>
               </div>
               <div>
                 <div className="text-xs font-medium text-muted-foreground">
-                  Detected
+                  Created
                 </div>
                 <div className="text-sm text-foreground mt-0.5">
                   {formatDate({ date: tool.createdAt })}
@@ -159,7 +156,7 @@ export function ToolDetailsDialog({
           <div className="space-y-6">
             <ToolReadonlyDetails tool={tool} />
 
-            {/* Profile Assignments Section */}
+            {/* MCP Gateway Assignments Section */}
             <Collapsible
               open={assignmentsOpen}
               onOpenChange={setAssignmentsOpen}
@@ -171,9 +168,9 @@ export function ToolDetailsDialog({
                     className="w-full flex items-center justify-between p-4 hover:bg-muted/50 rounded-t-lg"
                   >
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
+                      <Server className="h-4 w-4" />
                       <span className="font-semibold text-sm">
-                        Profile Assignments
+                        MCP Gateway Assignments
                       </span>
                       <Badge variant="secondary" className="ml-2">
                         {tool.assignmentCount}
@@ -190,7 +187,7 @@ export function ToolDetailsDialog({
                   <div className="border-t border-border">
                     {tool.assignments.length === 0 ? (
                       <div className="p-4 text-sm text-muted-foreground text-center">
-                        No profile assignments
+                        No MCP gateway assignments
                       </div>
                     ) : (
                       <div className="divide-y divide-border">

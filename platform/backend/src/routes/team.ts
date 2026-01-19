@@ -3,7 +3,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { hasPermission } from "@/auth";
 import config from "@/config";
-import { AgentToolModel, TeamModel } from "@/models";
+import { McpGatewayToolModel, TeamModel } from "@/models";
 import {
   AddTeamExternalGroupBodySchema,
   AddTeamMemberBodySchema,
@@ -296,19 +296,19 @@ const teamRoutes: FastifyPluginAsyncZod = async (fastify) => {
         throw new ApiError(404, "Team member not found");
       }
 
-      const { success: userIsAgentAdmin } = await hasPermission(
+      const { success: userIsMcpGatewayAdmin } = await hasPermission(
         { profile: ["admin"] },
         headers,
       );
 
       // Clean up invalid credential sources (personal tokens) for this user
-      // if they no longer have access to agents through other teams
+      // if they no longer have access to MCP gateways through other teams
       try {
         const cleanedCount =
-          await AgentToolModel.cleanupInvalidCredentialSourcesForUser(
+          await McpGatewayToolModel.cleanupInvalidCredentialSourcesForUser(
             userId,
             id,
-            userIsAgentAdmin,
+            userIsMcpGatewayAdmin,
           );
 
         if (cleanedCount > 0) {

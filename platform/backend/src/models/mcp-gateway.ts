@@ -1,4 +1,4 @@
-import { DEFAULT_PROFILE_NAME, isArchestraMcpServerTool } from "@shared";
+import { DEFAULT_PROFILE_NAME } from "@shared";
 import {
   and,
   asc,
@@ -224,13 +224,6 @@ class McpGatewayModel {
           ),
         })
         .from(schema.mcpGatewayToolsTable)
-        .innerJoin(
-          schema.toolsTable,
-          eq(schema.mcpGatewayToolsTable.toolId, schema.toolsTable.id),
-        )
-        .where(
-          sql`NOT ${schema.toolsTable.name} LIKE 'archestra\\_\\_%' ESCAPE '\\'`,
-        )
         .groupBy(schema.mcpGatewayToolsTable.mcpGatewayId)
         .as("toolsCounts");
 
@@ -326,8 +319,8 @@ class McpGatewayModel {
         });
       }
 
-      // Add tool if it exists and is not an Archestra MCP tool
-      if (tool && !isArchestraMcpServerTool(tool.name)) {
+      // Add tool if it exists
+      if (tool) {
         gatewaysMap.get(gateway.id)?.tools.push(tool);
       }
     }
@@ -441,10 +434,7 @@ class McpGatewayModel {
     const gateway = rows[0].mcp_gateways;
     const tools = rows
       .map((row) => row.tools)
-      .filter(
-        (tool): tool is NonNullable<typeof tool> =>
-          tool !== null && !isArchestraMcpServerTool(tool.name),
-      );
+      .filter((tool): tool is NonNullable<typeof tool> => tool !== null);
 
     const teams = await McpGatewayTeamModel.getTeamDetailsForMcpGateway(id);
     const labels = await McpGatewayLabelModel.getLabelsForMcpGateway(id);
@@ -488,10 +478,7 @@ class McpGatewayModel {
       const gateway = rows[0].mcp_gateways;
       const tools = rows
         .map((row) => row.tools)
-        .filter(
-          (tool): tool is NonNullable<typeof tool> =>
-            tool !== null && !isArchestraMcpServerTool(tool.name),
-        );
+        .filter((tool): tool is NonNullable<typeof tool> => tool !== null);
 
       return {
         ...gateway,

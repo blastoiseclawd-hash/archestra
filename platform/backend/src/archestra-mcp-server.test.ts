@@ -6,7 +6,7 @@ import {
 } from "@shared";
 import { InternalMcpCatalogModel, LlmProxyModel } from "@/models";
 import { beforeEach, describe, expect, test, vi } from "@/test";
-import type { Agent } from "@/types";
+import type { LlmProxy } from "@/types";
 import {
   type ArchestraContext,
   executeArchestraTool,
@@ -102,7 +102,7 @@ describe("getArchestraMcpTools", () => {
 });
 
 describe("executeArchestraTool", () => {
-  let testProfile: Agent;
+  let testProfile: LlmProxy;
   let mockContext: ArchestraContext;
 
   beforeEach(async ({ makeAgent }) => {

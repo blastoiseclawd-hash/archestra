@@ -14,7 +14,6 @@ import {
   PromptInputAttachments,
   PromptInputBody,
   PromptInputFooter,
-  PromptInputHeader,
   type PromptInputMessage,
   PromptInputProvider,
   PromptInputSpeechButton,
@@ -38,10 +37,6 @@ interface ArchestraPromptInputProps {
   selectedModel: string;
   onModelChange: (model: string) => void;
   messageCount?: number;
-  // Tools integration props
-  agentId: string;
-  /** Prompt ID for tool state management */
-  promptId?: string | null;
   /** Optional - if not provided, it's initial chat mode (no conversation yet) */
   conversationId?: string;
   // API key selector props
@@ -57,6 +52,12 @@ interface ArchestraPromptInputProps {
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   /** Whether file uploads are allowed (controlled by organization setting) */
   allowFileUploads?: boolean;
+  /** MCP Gateway ID for displaying MCP tools */
+  mcpGatewayId?: string;
+  /** Agent ID (LLM Proxy) for agent delegation tools */
+  agentId?: string;
+  /** Prompt ID for pending tool actions */
+  promptId?: string | null;
 }
 
 // Inner component that has access to the controller context
@@ -66,8 +67,6 @@ const PromptInputContent = ({
   selectedModel,
   onModelChange,
   messageCount,
-  agentId,
-  promptId,
   conversationId,
   currentConversationChatApiKeyId,
   currentProvider,
@@ -76,6 +75,9 @@ const PromptInputContent = ({
   onProviderChange,
   textareaRef: externalTextareaRef,
   allowFileUploads = false,
+  mcpGatewayId,
+  agentId,
+  promptId,
 }: Omit<ArchestraPromptInputProps, "onSubmit"> & {
   onSubmit: ArchestraPromptInputProps["onSubmit"];
 }) => {
@@ -93,26 +95,30 @@ const PromptInputContent = ({
 
   return (
     <PromptInput globalDrop multiple onSubmit={onSubmit}>
-      <PromptInputHeader className="pt-3">
-        {agentId && (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Show AgentToolsDisplay when agent IS selected (has promptId) */}
-            {promptId && (
-              <AgentToolsDisplay
-                agentId={agentId}
-                promptId={promptId}
-                conversationId={conversationId}
-              />
-            )}
-            {/* Show ChatToolsDisplay always */}
-            <ChatToolsDisplay
+      {/* Tools displays - shown at top of prompt input */}
+      {(agentId || mcpGatewayId) && (
+        <div
+          data-align="block-start"
+          className="w-full px-3 pt-2 pb-0 flex flex-wrap gap-1 justify-start"
+        >
+          {/* Agent delegation tools display */}
+          {agentId && promptId && (
+            <AgentToolsDisplay
               agentId={agentId}
               promptId={promptId}
               conversationId={conversationId}
             />
-          </div>
-        )}
-      </PromptInputHeader>
+          )}
+          {/* MCP tools display */}
+          {mcpGatewayId && (
+            <ChatToolsDisplay
+              agentId={mcpGatewayId}
+              promptId={promptId}
+              conversationId={conversationId}
+            />
+          )}
+        </div>
+      )}
       {/* File attachments display - shown inline above textarea */}
       <PromptInputAttachments className="px-3 pt-2 pb-0">
         {(attachment) => <PromptInputAttachment data={attachment} />}
@@ -190,8 +196,6 @@ const ArchestraPromptInput = ({
   selectedModel,
   onModelChange,
   messageCount = 0,
-  agentId,
-  promptId,
   conversationId,
   currentConversationChatApiKeyId,
   currentProvider,
@@ -200,6 +204,9 @@ const ArchestraPromptInput = ({
   onProviderChange,
   textareaRef,
   allowFileUploads = false,
+  mcpGatewayId,
+  agentId,
+  promptId,
 }: ArchestraPromptInputProps) => {
   return (
     <div className="flex size-full flex-col justify-end">
@@ -210,8 +217,6 @@ const ArchestraPromptInput = ({
           selectedModel={selectedModel}
           onModelChange={onModelChange}
           messageCount={messageCount}
-          agentId={agentId}
-          promptId={promptId}
           conversationId={conversationId}
           currentConversationChatApiKeyId={currentConversationChatApiKeyId}
           currentProvider={currentProvider}
@@ -220,6 +225,9 @@ const ArchestraPromptInput = ({
           onProviderChange={onProviderChange}
           textareaRef={textareaRef}
           allowFileUploads={allowFileUploads}
+          mcpGatewayId={mcpGatewayId}
+          agentId={agentId}
+          promptId={promptId}
         />
       </PromptInputProvider>
     </div>

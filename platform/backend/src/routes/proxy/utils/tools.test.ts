@@ -1,4 +1,4 @@
-import { AgentToolModel, ToolModel } from "@/models";
+import { McpGatewayToolModel, ToolModel } from "@/models";
 import { describe, expect, test } from "@/test";
 import { persistTools } from "./tools";
 
@@ -360,7 +360,7 @@ describe("persistTools", () => {
     expect(toolNames.filter((n) => n === "duplicate-tool")).toHaveLength(1);
 
     // Verify agent-tool relationships don't have duplicates
-    const toolIds = await AgentToolModel.findToolIdsByAgent(agent.id);
+    const toolIds = await McpGatewayToolModel.findToolIdsByMcpGateway(agent.id);
     const uniqueToolIds = [...new Set(toolIds)];
     expect(toolIds.length).toBe(uniqueToolIds.length);
   });

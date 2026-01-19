@@ -7,7 +7,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { SupportedChatProvider } from "@/types";
-import agentsTable from "./agent";
 import chatApiKeysTable from "./chat-api-key";
 import llmProxiesTable from "./llm-proxy";
 import mcpGatewaysTable from "./mcp-gateway";
@@ -17,10 +16,8 @@ const conversationsTable = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id").notNull(),
   organizationId: text("organization_id").notNull(),
-  // agentId is deprecated - use promptId, mcpGatewayId, and llmProxyId instead
-  agentId: uuid("agent_id")
-    .notNull()
-    .references(() => agentsTable.id, { onDelete: "cascade" }),
+  // agentId is deprecated - kept for backward compatibility but no FK constraint
+  agentId: uuid("agent_id").notNull(),
   promptId: uuid("prompt_id").references(() => promptsTable.id, {
     onDelete: "set null",
   }),

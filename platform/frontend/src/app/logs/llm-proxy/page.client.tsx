@@ -122,7 +122,7 @@ function SessionRow({
   agents,
 }: {
   session: SessionData;
-  agents: archestraApiTypes.GetAllAgentsResponses["200"] | undefined;
+  agents: archestraApiTypes.GetAllLlmProxiesResponses["200"] | undefined;
 }) {
   const router = useRouter();
 
@@ -298,7 +298,7 @@ export default function LlmProxyLogsPage({
 }: {
   initialData?: {
     interactions: archestraApiTypes.GetInteractionsResponses["200"];
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
 }) {
   return (
@@ -315,7 +315,7 @@ function SessionsTable({
 }: {
   initialData?: {
     interactions: archestraApiTypes.GetInteractionsResponses["200"];
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
 }) {
   const router = useRouter();

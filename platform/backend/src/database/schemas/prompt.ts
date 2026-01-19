@@ -6,7 +6,6 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import agentsTable from "./agent";
 import llmProxiesTable from "./llm-proxy";
 import mcpGatewaysTable from "./mcp-gateway";
 
@@ -24,9 +23,8 @@ const promptsTable = pgTable("prompts", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: text("organization_id").notNull(),
   name: text("name").notNull(),
-  agentId: uuid("agent_id")
-    .notNull()
-    .references(() => agentsTable.id, { onDelete: "cascade" }),
+  // agentId kept for backward compatibility but no FK constraint
+  agentId: uuid("agent_id").notNull(),
   // MCP Gateway for tool execution (optional)
   mcpGatewayId: uuid("mcp_gateway_id").references(() => mcpGatewaysTable.id, {
     onDelete: "set null",

@@ -394,7 +394,10 @@ const mcpGatewayToolRoutes: FastifyPluginAsyncZod = async (fastify) => {
     async ({ params: { mcpGatewayId }, query }, reply) => {
       const mcpGateway = await McpGatewayModel.findById(mcpGatewayId);
       if (!mcpGateway) {
-        throw new ApiError(404, `MCP gateway with ID ${mcpGatewayId} not found`);
+        throw new ApiError(
+          404,
+          `MCP gateway with ID ${mcpGatewayId} not found`,
+        );
       }
 
       const tools = query.excludeLlmProxyOrigin
@@ -432,7 +435,9 @@ const mcpGatewayToolRoutes: FastifyPluginAsyncZod = async (fastify) => {
       } = body;
 
       let mcpGatewayToolForValidation:
-        | Awaited<ReturnType<typeof McpGatewayToolModel.findAll>>["data"][number]
+        | Awaited<
+            ReturnType<typeof McpGatewayToolModel.findAll>
+          >["data"][number]
         | undefined;
 
       if (credentialSourceMcpServerId || executionSourceMcpServerId) {

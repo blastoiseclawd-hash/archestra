@@ -1,4 +1,4 @@
-import { AgentToolModel, ToolModel } from "@/models";
+import { McpGatewayToolModel, ToolModel } from "@/models";
 import { beforeEach, describe, expect, test } from "@/test";
 import TrustedDataPolicyModel from "./trusted-data-policy";
 
@@ -225,7 +225,7 @@ describe("TrustedDataPolicyModel", () => {
     toolId = tool.id;
 
     // Create agent-tool relationship (untrusted by default when no policies)
-    await AgentToolModel.create(agentId, toolId, {});
+    await McpGatewayToolModel.create(agentId, toolId, {});
   });
 
   describe("evaluate", () => {
@@ -315,7 +315,7 @@ describe("TrustedDataPolicyModel", () => {
           "trusted-by-default-tool",
         );
         if (!trustedTool) throw new Error("Tool not found");
-        await AgentToolModel.create(agentId, trustedTool.id, {});
+        await McpGatewayToolModel.create(agentId, trustedTool.id, {});
         // Delete auto-created default policies to set up our own
         await TrustedDataPolicyModel.deleteByToolId(trustedTool.id);
         await makeTrustedDataPolicy(trustedTool.id, {
@@ -350,7 +350,7 @@ describe("TrustedDataPolicyModel", () => {
           "trusted-by-default-with-policies",
         );
         if (!trustedTool) throw new Error("Tool not found");
-        await AgentToolModel.create(agentId, trustedTool.id, {});
+        await McpGatewayToolModel.create(agentId, trustedTool.id, {});
         // Delete auto-created default policies to set up our own
         await TrustedDataPolicyModel.deleteByToolId(trustedTool.id);
 
@@ -394,7 +394,7 @@ describe("TrustedDataPolicyModel", () => {
           "trusted-default-with-matching-policy",
         );
         if (!trustedTool) throw new Error("Tool not found");
-        await AgentToolModel.create(agentId, trustedTool.id, {});
+        await McpGatewayToolModel.create(agentId, trustedTool.id, {});
 
         // Create a default trusted policy
         await makeTrustedDataPolicy(trustedTool.id, {
@@ -989,7 +989,7 @@ describe("TrustedDataPolicyModel", () => {
 
         const trustedTool = await ToolModel.findByName("default-trusted-tool");
         if (!trustedTool) throw new Error("Tool not found");
-        await AgentToolModel.create(agentId, trustedTool.id, {});
+        await McpGatewayToolModel.create(agentId, trustedTool.id, {});
 
         // Create default trusted policy
         await makeTrustedDataPolicy(trustedTool.id, {

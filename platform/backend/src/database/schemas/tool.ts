@@ -7,7 +7,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { ToolParametersContent } from "@/types";
-import agentsTable from "./agent";
 import mcpCatalogTable from "./internal-mcp-catalog";
 import llmProxiesTable from "./llm-proxy";
 import mcpServerTable from "./mcp-server";
@@ -17,11 +16,9 @@ const toolsTable = pgTable(
   "tools",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    // agentId is nullable - null for MCP tools, set for proxy-sniffed tools (deprecated)
+    // agentId is deprecated - kept for backward compatibility but no FK constraint
     // Use llmProxyId instead for new auto-discovered tools
-    agentId: uuid("agent_id").references(() => agentsTable.id, {
-      onDelete: "cascade",
-    }),
+    agentId: uuid("agent_id"),
     // llmProxyId links auto-discovered tools to their LLM Proxy
     // null for MCP tools or agent delegation tools
     llmProxyId: uuid("llm_proxy_id").references(() => llmProxiesTable.id, {

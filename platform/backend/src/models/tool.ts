@@ -38,7 +38,6 @@ import type {
   ToolWithAssignments,
   UpdateTool,
 } from "@/types";
-import AgentToolModel from "./agent-tool";
 import LlmProxyTeamModel from "./llm-proxy-team";
 import McpGatewayTeamModel from "./mcp-gateway-team";
 import McpGatewayToolModel from "./mcp-gateway-tool";
@@ -345,69 +344,19 @@ class ToolModel {
   }
 
   /**
+   * @deprecated Use getToolsByMcpGateway instead
    * Get all tools for an agent (both proxy-sniffed and MCP tools)
-   * Proxy-sniffed tools are those with llmProxyId set directly
-   * MCP tools are those assigned via the mcp_gateway_tools junction table
    */
   static async getToolsByAgent(agentId: string): Promise<Tool[]> {
-    // Get tool IDs assigned via junction table (MCP tools)
-    const assignedToolIds = await AgentToolModel.findToolIdsByAgent(agentId);
-
-    // Query for tools that are either:
-    // 1. Directly associated with the agent (proxy-sniffed, agentId set)
-    // 2. Assigned via junction table (MCP tools, agentId is null)
-    const conditions = [eq(schema.toolsTable.agentId, agentId)];
-
-    if (assignedToolIds.length > 0) {
-      conditions.push(inArray(schema.toolsTable.id, assignedToolIds));
-    }
-
-    const tools = await db
-      .select()
-      .from(schema.toolsTable)
-      .where(or(...conditions))
-      .orderBy(desc(schema.toolsTable.createdAt));
-
-    return tools;
+    return ToolModel.getToolsByMcpGateway(agentId);
   }
 
   /**
-   * Get only MCP tools assigned to an agent (those from connected MCP servers)
-   * Includes:
-   * - MCP server tools (catalogId set, including Archestra builtin tools)
-   * - Agent delegation tools (promptAgentId set)
-   * Excludes: proxy-discovered tools (agentId set, catalogId null, promptAgentId null)
-   *
-   * Note: Archestra tools are no longer automatically assigned - they must be
-   * explicitly assigned like any other MCP server tools.
+   * @deprecated Use getMcpToolsByMcpGateway instead
+   * Get only MCP tools assigned to an agent
    */
   static async getMcpToolsByAgent(agentId: string): Promise<Tool[]> {
-    // Get tool IDs assigned via junction table (MCP tools)
-    const assignedToolIds = await AgentToolModel.findToolIdsByAgent(agentId);
-
-    if (assignedToolIds.length === 0) {
-      return [];
-    }
-
-    // Return tools that are assigned via junction table AND either:
-    // - Have catalogId set (MCP server tools and Archestra builtin tools)
-    // - Have promptAgentId set (agent delegation tools)
-    // Excludes proxy-discovered tools which have agentId set and both catalogId and promptAgentId null
-    const tools = await db
-      .select()
-      .from(schema.toolsTable)
-      .where(
-        and(
-          inArray(schema.toolsTable.id, assignedToolIds),
-          or(
-            isNotNull(schema.toolsTable.catalogId),
-            isNotNull(schema.toolsTable.promptAgentId),
-          ),
-        ),
-      )
-      .orderBy(desc(schema.toolsTable.createdAt));
-
-    return tools;
+    return ToolModel.getMcpToolsByMcpGateway(agentId);
   }
 
   /**
@@ -685,11 +634,11 @@ class ToolModel {
   }
 
   /**
-   * Assign Archestra built-in tools to an agent.
+   * Assign Archestra built-in tools to an MCP Gateway.
    * Assumes tools have already been seeded via seedArchestraTools().
    */
-  static async assignArchestraToolsToAgent(
-    agentId: string,
+  static async assignArchestraToolsToMcpGateway(
+    mcpGatewayId: string,
     catalogId: string,
   ): Promise<void> {
     // Get all Archestra tools from the catalog
@@ -700,41 +649,23 @@ class ToolModel {
 
     const toolIds = archestraTools.map((t) => t.id);
 
-    // Assign all tools to agent in bulk to avoid N+1
-    await AgentToolModel.createManyIfNotExists(agentId, toolIds);
+    // Assign all tools to gateway in bulk to avoid N+1
+    await McpGatewayToolModel.createManyIfNotExists(mcpGatewayId, toolIds);
   }
 
   /**
-   * Assign default Archestra tools (artifact_write, todo_write) to an agent.
-   * These tools are automatically assigned to new profiles for task tracking and artifact management.
+   * @deprecated Use assignArchestraToolsToMcpGateway instead
    */
-  static async assignDefaultArchestraToolsToAgent(
+  static async assignArchestraToolsToAgent(
     agentId: string,
+    catalogId: string,
   ): Promise<void> {
-    // Find the default tools by name
-    const defaultToolNames = [
-      TOOL_ARTIFACT_WRITE_FULL_NAME,
-      TOOL_TODO_WRITE_FULL_NAME,
-    ];
-
-    const defaultTools = await db
-      .select({ id: schema.toolsTable.id })
-      .from(schema.toolsTable)
-      .where(inArray(schema.toolsTable.name, defaultToolNames));
-
-    if (defaultTools.length === 0) {
-      // Tools not yet seeded, skip assignment
-      return;
-    }
-
-    const toolIds = defaultTools.map((t) => t.id);
-
-    // Assign tools to agent in bulk
-    await AgentToolModel.createManyIfNotExists(agentId, toolIds);
+    return ToolModel.assignArchestraToolsToMcpGateway(agentId, catalogId);
   }
 
   /**
-   * Assign default Archestra tools (artifact_write, todo_write) to a new MCP Gateway
+   * Assign default Archestra tools (artifact_write, todo_write) to an MCP Gateway.
+   * These tools are automatically assigned to new profiles for task tracking and artifact management.
    */
   static async assignDefaultArchestraToolsToMcpGateway(
     mcpGatewayId: string,
@@ -757,28 +688,17 @@ class ToolModel {
 
     const toolIds = defaultTools.map((t) => t.id);
 
-    // Check which tools are already assigned
-    const existingAssignments = await db
-      .select({ toolId: schema.mcpGatewayToolsTable.toolId })
-      .from(schema.mcpGatewayToolsTable)
-      .where(
-        and(
-          eq(schema.mcpGatewayToolsTable.mcpGatewayId, mcpGatewayId),
-          inArray(schema.mcpGatewayToolsTable.toolId, toolIds),
-        ),
-      );
+    // Assign tools to gateway in bulk
+    await McpGatewayToolModel.createManyIfNotExists(mcpGatewayId, toolIds);
+  }
 
-    const existingToolIds = new Set(existingAssignments.map((a) => a.toolId));
-    const newToolIds = toolIds.filter((toolId) => !existingToolIds.has(toolId));
-
-    if (newToolIds.length > 0) {
-      await db.insert(schema.mcpGatewayToolsTable).values(
-        newToolIds.map((toolId) => ({
-          mcpGatewayId,
-          toolId,
-        })),
-      );
-    }
+  /**
+   * @deprecated Use assignDefaultArchestraToolsToMcpGateway instead
+   */
+  static async assignDefaultArchestraToolsToAgent(
+    agentId: string,
+  ): Promise<void> {
+    return ToolModel.assignDefaultArchestraToolsToMcpGateway(agentId);
   }
 
   /**

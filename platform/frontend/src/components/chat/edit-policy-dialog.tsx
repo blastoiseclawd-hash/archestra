@@ -27,7 +27,7 @@ export function EditPolicyDialog({
   const { data } = useAllProfileTools({
     filters: {
       search: toolName,
-      agentId: profileId,
+      mcpGatewayId: profileId,
     },
     pagination: {
       limit: 1,

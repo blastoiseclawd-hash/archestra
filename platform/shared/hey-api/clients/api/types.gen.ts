@@ -5360,1031 +5360,12 @@ export type PostV1A2aByPromptIdResponses = {
 
 export type PostV1A2aByPromptIdResponse = PostV1A2aByPromptIdResponses[keyof PostV1A2aByPromptIdResponses];
 
-export type GetAgentsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Filter by agent name
-         */
-        name?: string;
-        limit?: number;
-        offset?: number;
-        sortBy?: 'name' | 'createdAt' | 'toolsCount' | 'team';
-        sortDirection?: 'asc' | 'desc';
-    };
-    url: '/api/agents';
-};
-
-export type GetAgentsErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetAgentsError = GetAgentsErrors[keyof GetAgentsErrors];
-
-export type GetAgentsResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        data: Array<{
-            id: string;
-            name: string;
-            isDemo: boolean;
-            isDefault: boolean;
-            considerContextUntrusted: boolean;
-            createdAt: string;
-            updatedAt: string;
-            tools: Array<{
-                id: string;
-                agentId: string | null;
-                llmProxyId: string | null;
-                catalogId: string | null;
-                mcpServerId: string | null;
-                promptAgentId: string | null;
-                name: string;
-                /**
-                 *
-                 * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-                 *
-                 * The parameters the functions accepts, described as a JSON Schema object. See the
-                 * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-                 * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-                 * documentation about the format.
-                 *
-                 * Omitting parameters defines a function with an empty parameter list.
-                 *
-                 */
-                parameters?: {
-                    [key: string]: unknown;
-                };
-                description: string | null;
-                policiesAutoConfiguredAt: string | null;
-                policiesAutoConfiguringStartedAt: string | null;
-                policiesAutoConfiguredReasoning: string | null;
-                createdAt: string;
-                updatedAt: string;
-            }>;
-            teams: Array<{
-                id: string;
-                name: string;
-            }>;
-            labels: Array<{
-                key: string;
-                value: string;
-                keyId?: string;
-                valueId?: string;
-            }>;
-        }>;
-        pagination: {
-            currentPage: number;
-            limit: number;
-            total: number;
-            totalPages: number;
-            hasNext: boolean;
-            hasPrev: boolean;
-        };
-    };
-};
-
-export type GetAgentsResponse = GetAgentsResponses[keyof GetAgentsResponses];
-
-export type CreateAgentData = {
-    body: {
-        name: string;
-        isDemo?: boolean;
-        isDefault?: boolean;
-        considerContextUntrusted?: boolean;
-        teams: Array<string>;
-        labels?: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/agents';
-};
-
-export type CreateAgentErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type CreateAgentError = CreateAgentErrors[keyof CreateAgentErrors];
-
-export type CreateAgentResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        id: string;
-        name: string;
-        isDemo: boolean;
-        isDefault: boolean;
-        considerContextUntrusted: boolean;
-        createdAt: string;
-        updatedAt: string;
-        tools: Array<{
-            id: string;
-            agentId: string | null;
-            llmProxyId: string | null;
-            catalogId: string | null;
-            mcpServerId: string | null;
-            promptAgentId: string | null;
-            name: string;
-            /**
-             *
-             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-             *
-             * The parameters the functions accepts, described as a JSON Schema object. See the
-             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-             * documentation about the format.
-             *
-             * Omitting parameters defines a function with an empty parameter list.
-             *
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            description: string | null;
-            policiesAutoConfiguredAt: string | null;
-            policiesAutoConfiguringStartedAt: string | null;
-            policiesAutoConfiguredReasoning: string | null;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        teams: Array<{
-            id: string;
-            name: string;
-        }>;
-        labels: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-};
-
-export type CreateAgentResponse = CreateAgentResponses[keyof CreateAgentResponses];
-
-export type GetAllAgentsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/agents/all';
-};
-
-export type GetAllAgentsErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetAllAgentsError = GetAllAgentsErrors[keyof GetAllAgentsErrors];
-
-export type GetAllAgentsResponses = {
-    /**
-     * Default Response
-     */
-    200: Array<{
-        id: string;
-        name: string;
-        isDemo: boolean;
-        isDefault: boolean;
-        considerContextUntrusted: boolean;
-        createdAt: string;
-        updatedAt: string;
-        tools: Array<{
-            id: string;
-            agentId: string | null;
-            llmProxyId: string | null;
-            catalogId: string | null;
-            mcpServerId: string | null;
-            promptAgentId: string | null;
-            name: string;
-            /**
-             *
-             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-             *
-             * The parameters the functions accepts, described as a JSON Schema object. See the
-             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-             * documentation about the format.
-             *
-             * Omitting parameters defines a function with an empty parameter list.
-             *
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            description: string | null;
-            policiesAutoConfiguredAt: string | null;
-            policiesAutoConfiguringStartedAt: string | null;
-            policiesAutoConfiguredReasoning: string | null;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        teams: Array<{
-            id: string;
-            name: string;
-        }>;
-        labels: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    }>;
-};
-
-export type GetAllAgentsResponse = GetAllAgentsResponses[keyof GetAllAgentsResponses];
-
-export type GetDefaultAgentData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/agents/default';
-};
-
-export type GetDefaultAgentErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetDefaultAgentError = GetDefaultAgentErrors[keyof GetDefaultAgentErrors];
-
-export type GetDefaultAgentResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        id: string;
-        name: string;
-        isDemo: boolean;
-        isDefault: boolean;
-        considerContextUntrusted: boolean;
-        createdAt: string;
-        updatedAt: string;
-        tools: Array<{
-            id: string;
-            agentId: string | null;
-            llmProxyId: string | null;
-            catalogId: string | null;
-            mcpServerId: string | null;
-            promptAgentId: string | null;
-            name: string;
-            /**
-             *
-             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-             *
-             * The parameters the functions accepts, described as a JSON Schema object. See the
-             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-             * documentation about the format.
-             *
-             * Omitting parameters defines a function with an empty parameter list.
-             *
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            description: string | null;
-            policiesAutoConfiguredAt: string | null;
-            policiesAutoConfiguringStartedAt: string | null;
-            policiesAutoConfiguredReasoning: string | null;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        teams: Array<{
-            id: string;
-            name: string;
-        }>;
-        labels: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-};
-
-export type GetDefaultAgentResponse = GetDefaultAgentResponses[keyof GetDefaultAgentResponses];
-
-export type DeleteAgentData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/agents/{id}';
-};
-
-export type DeleteAgentErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type DeleteAgentError = DeleteAgentErrors[keyof DeleteAgentErrors];
-
-export type DeleteAgentResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        success: boolean;
-    };
-};
-
-export type DeleteAgentResponse = DeleteAgentResponses[keyof DeleteAgentResponses];
-
-export type GetAgentData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/agents/{id}';
-};
-
-export type GetAgentErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetAgentError = GetAgentErrors[keyof GetAgentErrors];
-
-export type GetAgentResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        id: string;
-        name: string;
-        isDemo: boolean;
-        isDefault: boolean;
-        considerContextUntrusted: boolean;
-        createdAt: string;
-        updatedAt: string;
-        tools: Array<{
-            id: string;
-            agentId: string | null;
-            llmProxyId: string | null;
-            catalogId: string | null;
-            mcpServerId: string | null;
-            promptAgentId: string | null;
-            name: string;
-            /**
-             *
-             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-             *
-             * The parameters the functions accepts, described as a JSON Schema object. See the
-             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-             * documentation about the format.
-             *
-             * Omitting parameters defines a function with an empty parameter list.
-             *
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            description: string | null;
-            policiesAutoConfiguredAt: string | null;
-            policiesAutoConfiguringStartedAt: string | null;
-            policiesAutoConfiguredReasoning: string | null;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        teams: Array<{
-            id: string;
-            name: string;
-        }>;
-        labels: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-};
-
-export type GetAgentResponse = GetAgentResponses[keyof GetAgentResponses];
-
-export type UpdateAgentData = {
-    body?: {
-        name?: string;
-        isDemo?: boolean;
-        isDefault?: boolean;
-        considerContextUntrusted?: boolean;
-        teams?: Array<string>;
-        labels?: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/agents/{id}';
-};
-
-export type UpdateAgentErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type UpdateAgentError = UpdateAgentErrors[keyof UpdateAgentErrors];
-
-export type UpdateAgentResponses = {
-    /**
-     * Default Response
-     */
-    200: {
-        id: string;
-        name: string;
-        isDemo: boolean;
-        isDefault: boolean;
-        considerContextUntrusted: boolean;
-        createdAt: string;
-        updatedAt: string;
-        tools: Array<{
-            id: string;
-            agentId: string | null;
-            llmProxyId: string | null;
-            catalogId: string | null;
-            mcpServerId: string | null;
-            promptAgentId: string | null;
-            name: string;
-            /**
-             *
-             * https://github.com/openai/openai-node/blob/master/src/resources/shared.ts#L217
-             *
-             * The parameters the functions accepts, described as a JSON Schema object. See the
-             * [guide](https://platform.openai.com/docs/guides/function-calling) for examples,
-             * and the [JSON Schema reference](https://json-schema.org/understanding-json-schema/) for
-             * documentation about the format.
-             *
-             * Omitting parameters defines a function with an empty parameter list.
-             *
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            description: string | null;
-            policiesAutoConfiguredAt: string | null;
-            policiesAutoConfiguringStartedAt: string | null;
-            policiesAutoConfiguredReasoning: string | null;
-            createdAt: string;
-            updatedAt: string;
-        }>;
-        teams: Array<{
-            id: string;
-            name: string;
-        }>;
-        labels: Array<{
-            key: string;
-            value: string;
-            keyId?: string;
-            valueId?: string;
-        }>;
-    };
-};
-
-export type UpdateAgentResponse = UpdateAgentResponses[keyof UpdateAgentResponses];
-
-export type GetLabelKeysData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/agents/labels/keys';
-};
-
-export type GetLabelKeysErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetLabelKeysError = GetLabelKeysErrors[keyof GetLabelKeysErrors];
-
-export type GetLabelKeysResponses = {
-    /**
-     * Default Response
-     */
-    200: Array<string>;
-};
-
-export type GetLabelKeysResponse = GetLabelKeysResponses[keyof GetLabelKeysResponses];
-
-export type GetLabelValuesData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Filter values by label key
-         */
-        key?: string;
-    };
-    url: '/api/agents/labels/values';
-};
-
-export type GetLabelValuesErrors = {
-    /**
-     * Default Response
-     */
-    400: {
-        error: {
-            message: string;
-            type: 'api_validation_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    401: {
-        error: {
-            message: string;
-            type: 'api_authentication_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    403: {
-        error: {
-            message: string;
-            type: 'api_authorization_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    404: {
-        error: {
-            message: string;
-            type: 'api_not_found_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    409: {
-        error: {
-            message: string;
-            type: 'api_conflict_error';
-        };
-    };
-    /**
-     * Default Response
-     */
-    500: {
-        error: {
-            message: string;
-            type: 'api_internal_server_error';
-        };
-    };
-};
-
-export type GetLabelValuesError = GetLabelValuesErrors[keyof GetLabelValuesErrors];
-
-export type GetLabelValuesResponses = {
-    /**
-     * Default Response
-     */
-    200: Array<string>;
-};
-
-export type GetLabelValuesResponse = GetLabelValuesResponses[keyof GetLabelValuesResponses];
-
 export type GetAllAgentToolsData = {
     body?: never;
     path?: never;
     query?: {
         search?: string;
-        agentId?: string;
+        mcpGatewayId?: string;
         /**
          * Can be 'llm-proxy' or a catalogId
          */
@@ -6397,13 +5378,13 @@ export type GetAllAgentToolsData = {
          * For test isolation
          */
         excludeArchestraTools?: boolean;
-        sortBy?: 'name' | 'agent' | 'origin' | 'createdAt';
+        sortBy?: 'name' | 'mcpGateway' | 'origin' | 'createdAt';
         sortDirection?: 'asc' | 'desc';
         skipPagination?: boolean;
         limit?: number;
         offset?: number;
     };
-    url: '/api/agent-tools';
+    url: '/api/mcp-gateway-tools';
 };
 
 export type GetAllAgentToolsErrors = {
@@ -6478,7 +5459,7 @@ export type GetAllAgentToolsResponses = {
             useDynamicTeamCredential: boolean;
             createdAt: string;
             updatedAt: string;
-            agent: {
+            mcpGateway: {
                 id: string;
                 name: string;
             };
@@ -6525,11 +5506,11 @@ export type GetAllAgentToolsResponse = GetAllAgentToolsResponses[keyof GetAllAge
 export type UnassignToolFromAgentData = {
     body?: never;
     path: {
-        agentId: string;
+        mcpGatewayId: string;
         toolId: string;
     };
     query?: never;
-    url: '/api/agents/{agentId}/tools/{toolId}';
+    url: '/api/mcp-gateways/{mcpGatewayId}/tools/{toolId}';
 };
 
 export type UnassignToolFromAgentErrors = {
@@ -6609,11 +5590,11 @@ export type AssignToolToAgentData = {
         useDynamicTeamCredential?: boolean;
     } | null;
     path: {
-        agentId: string;
+        mcpGatewayId: string;
         toolId: string;
     };
     query?: never;
-    url: '/api/agents/{agentId}/tools/{toolId}';
+    url: '/api/mcp-gateways/{mcpGatewayId}/tools/{toolId}';
 };
 
 export type AssignToolToAgentErrors = {
@@ -6689,7 +5670,7 @@ export type AssignToolToAgentResponse = AssignToolToAgentResponses[keyof AssignT
 export type BulkAssignToolsData = {
     body: {
         assignments: Array<{
-            agentId: string;
+            mcpGatewayId: string;
             toolId: string;
             credentialSourceMcpServerId?: string | null;
             executionSourceMcpServerId?: string | null;
@@ -6698,7 +5679,7 @@ export type BulkAssignToolsData = {
     };
     path?: never;
     query?: never;
-    url: '/api/agents/tools/bulk-assign';
+    url: '/api/mcp-gateways/tools/bulk-assign';
 };
 
 export type BulkAssignToolsErrors = {
@@ -6766,16 +5747,16 @@ export type BulkAssignToolsResponses = {
      */
     200: {
         succeeded: Array<{
-            agentId: string;
+            mcpGatewayId: string;
             toolId: string;
         }>;
         failed: Array<{
-            agentId: string;
+            mcpGatewayId: string;
             toolId: string;
             error: string;
         }>;
         duplicates: Array<{
-            agentId: string;
+            mcpGatewayId: string;
             toolId: string;
         }>;
     };
@@ -6789,7 +5770,7 @@ export type AutoConfigureAgentToolPoliciesData = {
     };
     path?: never;
     query?: never;
-    url: '/api/agent-tools/auto-configure-policies';
+    url: '/api/mcp-gateway-tools/auto-configure-policies';
 };
 
 export type AutoConfigureAgentToolPoliciesErrors = {
@@ -6874,12 +5855,12 @@ export type AutoConfigureAgentToolPoliciesResponse = AutoConfigureAgentToolPolic
 export type GetAgentToolsData = {
     body?: never;
     path: {
-        agentId: string;
+        mcpGatewayId: string;
     };
     query?: {
         excludeLlmProxyOrigin?: boolean;
     };
-    url: '/api/agents/{agentId}/tools';
+    url: '/api/mcp-gateways/{mcpGatewayId}/tools';
 };
 
 export type GetAgentToolsErrors = {
@@ -6990,7 +5971,7 @@ export type UpdateAgentToolData = {
         id: string;
     };
     query?: never;
-    url: '/api/agent-tools/{id}';
+    url: '/api/mcp-gateway-tools/{id}';
 };
 
 export type UpdateAgentToolErrors = {
@@ -7058,7 +6039,7 @@ export type UpdateAgentToolResponses = {
      */
     200: {
         id?: string;
-        agentId?: string;
+        mcpGatewayId?: string;
         toolId?: string;
         responseModifierTemplate?: string | null;
         credentialSourceMcpServerId?: string | null;
@@ -15352,7 +14333,7 @@ export type GetMcpGatewayEntitiesData = {
         sortBy?: 'name' | 'createdAt' | 'toolsCount' | 'team';
         sortDirection?: 'asc' | 'desc';
     };
-    url: '/api/mcp-gateway-entities';
+    url: '/api/mcp-gateways';
 };
 
 export type GetMcpGatewayEntitiesErrors = {
@@ -15494,7 +14475,7 @@ export type CreateMcpGatewayEntityData = {
     };
     path?: never;
     query?: never;
-    url: '/api/mcp-gateway-entities';
+    url: '/api/mcp-gateways';
 };
 
 export type CreateMcpGatewayEntityErrors = {
@@ -15616,7 +14597,7 @@ export type GetAllMcpGatewayEntitiesData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/mcp-gateway-entities/all';
+    url: '/api/mcp-gateways/all';
 };
 
 export type GetAllMcpGatewayEntitiesErrors = {
@@ -15738,7 +14719,7 @@ export type GetDefaultMcpGatewayEntityData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/mcp-gateway-entities/default';
+    url: '/api/mcp-gateways/default';
 };
 
 export type GetDefaultMcpGatewayEntityErrors = {
@@ -15862,7 +14843,7 @@ export type DeleteMcpGatewayEntityData = {
         id: string;
     };
     query?: never;
-    url: '/api/mcp-gateway-entities/{id}';
+    url: '/api/mcp-gateways/{id}';
 };
 
 export type DeleteMcpGatewayEntityErrors = {
@@ -15941,7 +14922,7 @@ export type GetMcpGatewayEntityData = {
         id: string;
     };
     query?: never;
-    url: '/api/mcp-gateway-entities/{id}';
+    url: '/api/mcp-gateways/{id}';
 };
 
 export type GetMcpGatewayEntityErrors = {
@@ -16076,7 +15057,7 @@ export type UpdateMcpGatewayEntityData = {
         id: string;
     };
     query?: never;
-    url: '/api/mcp-gateway-entities/{id}';
+    url: '/api/mcp-gateways/{id}';
 };
 
 export type UpdateMcpGatewayEntityErrors = {
@@ -16198,7 +15179,7 @@ export type GetMcpGatewayEntityLabelKeysData = {
     body?: never;
     path?: never;
     query?: never;
-    url: '/api/mcp-gateway-entities/labels/keys';
+    url: '/api/mcp-gateways/labels/keys';
 };
 
 export type GetMcpGatewayEntityLabelKeysErrors = {
@@ -16278,7 +15259,7 @@ export type GetMcpGatewayEntityLabelValuesData = {
          */
         key?: string;
     };
-    url: '/api/mcp-gateway-entities/labels/values';
+    url: '/api/mcp-gateways/labels/values';
 };
 
 export type GetMcpGatewayEntityLabelValuesErrors = {
@@ -20702,8 +19683,8 @@ export type GetPromptAgentsResponses = {
         createdAt: string;
         name: string;
         systemPrompt: string | null;
-        profileId: string;
-        profileName: string;
+        llmProxyId: string;
+        llmProxyName: string;
     }>;
 };
 

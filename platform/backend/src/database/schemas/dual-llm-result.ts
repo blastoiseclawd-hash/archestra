@@ -7,7 +7,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { DualLlmMessage } from "@/types";
-import agentsTable from "./agent";
 
 /**
  * Stores results from the Dual LLM Quarantine Pattern
@@ -17,9 +16,8 @@ const dualLlmResultsTable = pgTable(
   "dual_llm_results",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    agentId: uuid("agent_id")
-      .notNull()
-      .references(() => agentsTable.id, { onDelete: "cascade" }),
+    // agentId kept for backward compatibility but no FK constraint
+    agentId: uuid("agent_id").notNull(),
     toolCallId: text("tool_call_id").notNull(),
     conversations: jsonb("conversations").$type<DualLlmMessage[]>().notNull(),
     result: text("result").notNull(),

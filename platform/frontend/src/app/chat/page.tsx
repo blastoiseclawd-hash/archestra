@@ -1131,11 +1131,6 @@ export default function ChatPage() {
                       ? messages.length
                       : undefined
                   }
-                  agentId={
-                    conversationId && conversation?.llmProxy.id
-                      ? conversation.llmProxy.id
-                      : activeAgentId
-                  }
                   conversationId={conversationId}
                   currentConversationChatApiKeyId={
                     conversationId && conversation?.llmProxy.id
@@ -1163,12 +1158,31 @@ export default function ChatPage() {
                       ? undefined
                       : setInitialApiKeyId
                   }
+                  allowFileUploads={organization?.allowChatFileUploads ?? false}
+                  mcpGatewayId={
+                    conversationId && conversation?.llmProxy?.id
+                      ? (conversation?.mcpGatewayId ?? conversation?.agentId)
+                      : (() => {
+                          const selectedPrompt = prompts.find(
+                            (p) => p.id === initialPromptId,
+                          );
+                          return (
+                            selectedPrompt?.mcpGatewayId ??
+                            initialAgentId ??
+                            undefined
+                          );
+                        })()
+                  }
+                  agentId={
+                    conversationId && conversation?.llmProxy?.id
+                      ? (conversation?.llmProxy?.id ?? conversation?.agentId)
+                      : (initialAgentId ?? undefined)
+                  }
                   promptId={
-                    conversationId && conversation?.llmProxy.id
-                      ? (conversation?.promptId ?? null)
+                    conversationId && conversation?.llmProxy?.id
+                      ? conversation?.promptId
                       : initialPromptId
                   }
-                  allowFileUploads={organization?.allowChatFileUploads ?? false}
                 />
                 <div className="text-center">
                   <Version inline />

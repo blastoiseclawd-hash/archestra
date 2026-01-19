@@ -1,7 +1,7 @@
 import type { GoogleGenAI } from "@google/genai";
 import { vi } from "vitest";
 import { beforeEach, describe, expect, test } from "@/test";
-import type { Agent } from "@/types";
+import type { LlmProxy } from "@/types";
 
 const histogramObserve = vi.fn();
 const counterInc = vi.fn();
@@ -40,7 +40,7 @@ import {
 } from "./llm-metrics";
 
 describe("getObservableFetch", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -281,7 +281,7 @@ describe("getObservableGenAI", () => {
     } as unknown as GoogleGenAI;
   }
 
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -510,7 +510,7 @@ describe("initializeMetrics", () => {
 });
 
 describe("reportLLMCost", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -565,7 +565,7 @@ describe("reportLLMCost", () => {
 });
 
 describe("reportLLMTokens with model", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -637,7 +637,7 @@ describe("reportLLMTokens with model", () => {
 });
 
 describe("reportBlockedTools with model", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -677,7 +677,7 @@ describe("reportBlockedTools with model", () => {
 });
 
 describe("reportTimeToFirstToken", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();
@@ -760,7 +760,7 @@ describe("reportTimeToFirstToken", () => {
 });
 
 describe("reportTokensPerSecond", () => {
-  let testAgent: Agent;
+  let testAgent: LlmProxy;
 
   beforeEach(async ({ makeAgent }) => {
     vi.clearAllMocks();

@@ -182,6 +182,12 @@ class PromptModel {
       .set({
         name: newName,
         agentId: input.agentId ?? prompt.agentId,
+        mcpGatewayId:
+          input.mcpGatewayId !== undefined
+            ? input.mcpGatewayId
+            : prompt.mcpGatewayId,
+        llmProxyId:
+          input.llmProxyId !== undefined ? input.llmProxyId : prompt.llmProxyId,
         userPrompt: input.userPrompt ?? prompt.userPrompt,
         systemPrompt: input.systemPrompt ?? prompt.systemPrompt,
         version: prompt.version + 1,

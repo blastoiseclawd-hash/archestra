@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from "@/test";
-import AgentModel from "./agent";
 import McpToolCallModel from "./mcp-tool-call";
 
 describe("McpToolCallModel", () => {
@@ -60,9 +59,9 @@ describe("McpToolCallModel", () => {
   });
 
   describe("date range filtering", () => {
-    test("filters by startDate", async ({ makeAdmin }) => {
+    test("filters by startDate", async ({ makeAdmin, makeAgent }) => {
       const admin = await makeAdmin();
-      const agent = await AgentModel.create({ name: "Agent", teams: [] });
+      const agent = await makeAgent();
 
       // Create an MCP tool call
       await McpToolCallModel.create({
@@ -86,9 +85,9 @@ describe("McpToolCallModel", () => {
       expect(toolCalls.data.length).toBeGreaterThanOrEqual(1);
     });
 
-    test("filters by endDate", async ({ makeAdmin }) => {
+    test("filters by endDate", async ({ makeAdmin, makeAgent }) => {
       const admin = await makeAdmin();
-      const agent = await AgentModel.create({ name: "Agent", teams: [] });
+      const agent = await makeAgent();
 
       // Create an MCP tool call
       await McpToolCallModel.create({
@@ -119,9 +118,10 @@ describe("McpToolCallModel", () => {
 
     test("filters by date range (startDate and endDate)", async ({
       makeAdmin,
+      makeAgent,
     }) => {
       const admin = await makeAdmin();
-      const agent = await AgentModel.create({ name: "Agent", teams: [] });
+      const agent = await makeAgent();
 
       // Create an MCP tool call
       await McpToolCallModel.create({
@@ -157,8 +157,8 @@ describe("McpToolCallModel", () => {
   });
 
   describe("getAllMcpToolCallsForAgentPaginated with date filtering", () => {
-    test("filters by date range for specific agent", async () => {
-      const agent = await AgentModel.create({ name: "Agent", teams: [] });
+    test("filters by date range for specific agent", async ({ makeAgent }) => {
+      const agent = await makeAgent();
 
       // Create an MCP tool call
       await McpToolCallModel.create({

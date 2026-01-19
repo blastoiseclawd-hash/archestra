@@ -5,15 +5,13 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import agentsTable from "./agent";
 import { team } from "./team";
 
 const agentTeamTable = pgTable(
   "agent_team",
   {
-    agentId: uuid("agent_id")
-      .notNull()
-      .references(() => agentsTable.id, { onDelete: "cascade" }),
+    // agentId kept for backward compatibility but no FK constraint
+    agentId: uuid("agent_id").notNull(),
     teamId: text("team_id")
       .notNull()
       .references(() => team.id, { onDelete: "cascade" }),

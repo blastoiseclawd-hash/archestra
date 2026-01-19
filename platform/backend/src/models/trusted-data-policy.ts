@@ -458,8 +458,8 @@ class TrustedDataPolicyModel {
       })
       .from(schema.toolsTable)
       .innerJoin(
-        schema.agentToolsTable,
-        eq(schema.toolsTable.id, schema.agentToolsTable.toolId),
+        schema.mcpGatewayToolsTable,
+        eq(schema.toolsTable.id, schema.mcpGatewayToolsTable.toolId),
       )
       .leftJoin(
         schema.trustedDataPoliciesTable,
@@ -467,7 +467,7 @@ class TrustedDataPolicyModel {
       )
       .where(
         and(
-          eq(schema.agentToolsTable.agentId, agentId),
+          eq(schema.mcpGatewayToolsTable.mcpGatewayId, agentId),
           inArray(schema.toolsTable.name, toolNames),
         ),
       );

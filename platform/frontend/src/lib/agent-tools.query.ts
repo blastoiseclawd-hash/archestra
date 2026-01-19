@@ -10,11 +10,11 @@ const {
   updateAgentTool,
 } = archestraApiSdk;
 
-type GetAllProfileToolsQueryParams = NonNullable<
+type GetAllMcpGatewayToolsQueryParams = NonNullable<
   archestraApiTypes.GetAllAgentToolsData["query"]
 >;
 
-export function useAllProfileTools({
+export function useAllMcpGatewayTools({
   initialData,
   pagination,
   sorting,
@@ -27,12 +27,14 @@ export function useAllProfileTools({
     offset?: number;
   };
   sorting?: {
-    sortBy?: NonNullable<GetAllProfileToolsQueryParams["sortBy"]>;
-    sortDirection?: NonNullable<GetAllProfileToolsQueryParams["sortDirection"]>;
+    sortBy?: NonNullable<GetAllMcpGatewayToolsQueryParams["sortBy"]>;
+    sortDirection?: NonNullable<
+      GetAllMcpGatewayToolsQueryParams["sortDirection"]
+    >;
   };
   filters?: {
     search?: string;
-    agentId?: string;
+    mcpGatewayId?: string;
     origin?: string;
     credentialSourceMcpServerId?: string;
     mcpServerOwnerId?: string;
@@ -41,14 +43,14 @@ export function useAllProfileTools({
 }) {
   return useQuery({
     queryKey: [
-      "agent-tools",
+      "mcp-gateway-tools",
       {
         limit: pagination?.limit,
         offset: pagination?.offset,
         sortBy: sorting?.sortBy,
         sortDirection: sorting?.sortDirection,
         search: filters?.search,
-        agentId: filters?.agentId,
+        mcpGatewayId: filters?.mcpGatewayId,
         origin: filters?.origin,
         credentialSourceMcpServerId: filters?.credentialSourceMcpServerId,
         mcpServerOwnerId: filters?.mcpServerOwnerId,
@@ -63,7 +65,7 @@ export function useAllProfileTools({
           sortBy: sorting?.sortBy,
           sortDirection: sorting?.sortDirection,
           search: filters?.search,
-          agentId: filters?.agentId,
+          mcpGatewayId: filters?.mcpGatewayId,
           origin: filters?.origin,
           mcpServerOwnerId: filters?.mcpServerOwnerId,
           skipPagination,
@@ -87,25 +89,28 @@ export function useAllProfileTools({
   });
 }
 
+// Keep backward compatible alias
+export const useAllProfileTools = useAllMcpGatewayTools;
+
 export function useAssignTool() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
-      agentId,
+      mcpGatewayId,
       toolId,
       credentialSourceMcpServerId,
       executionSourceMcpServerId,
       useDynamicTeamCredential,
     }: {
-      agentId: string;
+      mcpGatewayId: string;
       toolId: string;
       credentialSourceMcpServerId?: string | null;
       executionSourceMcpServerId?: string | null;
       useDynamicTeamCredential?: boolean;
     }) => {
       const { data } = await assignToolToAgent({
-        path: { agentId, toolId },
+        path: { mcpGatewayId, toolId },
         body:
           credentialSourceMcpServerId ||
           executionSourceMcpServerId ||
@@ -121,18 +126,20 @@ export function useAssignTool() {
       });
       return data?.success ?? false;
     },
-    onSuccess: (_, { agentId }) => {
+    onSuccess: (_, { mcpGatewayId }) => {
       // Invalidate queries to refetch data
-      queryClient.invalidateQueries({ queryKey: ["agents", agentId, "tools"] });
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({
+        queryKey: ["mcp-gateways", mcpGatewayId, "tools"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateways"] });
       queryClient.invalidateQueries({ queryKey: ["tools"] });
       queryClient.invalidateQueries({ queryKey: ["tools", "unassigned"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
-      // Invalidate all MCP server tools queries to update assigned agent counts
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateway-tools"] });
+      // Invalidate all MCP server tools queries to update assigned gateway counts
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
-      // Invalidate chat MCP tools for this agent
+      // Invalidate chat MCP tools for this gateway
       queryClient.invalidateQueries({
-        queryKey: ["chat", "agents", agentId, "mcp-tools"],
+        queryKey: ["chat", "mcp-gateways", mcpGatewayId, "mcp-tools"],
       });
     },
   });
@@ -147,7 +154,7 @@ export function useBulkAssignTools() {
       mcpServerId,
     }: {
       assignments: Array<{
-        agentId: string;
+        mcpGatewayId: string;
         toolId: string;
         credentialSourceMcpServerId?: string | null;
         executionSourceMcpServerId?: string | null;
@@ -163,16 +170,16 @@ export function useBulkAssignTools() {
     onSuccess: (result) => {
       if (!result) return;
 
-      // Invalidate specific agent tools queries for agents that had successful assignments
-      const agentIds = result.succeeded.map((a) => a.agentId);
-      const uniqueProfileIds = new Set(agentIds);
-      for (const agentId of uniqueProfileIds) {
+      // Invalidate specific gateway tools queries for gateways that had successful assignments
+      const mcpGatewayIds = result.succeeded.map((a) => a.mcpGatewayId);
+      const uniqueMcpGatewayIds = new Set(mcpGatewayIds);
+      for (const mcpGatewayId of uniqueMcpGatewayIds) {
         queryClient.invalidateQueries({
-          queryKey: ["agents", agentId, "tools"],
+          queryKey: ["mcp-gateways", mcpGatewayId, "tools"],
         });
-        // Invalidate chat MCP tools for each affected agent
+        // Invalidate chat MCP tools for each affected gateway
         queryClient.invalidateQueries({
-          queryKey: ["chat", "agents", agentId, "mcp-tools"],
+          queryKey: ["chat", "mcp-gateways", mcpGatewayId, "mcp-tools"],
         });
       }
 
@@ -180,8 +187,8 @@ export function useBulkAssignTools() {
       queryClient.invalidateQueries({ queryKey: ["tools"], exact: true });
       queryClient.invalidateQueries({ queryKey: ["tools", "unassigned"] });
       queryClient.invalidateQueries({ queryKey: ["tools-with-assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateway-tools"] });
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateways"] });
 
       // Invalidate the MCP servers list
       queryClient.invalidateQueries({
@@ -204,56 +211,61 @@ export function useUnassignTool() {
 
   return useMutation({
     mutationFn: async ({
-      agentId,
+      mcpGatewayId,
       toolId,
     }: {
-      agentId: string;
+      mcpGatewayId: string;
       toolId: string;
     }) => {
       const { data } = await unassignToolFromAgent({
-        path: { agentId, toolId },
+        path: { mcpGatewayId, toolId },
       });
       return data?.success ?? false;
     },
-    onSuccess: (_, { agentId }) => {
-      queryClient.invalidateQueries({ queryKey: ["agents", agentId, "tools"] });
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
+    onSuccess: (_, { mcpGatewayId }) => {
+      queryClient.invalidateQueries({
+        queryKey: ["mcp-gateways", mcpGatewayId, "tools"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateways"] });
       queryClient.invalidateQueries({ queryKey: ["tools"] });
       queryClient.invalidateQueries({ queryKey: ["tools", "unassigned"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-tools"] });
-      // Invalidate all MCP server tools queries to update assigned agent counts
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateway-tools"] });
+      // Invalidate all MCP server tools queries to update assigned gateway counts
       queryClient.invalidateQueries({ queryKey: ["mcp-servers"] });
-      // Invalidate chat MCP tools for this agent
+      // Invalidate chat MCP tools for this gateway
       queryClient.invalidateQueries({
-        queryKey: ["chat", "agents", agentId, "mcp-tools"],
+        queryKey: ["chat", "mcp-gateways", mcpGatewayId, "mcp-tools"],
       });
     },
   });
 }
 
-export function useProfileToolPatchMutation() {
+export function useMcpGatewayToolPatchMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (
-      updatedProfileTool: archestraApiTypes.UpdateAgentToolData["body"] & {
+      updatedMcpGatewayTool: archestraApiTypes.UpdateAgentToolData["body"] & {
         id: string;
       },
     ) => {
       const result = await updateAgentTool({
-        body: updatedProfileTool,
-        path: { id: updatedProfileTool.id },
+        body: updatedMcpGatewayTool,
+        path: { id: updatedMcpGatewayTool.id },
       });
       return result.data ?? null;
     },
     onSuccess: () => {
-      // Invalidate all agent-tools queries to refetch updated data
+      // Invalidate all mcp-gateway-tools queries to refetch updated data
       queryClient.invalidateQueries({
-        queryKey: ["agent-tools"],
+        queryKey: ["mcp-gateway-tools"],
       });
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["mcp-gateways"] });
     },
   });
 }
+
+// Keep backward compatible alias
+export const useProfileToolPatchMutation = useMcpGatewayToolPatchMutation;
 
 export function useAutoConfigurePolicies() {
   const queryClient = useQueryClient();
@@ -278,7 +290,7 @@ export function useAutoConfigurePolicies() {
     onSuccess: () => {
       // Invalidate queries to refetch with new policies
       queryClient.invalidateQueries({
-        queryKey: ["agent-tools"],
+        queryKey: ["mcp-gateway-tools"],
       });
       queryClient.invalidateQueries({
         queryKey: ["tools"],

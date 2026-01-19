@@ -289,19 +289,19 @@ export function useClearConversationEnabledTools() {
  * Get profile tools with IDs (for the manage tools dialog)
  * Returns full tool objects including IDs needed for enabled tools junction table
  */
-export function useProfileToolsWithIds(agentId: string | undefined) {
+export function useProfileToolsWithIds(mcpGatewayId: string | undefined) {
   return useQuery({
-    queryKey: ["agents", agentId, "tools", "mcp-only"],
+    queryKey: ["mcp-gateways", mcpGatewayId, "tools", "mcp-only"],
     queryFn: async () => {
-      if (!agentId) return [];
+      if (!mcpGatewayId) return [];
       const { data, error } = await getAgentTools({
-        path: { agentId },
+        path: { mcpGatewayId },
         query: { excludeLlmProxyOrigin: true },
       });
       if (error) throw new Error("Failed to fetch profile tools");
       return data;
     },
-    enabled: !!agentId,
+    enabled: !!mcpGatewayId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000,
   });

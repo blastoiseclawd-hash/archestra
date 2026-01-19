@@ -1,4 +1,8 @@
-import { AgentToolModel, ToolModel, TrustedDataPolicyModel } from "@/models";
+import {
+  McpGatewayToolModel,
+  ToolModel,
+  TrustedDataPolicyModel,
+} from "@/models";
 import { beforeEach, describe, expect, test } from "@/test";
 import type { CommonMessage, Tool } from "@/types";
 import { evaluateIfContextIsTrusted } from "./trusted-data";
@@ -23,8 +27,8 @@ describe("trusted-data evaluation (provider-agnostic)", () => {
     const tool = await ToolModel.findByName("get_emails");
     toolId = (tool as Tool).id;
 
-    // Create agent-tool relationship (untrusted by default when no policies)
-    await AgentToolModel.create(agentId, toolId, {});
+    // Create mcp-gateway-tool relationship (untrusted by default when no policies)
+    await McpGatewayToolModel.create(agentId, toolId, {});
   });
 
   describe("evaluateIfContextIsTrusted", () => {
@@ -350,7 +354,7 @@ describe("trusted-data evaluation (provider-agnostic)", () => {
       const trustedToolId = (trustedTool as Tool).id;
 
       // Create agent-tool relationship
-      await AgentToolModel.create(agentId, trustedToolId, {});
+      await McpGatewayToolModel.create(agentId, trustedToolId, {});
 
       // Delete auto-created default policy and create trusted policy
       await TrustedDataPolicyModel.deleteByToolId(trustedToolId);
@@ -402,7 +406,7 @@ describe("trusted-data evaluation (provider-agnostic)", () => {
       const trustedToolId = (tool as Tool).id;
 
       // Create agent-tool relationship
-      await AgentToolModel.create(agentId, trustedToolId, {});
+      await McpGatewayToolModel.create(agentId, trustedToolId, {});
 
       // Create default trusted policy
       await TrustedDataPolicyModel.create({

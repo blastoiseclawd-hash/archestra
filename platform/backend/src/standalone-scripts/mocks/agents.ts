@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { InsertAgent } from "@/types";
-import { randomBool, randomElement } from "./utils";
+import type { InsertLlmProxy } from "@/types";
+import { randomElement } from "./utils";
 
 const AGENT_NAME_TEMPLATES = [
   "Data Analyst",
@@ -50,23 +50,23 @@ function generateAgentName(index: number): string {
   return `${template}${suffix}`;
 }
 
-type MockAgent = InsertAgent & { id: string };
+type MockLlmProxy = InsertLlmProxy & { id: string };
 
 /**
- * Generate mock agent data
- * @param count - Number of agents to generate (defaults to 90)
+ * Generate mock LLM proxy data
+ * @param count - Number of profiles to generate (defaults to 90)
  */
-export function generateMockAgents(count = 90): MockAgent[] {
-  const agents: MockAgent[] = [];
+export function generateMockAgents(count = 90): MockLlmProxy[] {
+  const proxies: MockLlmProxy[] = [];
 
   for (let i = 0; i < count; i++) {
-    agents.push({
+    proxies.push({
       id: randomUUID(),
+      organizationId: "default-org-id",
       name: generateAgentName(i),
-      isDemo: randomBool(0.3), // 30% chance of being a demo agent
       teams: [],
     });
   }
 
-  return agents;
+  return proxies;
 }

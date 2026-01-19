@@ -32,7 +32,7 @@ export function ChatPage({
 }: {
   initialData?: {
     interaction: archestraApiTypes.GetInteractionResponses["200"] | undefined;
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
   id: string;
 }) {
@@ -53,7 +53,7 @@ function LogDetail({
 }: {
   initialData?: {
     interaction: archestraApiTypes.GetInteractionResponses["200"] | undefined;
-    agents: archestraApiTypes.GetAllAgentsResponses["200"];
+    agents: archestraApiTypes.GetAllLlmProxiesResponses["200"];
   };
   id: string;
 }) {

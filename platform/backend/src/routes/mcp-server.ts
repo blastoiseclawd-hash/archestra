@@ -5,8 +5,8 @@ import { hasPermission } from "@/auth";
 import logger from "@/logging";
 import { McpServerRuntimeManager } from "@/mcp-server-runtime";
 import {
-  AgentToolModel,
   InternalMcpCatalogModel,
+  McpGatewayToolModel,
   McpServerModel,
   ToolModel,
 } from "@/models";
@@ -472,7 +472,7 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
                 // If agentIds were provided, create agent-tool assignments with executionSourceMcpServerId
                 if (agentIds && agentIds.length > 0) {
                   const toolIds = createdTools.map((t) => t.id);
-                  await AgentToolModel.bulkCreateForAgentsAndTools(
+                  await McpGatewayToolModel.bulkCreateForMcpGatewaysAndTools(
                     agentIds,
                     toolIds,
                     {
@@ -561,7 +561,10 @@ const mcpServerRoutes: FastifyPluginAsyncZod = async (fastify) => {
         // Note: Remote servers don't use executionSourceMcpServerId (they route via HTTP)
         if (agentIds && agentIds.length > 0) {
           const toolIds = createdTools.map((t) => t.id);
-          await AgentToolModel.bulkCreateForAgentsAndTools(agentIds, toolIds);
+          await McpGatewayToolModel.bulkCreateForMcpGatewaysAndTools(
+            agentIds,
+            toolIds,
+          );
         }
 
         // Set status to success for non-local servers

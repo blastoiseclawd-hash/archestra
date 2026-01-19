@@ -625,7 +625,7 @@ export function McpServerCard({
                   catalogId: item.id,
                   mcpServerCatalogId: null,
                 },
-                agent: { id: "", name: "" },
+                mcpGateway: { id: "", name: "" },
                 createdAt: selectedToolForAssignment.createdAt,
                 updatedAt: selectedToolForAssignment.createdAt,
               }

@@ -12,28 +12,28 @@ import {
 } from "./utils";
 
 const {
-  createAgent,
-  deleteAgent,
-  getAgents,
-  getAllAgents,
-  getDefaultAgent,
-  getAgent,
-  updateAgent,
-  getLabelKeys,
-  getLabelValues,
+  createLlmProxy,
+  deleteLlmProxy,
+  getLlmProxies,
+  getAllLlmProxies,
+  getDefaultLlmProxy,
+  getLlmProxy,
+  updateLlmProxy,
+  getLlmProxyLabelKeys,
+  getLlmProxyLabelValues,
 } = archestraApiSdk;
 
 // For backward compatibility - returns all agents as an array
 export function useProfiles(
   params: {
-    initialData?: archestraApiTypes.GetAllAgentsResponses["200"];
-    filters?: archestraApiTypes.GetAllAgentsData["query"];
+    initialData?: archestraApiTypes.GetAllLlmProxiesResponses["200"];
+    filters?: archestraApiTypes.GetAllLlmProxiesData["query"];
   } = {},
 ) {
   return useSuspenseQuery({
     queryKey: ["agents", "all", params?.filters],
     queryFn: async () => {
-      const response = await getAllAgents({ query: params?.filters });
+      const response = await getAllLlmProxies({ query: params?.filters });
       return response.data ?? [];
     },
     initialData: params?.initialData,
@@ -42,7 +42,7 @@ export function useProfiles(
 
 // New paginated hook for the agents page
 export function useProfilesPaginated(params?: {
-  initialData?: archestraApiTypes.GetAgentsResponses["200"];
+  initialData?: archestraApiTypes.GetLlmProxiesResponses["200"];
   limit?: number;
   offset?: number;
   sortBy?: "name" | "createdAt" | "toolsCount" | "team";
@@ -66,7 +66,7 @@ export function useProfilesPaginated(params?: {
     queryKey: ["agents", { limit, offset, sortBy, sortDirection, name }],
     queryFn: async () =>
       (
-        await getAgents({
+        await getLlmProxies({
           query: {
             limit,
             offset,
@@ -81,11 +81,11 @@ export function useProfilesPaginated(params?: {
 }
 
 export function useDefaultProfile(params?: {
-  initialData?: archestraApiTypes.GetDefaultAgentResponses["200"];
+  initialData?: archestraApiTypes.GetDefaultLlmProxyResponses["200"];
 }) {
   return useQuery({
     queryKey: ["agents", "default"],
-    queryFn: async () => (await getDefaultAgent()).data ?? null,
+    queryFn: async () => (await getDefaultLlmProxy()).data ?? null,
     initialData: params?.initialData,
   });
 }
@@ -95,7 +95,7 @@ export function useProfile(id: string | undefined) {
     queryKey: ["agents", id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await getAgent({ path: { id } });
+      const response = await getLlmProxy({ path: { id } });
       return response.data ?? null;
     },
     enabled: !!id,
@@ -107,8 +107,8 @@ export function useProfile(id: string | undefined) {
 export function useCreateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: archestraApiTypes.CreateAgentData["body"]) => {
-      const response = await createAgent({ body: data });
+    mutationFn: async (data: archestraApiTypes.CreateLlmProxyData["body"]) => {
+      const response = await createLlmProxy({ body: data });
       return response.data;
     },
     onSuccess: (data) => {
@@ -131,9 +131,9 @@ export function useUpdateProfile() {
       data,
     }: {
       id: string;
-      data: archestraApiTypes.UpdateAgentData["body"];
+      data: archestraApiTypes.UpdateLlmProxyData["body"];
     }) => {
-      const response = await updateAgent({ path: { id }, body: data });
+      const response = await updateLlmProxy({ path: { id }, body: data });
       return response.data;
     },
     onSuccess: (_, variables) => {
@@ -152,7 +152,7 @@ export function useDeleteProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await deleteAgent({ path: { id } });
+      const response = await deleteLlmProxy({ path: { id } });
       return response.data;
     },
     onSuccess: () => {
@@ -164,7 +164,7 @@ export function useDeleteProfile() {
 export function useLabelKeys() {
   return useQuery({
     queryKey: ["agents", "labels", "keys"],
-    queryFn: async () => (await getLabelKeys()).data ?? [],
+    queryFn: async () => (await getLlmProxyLabelKeys()).data ?? [],
   });
 }
 
@@ -173,7 +173,7 @@ export function useLabelValues(params?: { key?: string }) {
   return useQuery({
     queryKey: ["agents", "labels", "values", key],
     queryFn: async () =>
-      (await getLabelValues({ query: key ? { key } : {} })).data ?? [],
+      (await getLlmProxyLabelValues({ query: key ? { key } : {} })).data ?? [],
     enabled: key !== undefined,
   });
 }
