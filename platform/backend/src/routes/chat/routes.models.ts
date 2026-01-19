@@ -438,6 +438,8 @@ async function fetchBedrockModels(apiKey: string): Promise<ModelInfo[]> {
       modelName?: string;
       inferenceTypesSupported?: string[];
       inputModalities?: string[];
+      responseStreamingSupported?: boolean;
+      modelLifecycle?: { status?: string };
     }>;
   };
 
@@ -446,15 +448,37 @@ async function fetchBedrockModels(apiKey: string): Promise<ModelInfo[]> {
     return [];
   }
 
+  // Models that don't support tool use in streaming mode
+  const noStreamingToolUse = ["jamba", "llama", "mistral.mistral", "mistral.mixtral"];
+  // Models with API compatibility issues (invalid parameter combination errors)
+  const incompatibleModels = ['command-r', /nemotron.*v2/i, 'pegasus'];
+  // End-of-life models (API metadata still shows ACTIVE but they return EOL errors)
+  const eolModels = ["amazon.titan-tg1-large"];
+
+
   // Filter to only include models that:
-  // 1. Support on-demand inference
+  // 1. Support on-demand inference (excludes models requiring provisioned throughput)
   // 2. Support TEXT input modality (excludes speech-only models like Nova Sonic)
+  // 3. Support response streaming (required for chat)
+  // 4. Have ACTIVE lifecycle status
+  // 5. Support tool use in streaming mode
+  // 6. Don't have API compatibility issues
+  // 7. Don't match exclusion regex patterns
+  // 8. Not end-of-life (manual list for models with stale metadata)
   const models = data.modelSummaries
-    .filter(
-      (model) =>
+    .filter((model) => {
+      const modelId = model.modelId?.toLowerCase() ?? "";
+      const matcher = (pattern: string | RegExp) => typeof  pattern === 'string' ? modelId.includes(pattern) : pattern.test(modelId)
+      return (
         (model.inferenceTypesSupported?.includes("ON_DEMAND") ?? false) &&
-        (model.inputModalities?.includes("TEXT") ?? false),
-    )
+        (model.inputModalities?.includes("TEXT") ?? false) &&
+        (model.responseStreamingSupported ?? false) &&
+        model.modelLifecycle?.status === "ACTIVE" &&
+        !noStreamingToolUse.some(matcher) &&
+        !incompatibleModels.some(matcher) &&
+        !eolModels.some(matcher)
+      );
+    })
     .map((model) => {
       const displayName = model.modelName ?? model.modelId ?? "Unknown";
       return {
