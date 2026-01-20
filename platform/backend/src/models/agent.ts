@@ -12,17 +12,20 @@ import {
   sql,
 } from "drizzle-orm";
 import db, { schema } from "@/database";
+import type { AgentHistoryEntry } from "@/database/schemas/agent";
 import {
   createPaginatedResult,
   type PaginatedResult,
 } from "@/database/utils/pagination";
 import type {
   Agent,
+  AgentVersionsResponse,
   InsertAgent,
   PaginationQuery,
   SortingQuery,
   UpdateAgent,
 } from "@/types";
+import type { ChatOpsProviderType } from "@/types/chatops";
 import AgentLabelModel from "./agent-label";
 import AgentTeamModel from "./agent-team";
 import ToolModel from "./tool";
@@ -33,9 +36,19 @@ class AgentModel {
     labels,
     ...agent
   }: InsertAgent): Promise<Agent> {
+    // Auto-assign organizationId if not provided
+    let organizationId = agent.organizationId;
+    if (!organizationId) {
+      const [firstOrg] = await db
+        .select({ id: schema.organizationsTable.id })
+        .from(schema.organizationsTable)
+        .limit(1);
+      organizationId = firstOrg?.id || "";
+    }
+
     const [createdAgent] = await db
       .insert(schema.agentsTable)
-      .values(agent)
+      .values({ ...agent, organizationId })
       .returning();
 
     // Assign teams to the agent if provided
@@ -74,9 +87,13 @@ class AgentModel {
     };
   }
 
+  /**
+   * Find all agents with optional filtering by isInternal
+   */
   static async findAll(
     userId?: string,
     isAgentAdmin?: boolean,
+    options?: { isInternal?: boolean },
   ): Promise<Agent[]> {
     let query = db
       .select()
@@ -93,6 +110,13 @@ class AgentModel {
 
     // Build where conditions
     const whereConditions: SQL[] = [];
+
+    // Filter by isInternal if specified
+    if (options?.isInternal !== undefined) {
+      whereConditions.push(
+        eq(schema.agentsTable.isInternal, options.isInternal),
+      );
+    }
 
     // Apply access control filtering for non-agent admins
     if (userId && !isAgentAdmin) {
@@ -156,12 +180,173 @@ class AgentModel {
   }
 
   /**
+   * Find all agents for an organization with optional filtering by isInternal
+   */
+  static async findByOrganizationId(
+    organizationId: string,
+    options?: { isInternal?: boolean },
+  ): Promise<Agent[]> {
+    const whereConditions: SQL[] = [
+      eq(schema.agentsTable.organizationId, organizationId),
+    ];
+
+    if (options?.isInternal !== undefined) {
+      whereConditions.push(
+        eq(schema.agentsTable.isInternal, options.isInternal),
+      );
+    }
+
+    const agents = await db
+      .select()
+      .from(schema.agentsTable)
+      .where(and(...whereConditions))
+      .orderBy(desc(schema.agentsTable.createdAt));
+
+    // Get tools, teams, and labels for all agents
+    const agentIds = agents.map((a) => a.id);
+
+    if (agentIds.length === 0) {
+      return [];
+    }
+
+    const [teamsMap, labelsMap, toolsResult] = await Promise.all([
+      AgentTeamModel.getTeamDetailsForAgents(agentIds),
+      AgentLabelModel.getLabelsForAgents(agentIds),
+      db
+        .select({
+          agentId: schema.agentToolsTable.agentId,
+          tool: schema.toolsTable,
+        })
+        .from(schema.agentToolsTable)
+        .innerJoin(
+          schema.toolsTable,
+          eq(schema.agentToolsTable.toolId, schema.toolsTable.id),
+        )
+        .where(inArray(schema.agentToolsTable.agentId, agentIds)),
+    ]);
+
+    // Group tools by agent
+    const toolsByAgent = new Map<
+      string,
+      (typeof schema.toolsTable.$inferSelect)[]
+    >();
+    for (const row of toolsResult) {
+      const existing = toolsByAgent.get(row.agentId) || [];
+      existing.push(row.tool);
+      toolsByAgent.set(row.agentId, existing);
+    }
+
+    return agents.map((agent) => ({
+      ...agent,
+      tools: toolsByAgent.get(agent.id) || [],
+      teams: teamsMap.get(agent.id) || [],
+      labels: labelsMap.get(agent.id) || [],
+    }));
+  }
+
+  /**
+   * Find all agents for an organization filtered by accessible agent IDs
+   * Returns only agents the user has access to via team membership
+   */
+  static async findByOrganizationIdAndAccessibleTeams(
+    organizationId: string,
+    accessibleAgentIds: string[],
+    options?: { isInternal?: boolean },
+  ): Promise<Agent[]> {
+    if (accessibleAgentIds.length === 0) {
+      return [];
+    }
+
+    const whereConditions: SQL[] = [
+      eq(schema.agentsTable.organizationId, organizationId),
+      inArray(schema.agentsTable.id, accessibleAgentIds),
+    ];
+
+    if (options?.isInternal !== undefined) {
+      whereConditions.push(
+        eq(schema.agentsTable.isInternal, options.isInternal),
+      );
+    }
+
+    const agents = await db
+      .select()
+      .from(schema.agentsTable)
+      .where(and(...whereConditions))
+      .orderBy(desc(schema.agentsTable.createdAt));
+
+    const agentIds = agents.map((a) => a.id);
+
+    if (agentIds.length === 0) {
+      return [];
+    }
+
+    const [teamsMap, labelsMap, toolsResult] = await Promise.all([
+      AgentTeamModel.getTeamDetailsForAgents(agentIds),
+      AgentLabelModel.getLabelsForAgents(agentIds),
+      db
+        .select({
+          agentId: schema.agentToolsTable.agentId,
+          tool: schema.toolsTable,
+        })
+        .from(schema.agentToolsTable)
+        .innerJoin(
+          schema.toolsTable,
+          eq(schema.agentToolsTable.toolId, schema.toolsTable.id),
+        )
+        .where(inArray(schema.agentToolsTable.agentId, agentIds)),
+    ]);
+
+    // Group tools by agent
+    const toolsByAgent = new Map<
+      string,
+      (typeof schema.toolsTable.$inferSelect)[]
+    >();
+    for (const row of toolsResult) {
+      const existing = toolsByAgent.get(row.agentId) || [];
+      existing.push(row.tool);
+      toolsByAgent.set(row.agentId, existing);
+    }
+
+    return agents.map((agent) => ({
+      ...agent,
+      tools: toolsByAgent.get(agent.id) || [],
+      teams: teamsMap.get(agent.id) || [],
+      labels: labelsMap.get(agent.id) || [],
+    }));
+  }
+
+  /**
+   * Find all internal agents that allow a specific chatops provider.
+   * Used to populate the agent selection dropdown in Teams/Slack/etc.
+   * Returns only internal agents where the provider is in the allowedChatops array.
+   */
+  static async findByAllowedChatopsProvider(
+    provider: ChatOpsProviderType,
+  ): Promise<Pick<Agent, "id" | "name">[]> {
+    const agents = await db
+      .select({
+        id: schema.agentsTable.id,
+        name: schema.agentsTable.name,
+      })
+      .from(schema.agentsTable)
+      .where(
+        and(
+          eq(schema.agentsTable.isInternal, true),
+          sql`${schema.agentsTable.allowedChatops} @> ${JSON.stringify([provider])}::jsonb`,
+        ),
+      )
+      .orderBy(asc(schema.agentsTable.name));
+
+    return agents;
+  }
+
+  /**
    * Find all agents with pagination, sorting, and filtering support
    */
   static async findAllPaginated(
     pagination: PaginationQuery,
     sorting?: SortingQuery,
-    filters?: { name?: string },
+    filters?: { name?: string; isInternal?: boolean },
     userId?: string,
     isAgentAdmin?: boolean,
   ): Promise<PaginatedResult<Agent>> {
@@ -174,6 +359,13 @@ class AgentModel {
     // Add name filter if provided
     if (filters?.name) {
       whereConditions.push(ilike(schema.agentsTable.name, `%${filters.name}%`));
+    }
+
+    // Add isInternal filter if provided
+    if (filters?.isInternal !== undefined) {
+      whereConditions.push(
+        eq(schema.agentsTable.isInternal, filters.isInternal),
+      );
     }
 
     // Apply access control filtering for non-agent admins
@@ -437,7 +629,10 @@ class AgentModel {
     };
   }
 
-  static async getAgentOrCreateDefault(name?: string): Promise<Agent> {
+  static async getAgentOrCreateDefault(
+    name?: string,
+    organizationId?: string,
+  ): Promise<Agent> {
     // First, try to find an agent with isDefault=true
     const rows = await db
       .select()
@@ -471,9 +666,20 @@ class AgentModel {
     }
 
     // No default agent exists, create one
+    // If organizationId not provided, use first organization
+    let orgId = organizationId;
+    if (!orgId) {
+      const [firstOrg] = await db
+        .select({ id: schema.organizationsTable.id })
+        .from(schema.organizationsTable)
+        .limit(1);
+      orgId = firstOrg?.id;
+    }
+
     return AgentModel.create({
       name: name || DEFAULT_PROFILE_NAME,
       isDefault: true,
+      organizationId: orgId || "",
       teams: [],
       labels: [],
     });
@@ -543,6 +749,123 @@ class AgentModel {
       tools,
       teams: currentTeams,
       labels: currentLabels,
+    };
+  }
+
+  /**
+   * Update an internal agent with versioning - creates a new version by pushing current to history.
+   * Only applies to internal agents (isInternal=true).
+   * The agent ID stays the same (no FK migration needed).
+   */
+  static async updateWithVersion(
+    id: string,
+    input: Partial<UpdateAgent>,
+  ): Promise<Agent | null> {
+    const agent = await AgentModel.findById(id);
+    if (!agent || !agent.isInternal) {
+      return null;
+    }
+
+    // Create history entry from current state
+    const historyEntry: AgentHistoryEntry = {
+      version: agent.promptVersion || 1,
+      userPrompt: agent.userPrompt || null,
+      systemPrompt: agent.systemPrompt || null,
+      createdAt: agent.updatedAt.toISOString(),
+    };
+
+    // Update in-place with new version
+    const [updated] = await db
+      .update(schema.agentsTable)
+      .set({
+        name: input.name ?? agent.name,
+        systemPrompt: input.systemPrompt ?? agent.systemPrompt,
+        userPrompt: input.userPrompt ?? agent.userPrompt,
+        allowedChatops: input.allowedChatops ?? agent.allowedChatops,
+        promptVersion: (agent.promptVersion || 1) + 1,
+        promptHistory: sql`${schema.agentsTable.promptHistory} || ${JSON.stringify([historyEntry])}::jsonb`,
+      })
+      .where(eq(schema.agentsTable.id, id))
+      .returning();
+
+    if (!updated) {
+      return null;
+    }
+
+    // Sync tool names if name changed
+    if (input.name && input.name !== agent.name) {
+      await ToolModel.syncDelegationToolNames(id, input.name);
+    }
+
+    return AgentModel.findById(id);
+  }
+
+  /**
+   * Rollback an internal agent to a specific version number.
+   * Copies content from history entry to current fields and increments version.
+   * Only applies to internal agents (isInternal=true).
+   */
+  static async rollback(
+    id: string,
+    targetVersion: number,
+  ): Promise<Agent | null> {
+    const agent = await AgentModel.findById(id);
+    if (!agent || !agent.isInternal) {
+      return null;
+    }
+
+    // Find the target version in history
+    const targetEntry = agent.promptHistory?.find(
+      (h) => h.version === targetVersion,
+    );
+    if (!targetEntry) {
+      return null;
+    }
+
+    // Create history entry from current state before rollback
+    const historyEntry: AgentHistoryEntry = {
+      version: agent.promptVersion || 1,
+      userPrompt: agent.userPrompt || null,
+      systemPrompt: agent.systemPrompt || null,
+      createdAt: agent.updatedAt.toISOString(),
+    };
+
+    // Rollback by copying target content to current and incrementing version
+    const [updated] = await db
+      .update(schema.agentsTable)
+      .set({
+        userPrompt: targetEntry.userPrompt,
+        systemPrompt: targetEntry.systemPrompt,
+        promptVersion: (agent.promptVersion || 1) + 1,
+        promptHistory: sql`${schema.agentsTable.promptHistory} || ${JSON.stringify([historyEntry])}::jsonb`,
+      })
+      .where(eq(schema.agentsTable.id, id))
+      .returning();
+
+    if (!updated) {
+      return null;
+    }
+
+    return AgentModel.findById(id);
+  }
+
+  /**
+   * Get all versions of an internal agent (current + history).
+   * Only applies to internal agents (isInternal=true).
+   */
+  static async getVersions(
+    agentId: string,
+    userId?: string,
+    isAgentAdmin?: boolean,
+  ): Promise<AgentVersionsResponse | null> {
+    const agent = await AgentModel.findById(agentId, userId, isAgentAdmin);
+    if (!agent || !agent.isInternal) {
+      return null;
+    }
+
+    return {
+      current: agent,
+      history: agent.promptHistory || [],
     };
   }
 

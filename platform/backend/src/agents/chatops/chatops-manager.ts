@@ -1,9 +1,9 @@
 import { executeA2AMessage } from "@/agents/a2a-executor";
 import logger from "@/logging";
 import {
+  AgentModel,
   ChatOpsChannelBindingModel,
   ChatOpsProcessedMessageModel,
-  PromptModel,
 } from "@/models";
 import {
   type ChatOpsProcessingResult,
@@ -167,28 +167,51 @@ export class ChatOpsManager {
       };
     }
 
-    // Verify the prompt exists
-    const prompt = await PromptModel.findById(binding.promptId);
-    if (!prompt) {
+    // Verify the internal agent exists (use agentId from binding)
+    if (!binding.agentId) {
       logger.warn(
-        { promptId: binding.promptId, bindingId: binding.id },
-        "[ChatOps] Prompt not found for binding",
+        { bindingId: binding.id },
+        "[ChatOps] Binding has no agent ID configured",
       );
       return {
         success: false,
-        error: "PROMPT_NOT_FOUND",
+        error: "AGENT_NOT_CONFIGURED",
       };
     }
 
-    // Check if the prompt allows this chatops provider
-    if (!prompt.allowedChatops?.includes(provider.providerId)) {
+    const agent = await AgentModel.findById(binding.agentId);
+    if (!agent) {
+      logger.warn(
+        { agentId: binding.agentId, bindingId: binding.id },
+        "[ChatOps] Agent not found for binding",
+      );
+      return {
+        success: false,
+        error: "AGENT_NOT_FOUND",
+      };
+    }
+
+    // Verify agent is internal (has prompts)
+    if (!agent.isInternal) {
+      logger.warn(
+        { agentId: binding.agentId, bindingId: binding.id },
+        "[ChatOps] Agent is not an internal agent",
+      );
+      return {
+        success: false,
+        error: "AGENT_NOT_INTERNAL",
+      };
+    }
+
+    // Check if the agent allows this chatops provider
+    if (!agent.allowedChatops?.includes(provider.providerId)) {
       logger.warn(
         {
-          promptId: binding.promptId,
+          agentId: binding.agentId,
           provider: provider.providerId,
-          allowedChatops: prompt.allowedChatops,
+          allowedChatops: agent.allowedChatops,
         },
-        "[ChatOps] Prompt does not allow this chatops provider",
+        "[ChatOps] Agent does not allow this chatops provider",
       );
       return {
         success: false,
@@ -205,9 +228,9 @@ export class ChatOpsManager {
       fullMessage = `Previous conversation:\n${contextMessages.join("\n")}\n\nUser: ${message.text}`;
     }
 
-    // Execute the A2A message using the prompt
+    // Execute the A2A message using the internal agent
     return this.executeAndReply({
-      prompt,
+      agent,
       binding,
       message,
       provider,
@@ -296,19 +319,19 @@ export class ChatOpsManager {
    * Execute A2A message and send reply
    */
   private async executeAndReply(params: {
-    prompt: { id: string; name: string };
+    agent: { id: string; name: string };
     binding: { organizationId: string };
     message: IncomingChatMessage;
     provider: ChatOpsProvider;
     fullMessage: string;
     sendReply: boolean;
   }): Promise<ChatOpsProcessingResult> {
-    const { prompt, binding, message, provider, fullMessage, sendReply } =
+    const { agent, binding, message, provider, fullMessage, sendReply } =
       params;
 
     try {
       const result = await executeA2AMessage({
-        promptId: prompt.id,
+        agentId: agent.id,
         organizationId: binding.organizationId,
         message: fullMessage,
         // Use a chatops-prefixed user ID to distinguish from regular users
@@ -322,7 +345,7 @@ export class ChatOpsManager {
         await provider.sendReply({
           originalMessage: message,
           text: agentResponse,
-          footer: `Routed to ${prompt.name}. Use @Archestra /select-agent to change.`,
+          footer: `Routed to ${agent.name}. Use @Archestra /select-agent to change.`,
           conversationReference: message.metadata?.conversationReference,
         });
       }

@@ -8,13 +8,14 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import type { ChatOpsProviderType } from "@/types/chatops";
+import agentsTable from "./agent";
 import promptsTable from "./prompt";
 
 /**
- * Maps chatops channels (Teams, Slack, etc.) to Archestra prompts (agents in UI).
+ * Maps chatops channels (Teams, Slack, etc.) to Archestra agents.
  *
- * Each channel can have one binding to a prompt. When a message arrives
- * in the channel, it is routed to the bound prompt for processing via A2A.
+ * Each channel can have one binding to an agent. When a message arrives
+ * in the channel, it is routed to the bound agent for processing via A2A.
  *
  * Unique constraint on (provider, channelId, workspaceId) ensures
  * one binding per channel.
@@ -33,10 +34,14 @@ const chatopsChannelBindingsTable = pgTable(
     channelId: varchar("channel_id", { length: 256 }).notNull(),
     /** Workspace/Team ID from the provider (e.g., Teams team ID) */
     workspaceId: varchar("workspace_id", { length: 256 }),
-    /** The prompt (agent in UI) to route messages to */
-    promptId: uuid("prompt_id")
-      .notNull()
-      .references(() => promptsTable.id, { onDelete: "cascade" }),
+    /** The internal agent to route messages to */
+    agentId: uuid("agent_id").references(() => agentsTable.id, {
+      onDelete: "cascade",
+    }),
+    /** DEPRECATED: Use agentId instead. Will be removed after migration cleanup. */
+    promptId: uuid("prompt_id").references(() => promptsTable.id, {
+      onDelete: "cascade",
+    }),
     createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date" })
       .notNull()
@@ -54,7 +59,9 @@ const chatopsChannelBindingsTable = pgTable(
     index("chatops_channel_binding_organization_id_idx").on(
       table.organizationId,
     ),
-    // Index for looking up bindings by prompt
+    // Index for looking up bindings by agent
+    index("chatops_channel_binding_agent_id_idx").on(table.agentId),
+    // DEPRECATED: Index for looking up bindings by prompt
     index("chatops_channel_binding_prompt_id_idx").on(table.promptId),
   ],
 );

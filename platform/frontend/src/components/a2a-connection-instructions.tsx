@@ -20,24 +20,24 @@ import { Separator } from "@/components/ui/separator";
 import { useHasPermissions } from "@/lib/auth.query";
 import config from "@/lib/config";
 import { useFeatures } from "@/lib/features.query";
-import { usePromptEmailAddress } from "@/lib/incoming-email.query";
+import { useAgentEmailAddress } from "@/lib/incoming-email.query";
 import { useTokens } from "@/lib/team-token.query";
 import { useUserToken } from "@/lib/user-token.query";
 
-type Prompt = archestraApiTypes.GetPromptsResponses["200"][number];
+type InternalAgent = archestraApiTypes.GetAllAgentsResponses["200"][number];
 
 // Special ID for personal token in the dropdown
 const PERSONAL_TOKEN_ID = "__personal_token__";
 
 interface A2AConnectionInstructionsProps {
-  prompt: Prompt;
+  agent: InternalAgent;
 }
 
 export function A2AConnectionInstructions({
-  prompt,
+  agent,
 }: A2AConnectionInstructionsProps) {
-  // Filter tokens by the profile's teams (prompt.agentId is the profile ID)
-  const { data: tokensData } = useTokens({ profileId: prompt.agentId });
+  // Filter tokens by the agent's teams (internal agents are profiles)
+  const { data: tokensData } = useTokens({ profileId: agent.id });
   const { data: userToken } = useUserToken();
   const { data: hasProfileAdminPermission } = useHasPermissions({
     profile: ["admin"],
@@ -62,8 +62,8 @@ export function A2AConnectionInstructions({
   const emailProvider = features?.incomingEmail?.displayName;
 
   // Fetch the email address from the backend (uses correct mailbox local part)
-  const { data: emailAddressData } = usePromptEmailAddress(
-    emailEnabled ? prompt.id : null,
+  const { data: emailAddressData } = useAgentEmailAddress(
+    emailEnabled ? agent.id : null,
   );
   const agentEmailAddress = emailAddressData?.emailAddress ?? null;
 
@@ -79,7 +79,7 @@ export function A2AConnectionInstructions({
   const baseUrl = config.api.displayProxyUrl;
 
   // A2A endpoint
-  const a2aEndpoint = `${baseUrl}/a2a/${prompt.id}`;
+  const a2aEndpoint = `${baseUrl}/a2a/${agent.id}`;
 
   // Default to personal token if available, otherwise org token, then first token
   const orgToken = tokens?.find((t) => t.isOrganizationToken);
@@ -179,15 +179,15 @@ export function A2AConnectionInstructions({
   const handleCopyChatLink = useCallback(async () => {
     const exampleMessage =
       "Hello!\n\nPlease help me with the following task:\n- Review my code\n- Suggest improvements";
-    const chatLink = `${window.location.origin}/chat/new?agent_id=${prompt.id}&user_prompt=${encodeURIComponent(exampleMessage)}`;
+    const chatLink = `${window.location.origin}/chat/new?agent_id=${agent.id}&user_prompt=${encodeURIComponent(exampleMessage)}`;
     await navigator.clipboard.writeText(chatLink);
     setCopiedChatLink(true);
     toast.success("Chat deep link copied");
     setTimeout(() => setCopiedChatLink(false), 2000);
-  }, [prompt.id]);
+  }, [agent.id]);
 
   // Agent Card URL for discovery
-  const agentCardUrl = `${baseUrl}/a2a/${prompt.id}/.well-known/agent.json`;
+  const agentCardUrl = `${baseUrl}/a2a/${agent.id}/.well-known/agent.json`;
 
   // cURL example code for sending messages
   const curlCode = useMemo(
@@ -296,7 +296,7 @@ curl -X GET "${agentCardUrl}" \\
         <div className="bg-muted rounded-md p-3 pt-10 relative">
           <pre className="text-xs whitespace-pre-wrap break-all overflow-x-auto">
             <code>
-              {`${window.location.origin}/chat/new?agent_id=${prompt.id}&user_prompt=${encodeURIComponent("Hello!\n\nPlease help me with the following task:\n- Review my code\n- Suggest improvements")}`}
+              {`${window.location.origin}/chat/new?agent_id=${agent.id}&user_prompt=${encodeURIComponent("Hello!\n\nPlease help me with the following task:\n- Review my code\n- Suggest improvements")}`}
             </code>
           </pre>
           <div className="absolute top-2 right-2">

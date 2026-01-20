@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useInternalAgents } from "@/lib/agent.query";
 import {
   useConversationEnabledTools,
   usePromptTools,
@@ -20,7 +21,6 @@ import {
   getPendingActions,
   type PendingToolAction,
 } from "@/lib/pending-tool-state";
-import { usePrompts } from "@/lib/prompts.query";
 import { cn } from "@/lib/utils";
 
 interface AgentToolsDisplayProps {
@@ -46,7 +46,7 @@ export function AgentToolsDisplay({
     promptId ?? undefined,
   );
 
-  const { data: allPrompts = [] } = usePrompts();
+  const { data: allAgents = [] } = useInternalAgents();
 
   // Local pending actions for display (synced with localStorage)
   const [localPendingActions, setLocalPendingActions] = useState<
@@ -77,16 +77,16 @@ export function AgentToolsDisplay({
   // Map promptTools to their display names
   const agentToolsWithNames = useMemo(() => {
     return promptTools.map((tool) => {
-      const promptName = tool.name.replace(/^agent__/, "");
-      const matchingPrompt = allPrompts.find(
-        (p) => p.name.toLowerCase().replace(/\s+/g, "_") === promptName,
+      const agentName = tool.name.replace(/^agent__/, "");
+      const matchingAgent = allAgents.find(
+        (a) => a.name.toLowerCase().replace(/\s+/g, "_") === agentName,
       );
       return {
         ...tool,
-        displayName: matchingPrompt?.name ?? promptName.replace(/_/g, " "),
+        displayName: matchingAgent?.name ?? agentName.replace(/_/g, " "),
       };
     });
-  }, [promptTools, allPrompts]);
+  }, [promptTools, allAgents]);
 
   // Default: all agent tools are enabled (matches backend behavior)
   const defaultEnabledAgentToolIds = useMemo(

@@ -77,6 +77,16 @@ pnpm db:studio       # Open Drizzle Studio
 pnpm db:generate     # Generate new migrations (CI checks for uncommitted migrations)
 drizzle-kit check    # Check consistency of generated SQL migrations history
 
+# Manual Migrations with Data Migration Logic
+# When creating migrations that include data migration (INSERT/UPDATE statements),
+# you must use the Drizzle-generated migration file name to ensure proper tracking:
+# 1. First, update the Drizzle schema files with your schema changes
+# 2. Run `pnpm db:generate` - this creates a migration with a random name (e.g., 0119_military_alice.sql)
+# 3. Add your data migration SQL to the generated file (INSERT, UPDATE statements, etc.)
+# 4. Run `drizzle-kit check` to verify consistency
+# IMPORTANT: Never create manually-named migration files - Drizzle tracks migrations
+# via the meta/_journal.json file which references the generated file names.
+
 # Database Connection
 # PostgreSQL is running in Kubernetes (managed by Tilt)
 # Connect to database:

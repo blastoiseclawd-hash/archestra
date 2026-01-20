@@ -606,7 +606,7 @@ export async function getChatMcpTools({
                     profile: { id: agentId, name: agentName },
                     conversationId,
                     userId,
-                    promptId,
+                    agentId: promptId, // promptId is the internal agent ID in chat context
                     organizationId,
                     sessionId,
                   },
@@ -734,7 +734,7 @@ export async function getChatMcpTools({
         // Build the context for agent tool execution
         const archestraContext: ArchestraContext = {
           profile: { id: agentId, name: agentName },
-          promptId,
+          agentId: promptId, // promptId is the internal agent ID in chat context
           organizationId,
           conversationId,
           sessionId,

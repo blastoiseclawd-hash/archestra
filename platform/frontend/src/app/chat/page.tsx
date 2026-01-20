@@ -45,7 +45,11 @@ import {
 } from "@/components/ui/card";
 import { Version } from "@/components/version";
 import { useChatSession } from "@/contexts/global-chat-context";
-import { useProfilesQuery } from "@/lib/agent.query";
+import {
+  useInternalAgents,
+  useProfile,
+  useProfilesQuery,
+} from "@/lib/agent.query";
 import { useHasPermissions } from "@/lib/auth.query";
 import {
   useConversation,
@@ -71,7 +75,6 @@ import {
   clearPendingActions,
   getPendingActions,
 } from "@/lib/pending-tool-state";
-import { usePrompt, usePromptsQuery } from "@/lib/prompts.query";
 import ArchestraPromptInput from "./prompt-input";
 
 const CONVERSATION_QUERY_PARAM = "conversation";
@@ -127,8 +130,8 @@ export default function ChatPage() {
   // State for browser panel
   const [isBrowserPanelOpen, setIsBrowserPanelOpen] = useState(false);
 
-  // Fetch prompts for conversation prompt name lookup
-  const { data: prompts = [] } = usePromptsQuery();
+  // Fetch internal agents for dialog editing
+  const { data: internalAgents = [] } = useInternalAgents();
 
   // Fetch profiles and models for initial chat (no conversation)
   // Using non-suspense queries to avoid blocking page render
@@ -144,13 +147,13 @@ export default function ChatPage() {
   // Track if URL params have been consumed (so we don't re-apply them after user clears selection)
   const urlParamsConsumedRef = useRef(false);
 
-  // Prompt edit dialog state
-  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
-  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
-  const [versionHistoryPrompt, setVersionHistoryPrompt] = useState<
-    (typeof prompts)[number] | null
+  // Agent edit dialog state
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [versionHistoryAgent, setVersionHistoryAgent] = useState<
+    (typeof internalAgents)[number] | null
   >(null);
-  const { data: editingPrompt } = usePrompt(editingPromptId || "");
+  const { data: editingAgent } = useProfile(editingAgentId ?? undefined);
 
   // Set initial agent from URL param or default when data loads
   useEffect(() => {
@@ -159,12 +162,13 @@ export default function ChatPage() {
     // Only process URL params once (don't re-apply after user clears selection)
     if (!urlParamsConsumedRef.current) {
       // Check for promptId in URL query params (e.g., from /agents canvas "Chat" button)
+      // With migration, promptId now refers to internal agent ID
       const urlPromptId = searchParams.get("promptId");
       if (urlPromptId) {
-        const matchingPrompt = prompts.find((p) => p.id === urlPromptId);
-        if (matchingPrompt) {
+        const matchingAgent = internalAgents.find((a) => a.id === urlPromptId);
+        if (matchingAgent) {
           setInitialPromptId(urlPromptId);
-          setInitialAgentId(matchingPrompt.agentId);
+          setInitialAgentId(urlPromptId); // Internal agent IS the profile
           urlParamsConsumedRef.current = true;
           return;
         }
@@ -176,10 +180,10 @@ export default function ChatPage() {
         const matchingProfile = allProfiles.find((p) => p.id === urlAgentId);
         if (matchingProfile) {
           setInitialAgentId(urlAgentId);
-          // Find a prompt for this agent if one exists
-          const agentPrompt = prompts.find((p) => p.agentId === urlAgentId);
-          if (agentPrompt) {
-            setInitialPromptId(agentPrompt.id);
+          // Check if this is an internal agent
+          const internalAgent = internalAgents.find((a) => a.id === urlAgentId);
+          if (internalAgent) {
+            setInitialPromptId(urlAgentId);
           }
           urlParamsConsumedRef.current = true;
           return;
@@ -191,7 +195,7 @@ export default function ChatPage() {
     if (!initialAgentId) {
       setInitialAgentId(allProfiles[0].id);
     }
-  }, [allProfiles, initialAgentId, searchParams, prompts]);
+  }, [allProfiles, initialAgentId, searchParams, internalAgents]);
 
   // Initialize model from localStorage or default to first available
   useEffect(() => {
@@ -335,9 +339,9 @@ export default function ChatPage() {
     [conversation, chatModels, updateConversationMutation],
   );
 
-  // Find the specific prompt for this conversation (if any)
-  const _conversationPrompt = conversation?.promptId
-    ? prompts.find((p) => p.id === conversation.promptId)
+  // Find the specific internal agent for this conversation (if any)
+  const _conversationInternalAgent = conversation?.agentId
+    ? internalAgents.find((a) => a.id === conversation.agentId)
     : undefined;
 
   // Get current agent info
@@ -937,12 +941,12 @@ export default function ChatPage() {
                     size="sm"
                     className="h-8 px-2 gap-1.5 text-xs border-dashed"
                     onClick={() => {
-                      const promptIdToEdit = conversationId
+                      const agentIdToEdit = conversationId
                         ? conversation?.promptId
                         : initialPromptId;
-                      if (promptIdToEdit) {
-                        setEditingPromptId(promptIdToEdit);
-                        setIsPromptDialogOpen(true);
+                      if (agentIdToEdit) {
+                        setEditingAgentId(agentIdToEdit);
+                        setIsAgentDialogOpen(true);
                       }
                     }}
                   >
@@ -1053,8 +1057,8 @@ export default function ChatPage() {
                   {initialPromptId ? (
                     // Agent selected - show prompt
                     (() => {
-                      const selectedPrompt = prompts.find(
-                        (p) => p.id === initialPromptId,
+                      const selectedAgent = internalAgents.find(
+                        (a) => a.id === initialPromptId,
                       );
 
                       return (
@@ -1062,17 +1066,17 @@ export default function ChatPage() {
                           <p className="text-lg text-muted-foreground">
                             To start conversation with{" "}
                             <span className="font-medium text-foreground">
-                              {selectedPrompt?.name}
+                              {selectedAgent?.name}
                             </span>{" "}
-                            {selectedPrompt?.userPrompt
+                            {selectedAgent?.userPrompt
                               ? "click on a suggested prompt or type a new below"
                               : "start typing below"}
                           </p>
-                          {selectedPrompt?.userPrompt && (
+                          {selectedAgent?.userPrompt && (
                             <button
                               type="button"
                               onClick={() => {
-                                const userPrompt = selectedPrompt.userPrompt;
+                                const userPrompt = selectedAgent.userPrompt;
                                 if (!userPrompt) return;
                                 const syntheticEvent = {
                                   preventDefault: () => {},
@@ -1090,7 +1094,7 @@ export default function ChatPage() {
                               >
                                 <MessageContent className="max-w-none text-center">
                                   <Response>
-                                    {selectedPrompt.userPrompt}
+                                    {selectedAgent.userPrompt}
                                   </Response>
                                 </MessageContent>
                               </Message>
@@ -1117,26 +1121,23 @@ export default function ChatPage() {
                     // No agent selected - show agent list
                     <>
                       <p className="text-lg text-muted-foreground">
-                        {prompts.length > 0
+                        {internalAgents.length > 0
                           ? "To start conversation select an agent or start typing below"
                           : "To start conversation start typing below"}
                       </p>
-                      {prompts.length > 0 ? (
+                      {internalAgents.length > 0 ? (
                         <div className="flex flex-wrap justify-center gap-2">
-                          {prompts.map((prompt) => (
+                          {internalAgents.map((agent) => (
                             <Button
-                              key={prompt.id}
+                              key={agent.id}
                               variant="outline"
                               size="sm"
                               className="h-8 px-3 text-sm"
                               onClick={() =>
-                                handleInitialPromptChange(
-                                  prompt.id,
-                                  prompt.agentId,
-                                )
+                                handleInitialPromptChange(agent.id, agent.id)
                               }
                             >
-                              {prompt.name}
+                              {agent.name}
                             </Button>
                           ))}
                         </div>
@@ -1145,8 +1146,8 @@ export default function ChatPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingPromptId(null);
-                              setIsPromptDialogOpen(true);
+                              setEditingAgentId(null);
+                              setIsAgentDialogOpen(true);
                             }}
                             className="underline hover:text-foreground"
                           >
@@ -1266,25 +1267,25 @@ export default function ChatPage() {
       )}
 
       <PromptDialog
-        open={isPromptDialogOpen}
+        open={isAgentDialogOpen}
         onOpenChange={(open) => {
-          setIsPromptDialogOpen(open);
+          setIsAgentDialogOpen(open);
           if (!open) {
-            setEditingPromptId(null);
+            setEditingAgentId(null);
           }
         }}
-        prompt={editingPrompt}
-        onViewVersionHistory={setVersionHistoryPrompt}
+        agent={editingAgent}
+        onViewVersionHistory={setVersionHistoryAgent}
       />
 
       <PromptVersionHistoryDialog
-        open={!!versionHistoryPrompt}
+        open={!!versionHistoryAgent}
         onOpenChange={(open) => {
           if (!open) {
-            setVersionHistoryPrompt(null);
+            setVersionHistoryAgent(null);
           }
         }}
-        prompt={versionHistoryPrompt}
+        agent={versionHistoryAgent}
       />
     </div>
   );

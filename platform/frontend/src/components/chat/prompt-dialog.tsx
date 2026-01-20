@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ChatToolsDisplay } from "@/components/chat/chat-tools-display";
-import { ProfileSelector } from "@/components/chat/profile-selector";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,76 +18,68 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Textarea } from "@/components/ui/textarea";
-import { useProfiles } from "@/lib/agent.query";
+import {
+  useCreateProfile,
+  useInternalAgents,
+  useUpdateProfile,
+} from "@/lib/agent.query";
+import {
+  useAgentDelegations,
+  useSyncAgentDelegations,
+} from "@/lib/agent-tools.query";
 import { useChatOpsStatus } from "@/lib/chatops.query";
-import {
-  usePromptAgents,
-  useSyncPromptAgents,
-} from "@/lib/prompt-agents.query";
-import {
-  useCreatePrompt,
-  usePrompts,
-  useUpdatePrompt,
-} from "@/lib/prompts.query";
 
-type Prompt = archestraApiTypes.GetPromptsResponses["200"][number];
+type InternalAgent = archestraApiTypes.GetAllAgentsResponses["200"][number];
 
 interface PromptDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  prompt?: Prompt | null;
-  onViewVersionHistory?: (prompt: Prompt) => void;
+  agent?: InternalAgent | null;
+  onViewVersionHistory?: (agent: InternalAgent) => void;
 }
 
 export function PromptDialog({
   open,
   onOpenChange,
-  prompt,
+  agent,
   onViewVersionHistory,
 }: PromptDialogProps) {
-  const { data: allProfiles = [] } = useProfiles();
-  const { data: allPrompts = [] } = usePrompts();
-  const createPrompt = useCreatePrompt();
-  const updatePrompt = useUpdatePrompt();
-  const syncPromptAgents = useSyncPromptAgents();
-  const { data: currentAgents = [] } = usePromptAgents(prompt?.id);
+  const { data: allInternalAgents = [] } = useInternalAgents();
+  const createAgent = useCreateProfile();
+  const updateAgent = useUpdateProfile();
+  const syncDelegations = useSyncAgentDelegations();
+  const { data: currentDelegations = [] } = useAgentDelegations(agent?.id);
 
   const [name, setName] = useState("");
-  const [agentId, setProfileId] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
-  const [selectedAgentPromptIds, setSelectedAgentPromptIds] = useState<
-    string[]
-  >([]);
+  const [selectedDelegationTargetIds, setSelectedDelegationTargetIds] =
+    useState<string[]>([]);
   const [allowedChatops, setAllowedChatops] = useState<string[]>([]);
 
   const { data: chatopsProviders = [] } = useChatOpsStatus();
 
-  // Available prompts that can be used as agents (excluding self)
-  const availableAgentPrompts = useMemo(() => {
-    return allPrompts
-      .filter((p) => p.id !== prompt?.id)
-      .map((p) => {
-        const profile = allProfiles.find((prof) => prof.id === p.agentId);
-        return {
-          value: p.id,
-          label: profile ? `${p.name} (${profile.name})` : p.name,
-        };
-      });
-  }, [allPrompts, allProfiles, prompt?.id]);
+  // Available agents that can be delegated to (excluding self)
+  const availableDelegationTargets = useMemo(() => {
+    return allInternalAgents
+      .filter((a) => a.id !== agent?.id)
+      .map((a) => ({
+        value: a.id,
+        label: a.name,
+      }));
+  }, [allInternalAgents, agent?.id]);
 
-  // Reset form when dialog opens/closes or prompt changes
+  // Reset form when dialog opens/closes or agent changes
   useEffect(() => {
     if (open) {
       // edit
-      if (prompt) {
-        setName(prompt.name);
-        setProfileId(prompt.agentId);
-        setUserPrompt(prompt.userPrompt || "");
-        setSystemPrompt(prompt.systemPrompt || "");
-        // Note: agents are loaded separately via currentAgents query
-        // Parse allowedChatops from prompt (may be in different formats from API)
-        const chatopsValue = prompt.allowedChatops;
+      if (agent) {
+        setName(agent.name);
+        setUserPrompt(agent.userPrompt || "");
+        setSystemPrompt(agent.systemPrompt || "");
+        // Note: delegations are loaded separately via currentDelegations query
+        // Parse allowedChatops from agent (may be in different formats from API)
+        const chatopsValue = agent.allowedChatops;
         if (Array.isArray(chatopsValue)) {
           setAllowedChatops(chatopsValue as string[]);
         } else {
@@ -99,39 +90,31 @@ export function PromptDialog({
         setName("");
         setUserPrompt("");
         setSystemPrompt("");
-        setSelectedAgentPromptIds([]);
+        setSelectedDelegationTargetIds([]);
         setAllowedChatops([]);
       }
     } else {
       // reset form
       setName("");
-      setProfileId("");
       setUserPrompt("");
       setSystemPrompt("");
-      setSelectedAgentPromptIds([]);
+      setSelectedDelegationTargetIds([]);
       setAllowedChatops([]);
     }
-  }, [open, prompt]);
+  }, [open, agent]);
 
-  // Sync selectedAgentPromptIds with currentAgents when data loads
-  // Use a stable string representation to avoid infinite loops
-  const currentAgentIds = currentAgents.map((a) => a.agentPromptId).join(",");
-  const promptId = prompt?.id;
-
-  useEffect(() => {
-    if (open && promptId && currentAgentIds) {
-      setSelectedAgentPromptIds(currentAgentIds.split(",").filter(Boolean));
-    }
-  }, [open, promptId, currentAgentIds]);
+  // Sync selectedDelegationTargetIds with currentDelegations when data loads
+  // currentDelegations is an array of agent objects that this agent can delegate to
+  const currentDelegationIds = currentDelegations.map((a) => a.id).join(",");
+  const agentId = agent?.id;
 
   useEffect(() => {
-    if (open) {
-      // if on create and no agentId, set the first agent
-      if (!prompt && !agentId) {
-        setProfileId(allProfiles[0].id);
-      }
+    if (open && agentId && currentDelegationIds) {
+      setSelectedDelegationTargetIds(
+        currentDelegationIds.split(",").filter(Boolean),
+      );
     }
-  }, [open, prompt, allProfiles, agentId]);
+  }, [open, agentId, currentDelegationIds]);
 
   const handleSave = useCallback(async () => {
     // Trim values once at the start
@@ -139,51 +122,51 @@ export function PromptDialog({
     const trimmedUserPrompt = userPrompt.trim();
     const trimmedSystemPrompt = systemPrompt.trim();
 
-    if (!trimmedName || !agentId) {
-      toast.error("Name and Profile are required");
+    if (!trimmedName) {
+      toast.error("Name is required");
       return;
     }
 
     try {
-      let promptId: string;
+      let savedAgentId: string;
 
-      if (prompt) {
+      if (agent) {
         // Update increments version (ID stays the same with JSONB history)
-        const updated = await updatePrompt.mutateAsync({
-          id: prompt.id,
+        const updated = await updateAgent.mutateAsync({
+          id: agent.id,
           data: {
             name: trimmedName,
-            agentId,
             userPrompt: trimmedUserPrompt || undefined,
             systemPrompt: trimmedSystemPrompt || undefined,
             allowedChatops,
           },
         });
-        promptId = updated?.id ?? prompt.id;
+        savedAgentId = updated?.id ?? agent.id;
         toast.success("Agent updated successfully");
       } else {
-        const created = await createPrompt.mutateAsync({
+        const created = await createAgent.mutateAsync({
           name: trimmedName,
-          agentId,
+          isInternal: true,
           userPrompt: trimmedUserPrompt || undefined,
           systemPrompt: trimmedSystemPrompt || undefined,
           allowedChatops,
+          teams: [], // Internal agents don't need team assignment
         });
-        promptId = created?.id ?? "";
+        savedAgentId = created?.id ?? "";
         toast.success("Agent created successfully");
       }
 
-      // Sync agents if any were selected and we have a valid promptId
-      if (promptId && selectedAgentPromptIds.length > 0) {
-        await syncPromptAgents.mutateAsync({
-          promptId,
-          agentPromptIds: selectedAgentPromptIds,
+      // Sync delegations if any were selected and we have a valid agentId
+      if (savedAgentId && selectedDelegationTargetIds.length > 0) {
+        await syncDelegations.mutateAsync({
+          agentId: savedAgentId,
+          targetAgentIds: selectedDelegationTargetIds,
         });
-      } else if (promptId && prompt && currentAgents.length > 0) {
-        // Clear agents if none selected but there were some before
-        await syncPromptAgents.mutateAsync({
-          promptId,
-          agentPromptIds: [],
+      } else if (savedAgentId && agent && currentDelegations.length > 0) {
+        // Clear delegations if none selected but there were some before
+        await syncDelegations.mutateAsync({
+          agentId: savedAgentId,
+          targetAgentIds: [],
         });
       }
 
@@ -193,16 +176,15 @@ export function PromptDialog({
     }
   }, [
     name,
-    agentId,
     userPrompt,
     systemPrompt,
     allowedChatops,
-    prompt,
-    selectedAgentPromptIds,
-    currentAgents.length,
-    updatePrompt,
-    createPrompt,
-    syncPromptAgents,
+    agent,
+    selectedDelegationTargetIds,
+    currentDelegations.length,
+    updateAgent,
+    createAgent,
+    syncDelegations,
     onOpenChange,
   ]);
 
@@ -211,14 +193,14 @@ export function PromptDialog({
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>
-            {prompt ? "Edit Agent" : "Create New Agent"}
-            {prompt && onViewVersionHistory && (
+            {agent ? "Edit Agent" : "Create New Agent"}
+            {agent && onViewVersionHistory && (
               <Button
                 variant="link"
                 size="sm"
                 onClick={() => {
                   onOpenChange(false);
-                  onViewVersionHistory(prompt);
+                  onViewVersionHistory(agent);
                 }}
                 className="text-xs h-auto p-0 ml-2"
               >
@@ -229,42 +211,40 @@ export function PromptDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="promptName">Name *</Label>
+            <Label htmlFor="agentName">Name *</Label>
             <Input
-              id="promptName"
+              id="agentName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter prompt name"
+              placeholder="Enter agent name"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="agentId">Tools *</Label>
-            <p className="text-sm text-muted-foreground">
-              Select profile with the tools that will be available
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <ProfileSelector
-                currentAgentId={agentId}
-                onProfileChange={setProfileId}
-              />
-              {agentId && <ChatToolsDisplay agentId={agentId} readOnly />}
+          {agent && (
+            <div className="space-y-2">
+              <Label>Tools</Label>
+              <p className="text-sm text-muted-foreground">
+                Tools assigned to this agent (manage via Profiles page)
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <ChatToolsDisplay agentId={agent.id} readOnly />
+              </div>
             </div>
-          </div>
+          )}
           <div className="space-y-2">
-            <Label>Agents</Label>
+            <Label>Delegated Agents</Label>
             <p className="text-sm text-muted-foreground">
-              Select other agents to delegate tasks
+              Select other agents this agent can delegate tasks to
             </p>
             <MultiSelect
-              value={selectedAgentPromptIds}
-              onValueChange={setSelectedAgentPromptIds}
-              items={availableAgentPrompts}
+              value={selectedDelegationTargetIds}
+              onValueChange={setSelectedDelegationTargetIds}
+              items={availableDelegationTargets}
               placeholder="Select agents..."
-              disabled={availableAgentPrompts.length === 0}
+              disabled={availableDelegationTargets.length === 0}
             />
-            {availableAgentPrompts.length === 0 && (
+            {availableDelegationTargets.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                No other agent available
+                No other agents available
               </p>
             )}
           </div>
@@ -335,16 +315,13 @@ export function PromptDialog({
           <Button
             onClick={handleSave}
             disabled={
-              !name.trim() ||
-              !agentId ||
-              createPrompt.isPending ||
-              updatePrompt.isPending
+              !name.trim() || createAgent.isPending || updateAgent.isPending
             }
           >
-            {(createPrompt.isPending || updatePrompt.isPending) && (
+            {(createAgent.isPending || updateAgent.isPending) && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            {prompt ? "Update" : "Create"}
+            {agent ? "Update" : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>

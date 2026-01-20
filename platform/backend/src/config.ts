@@ -491,9 +491,13 @@ export default {
   observability: {
     otel: {
       traceExporter: {
+        // Priority: Archestra-specific > OTEL traces-specific > OTEL base endpoint + path > default
         url:
           process.env.ARCHESTRA_OTEL_EXPORTER_OTLP_ENDPOINT ||
-          "http://localhost:4318/v1/traces",
+          process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+          (process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+            ? `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`
+            : "http://localhost:4318/v1/traces"),
         headers: getOtlpAuthHeaders(),
       } satisfies Partial<OTLPExporterNodeConfigBase>,
     },

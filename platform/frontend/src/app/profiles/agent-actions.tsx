@@ -47,17 +47,9 @@ export function ProfileActions({
         data-testid={`${E2eTestId.EditAgentButton}-${agent.name}`}
         onClick={(e) => {
           e.stopPropagation();
-          onEdit({
-            id: agent.id,
-            name: agent.name,
-            isDemo: agent.isDemo,
-            isDefault: agent.isDefault,
-            teams: agent.teams || [],
-            labels: agent.labels || [],
-            considerContextUntrusted: agent.considerContextUntrusted,
-            createdAt: agent.createdAt,
-            updatedAt: agent.updatedAt,
-          });
+          // Pass agent without the tools field
+          const { tools: _tools, ...agentWithoutTools } = agent;
+          onEdit(agentWithoutTools);
         }}
       >
         <Pencil className="h-4 w-4" />

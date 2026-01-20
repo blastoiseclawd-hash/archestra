@@ -27,8 +27,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useInternalAgents } from "@/lib/agent.query";
 import { useCreateConversation } from "@/lib/chat.query";
-import { usePrompts } from "@/lib/prompts.query";
 import { cn } from "@/lib/utils";
 
 interface AgentSelectorProps {
@@ -43,42 +43,38 @@ export function AgentSelector({
   currentModel,
 }: AgentSelectorProps) {
   const router = useRouter();
-  const { data: prompts = [] } = usePrompts();
+  const { data: agents = [] } = useInternalAgents();
   const createConversationMutation = useCreateConversation();
   const [open, setOpen] = useState(false);
-  const [pendingPrompt, setPendingPrompt] = useState<{
+  const [pendingAgent, setPendingAgent] = useState<{
     id: string | null;
     name: string;
-    agentId: string;
   } | null>(null);
 
-  const currentPrompt = useMemo(
-    () => prompts.find((p) => p.id === currentPromptId),
-    [prompts, currentPromptId],
+  const currentAgent = useMemo(
+    () => agents.find((a) => a.id === currentPromptId),
+    [agents, currentPromptId],
   );
 
-  const handlePromptSelect = (
-    newPromptId: string | null,
-    promptName: string,
-    agentId: string,
-  ) => {
-    if (newPromptId === currentPromptId) {
+  const handleAgentSelect = (newAgentId: string | null, agentName: string) => {
+    if (newAgentId === currentPromptId) {
       setOpen(false);
       return;
     }
 
     // Show confirmation dialog
-    setPendingPrompt({ id: newPromptId, name: promptName, agentId });
+    setPendingAgent({ id: newAgentId, name: agentName });
     setOpen(false);
   };
 
   const handleConfirm = async () => {
-    if (!pendingPrompt) return;
+    if (!pendingAgent) return;
 
     // Create a new conversation with the selected agent
+    // For internal agents, the agent ID is both the "prompt ID" and agent ID
     const newConversation = await createConversationMutation.mutateAsync({
-      agentId: pendingPrompt.agentId,
-      promptId: pendingPrompt.id ?? undefined,
+      agentId: pendingAgent.id ?? currentAgentId,
+      promptId: pendingAgent.id ?? undefined,
       selectedModel: currentModel,
     });
 
@@ -86,7 +82,7 @@ export function AgentSelector({
       router.push(`/chat?conversation=${newConversation.id}`);
     }
 
-    setPendingPrompt(null);
+    setPendingAgent(null);
   };
 
   return (
@@ -101,7 +97,7 @@ export function AgentSelector({
           >
             <Bot className="h-3 w-3 shrink-0 opacity-70" />
             <span className="text-xs font-medium">
-              {currentPrompt?.name || "No agent selected"}
+              {currentAgent?.name || "No agent selected"}
             </span>
             {open ? (
               <ChevronDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
@@ -118,13 +114,7 @@ export function AgentSelector({
               <CommandGroup>
                 <CommandItem
                   value="no-agent-selected"
-                  onSelect={() =>
-                    handlePromptSelect(
-                      null,
-                      "No agent selected",
-                      currentAgentId,
-                    )
-                  }
+                  onSelect={() => handleAgentSelect(null, "No agent selected")}
                 >
                   No agent selected
                   <Check
@@ -134,19 +124,17 @@ export function AgentSelector({
                     )}
                   />
                 </CommandItem>
-                {prompts.map((prompt) => (
+                {agents.map((agent) => (
                   <CommandItem
-                    key={prompt.id}
-                    value={prompt.name}
-                    onSelect={() =>
-                      handlePromptSelect(prompt.id, prompt.name, prompt.agentId)
-                    }
+                    key={agent.id}
+                    value={agent.name}
+                    onSelect={() => handleAgentSelect(agent.id, agent.name)}
                   >
-                    {prompt.name}
+                    {agent.name}
                     <Check
                       className={cn(
                         "ml-auto h-4 w-4",
-                        currentPromptId === prompt.id
+                        currentPromptId === agent.id
                           ? "opacity-100"
                           : "opacity-0",
                       )}
@@ -160,15 +148,15 @@ export function AgentSelector({
       </Popover>
 
       <AlertDialog
-        open={!!pendingPrompt}
-        onOpenChange={(open) => !open && setPendingPrompt(null)}
+        open={!!pendingAgent}
+        onOpenChange={(open) => !open && setPendingAgent(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Start new conversation?</AlertDialogTitle>
             <AlertDialogDescription>
               This will start a new conversation with{" "}
-              <span className="font-medium">{pendingPrompt?.name}</span>. Your
+              <span className="font-medium">{pendingAgent?.name}</span>. Your
               current conversation will be saved and available in the sidebar.
             </AlertDialogDescription>
           </AlertDialogHeader>

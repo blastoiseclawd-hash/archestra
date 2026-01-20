@@ -1,4 +1,5 @@
 import {
+  index,
   jsonb,
   pgTable,
   text,
@@ -30,11 +31,20 @@ const toolsTable = pgTable(
     mcpServerId: uuid("mcp_server_id").references(() => mcpServerTable.id, {
       onDelete: "set null",
     }),
-    // promptAgentId links agent delegation tools to their prompt_agent relationship
-    // null for MCP tools, Archestra tools, and proxy-sniffed tools
-    // When set, the tool is a prompt-specific agent delegation tool (NOT in agent_tools)
+    // DEPRECATED: promptAgentId links agent delegation tools to their prompt_agent relationship
+    // Use delegateToAgentId instead for new delegation tools
+    // Will be removed after migration cleanup
     promptAgentId: uuid("prompt_agent_id").references(
       () => promptAgentsTable.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
+    // delegateToAgentId links delegation tools directly to their target agent
+    // When set, the tool is a delegation tool that forwards requests to the target agent
+    // Used by internal agents for agent-to-agent delegation
+    delegateToAgentId: uuid("delegate_to_agent_id").references(
+      () => agentsTable.id,
       {
         onDelete: "cascade",
       },
@@ -65,13 +75,15 @@ const toolsTable = pgTable(
     // Unique constraint ensures:
     // - For MCP tools: one tool per (catalogId, name) combination
     // - For proxy-sniffed tools: one tool per (agentId, name) combination
-    // - For agent delegation tools: one tool per promptAgentId
+    // - For agent delegation tools (legacy): one tool per promptAgentId
     unique().on(
       table.catalogId,
       table.name,
       table.agentId,
       table.promptAgentId,
     ),
+    // Index for delegation tool lookups
+    index("tools_delegate_to_agent_id_idx").on(table.delegateToAgentId),
   ],
 );
 

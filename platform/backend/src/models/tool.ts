@@ -260,6 +260,7 @@ class ToolModel {
         createdAt: schema.toolsTable.createdAt,
         updatedAt: schema.toolsTable.updatedAt,
         promptAgentId: schema.toolsTable.promptAgentId,
+        delegateToAgentId: schema.toolsTable.delegateToAgentId,
         policiesAutoConfiguredAt: schema.toolsTable.policiesAutoConfiguredAt,
         policiesAutoConfiguringStartedAt:
           schema.toolsTable.policiesAutoConfiguringStartedAt,
@@ -1192,6 +1193,137 @@ class ToolModel {
       .update(schema.toolsTable)
       .set({ name: newToolName })
       .where(inArray(schema.toolsTable.promptAgentId, promptAgentIds));
+  }
+
+  /**
+   * Find or create a delegation tool for a target agent.
+   * Delegation tools are used by internal agents to delegate tasks to other agents.
+   */
+  static async findOrCreateDelegationTool(
+    targetAgentId: string,
+  ): Promise<Tool> {
+    // Check if delegation tool already exists
+    const [existingTool] = await db
+      .select()
+      .from(schema.toolsTable)
+      .where(eq(schema.toolsTable.delegateToAgentId, targetAgentId))
+      .limit(1);
+
+    if (existingTool) {
+      return existingTool;
+    }
+
+    // Get target agent for naming
+    const [targetAgent] = await db
+      .select({ id: schema.agentsTable.id, name: schema.agentsTable.name })
+      .from(schema.agentsTable)
+      .where(eq(schema.agentsTable.id, targetAgentId))
+      .limit(1);
+
+    if (!targetAgent) {
+      throw new Error(`Target agent not found: ${targetAgentId}`);
+    }
+
+    // Create delegation tool
+    const toolName = `${AGENT_TOOL_PREFIX}${slugify(targetAgent.name)}`;
+    const [tool] = await db
+      .insert(schema.toolsTable)
+      .values({
+        name: toolName,
+        description: `Delegate task to agent: ${targetAgent.name}`,
+        delegateToAgentId: targetAgentId,
+        agentId: null,
+        catalogId: null,
+        mcpServerId: null,
+        parameters: {
+          type: "object",
+          properties: {
+            message: {
+              type: "string",
+              description: "The task or message to send to the agent",
+            },
+          },
+          required: ["message"],
+        },
+      })
+      .returning();
+
+    return tool;
+  }
+
+  /**
+   * Find a delegation tool by target agent ID
+   */
+  static async findDelegationTool(targetAgentId: string): Promise<Tool | null> {
+    const [tool] = await db
+      .select()
+      .from(schema.toolsTable)
+      .where(eq(schema.toolsTable.delegateToAgentId, targetAgentId))
+      .limit(1);
+
+    return tool || null;
+  }
+
+  /**
+   * Get delegation tools assigned to an agent with target agent details
+   */
+  static async getDelegationToolsByAgent(agentId: string): Promise<
+    Array<{
+      tool: Tool;
+      targetAgent: {
+        id: string;
+        name: string;
+        systemPrompt: string | null;
+      };
+    }>
+  > {
+    const results = await db
+      .select({
+        tool: schema.toolsTable,
+        targetAgent: {
+          id: schema.agentsTable.id,
+          name: schema.agentsTable.name,
+          systemPrompt: schema.agentsTable.systemPrompt,
+        },
+      })
+      .from(schema.agentToolsTable)
+      .innerJoin(
+        schema.toolsTable,
+        eq(schema.agentToolsTable.toolId, schema.toolsTable.id),
+      )
+      .innerJoin(
+        schema.agentsTable,
+        eq(schema.toolsTable.delegateToAgentId, schema.agentsTable.id),
+      )
+      .where(
+        and(
+          eq(schema.agentToolsTable.agentId, agentId),
+          isNotNull(schema.toolsTable.delegateToAgentId),
+        ),
+      );
+
+    return results;
+  }
+
+  /**
+   * Sync delegation tool names when an agent is renamed.
+   * Updates the tool name for all tools that delegate to this agent.
+   * @param targetAgentId - The agent ID that was renamed
+   * @param newName - The new name of the agent
+   */
+  static async syncDelegationToolNames(
+    targetAgentId: string,
+    newName: string,
+  ): Promise<void> {
+    const newToolName = `${AGENT_TOOL_PREFIX}${slugify(newName)}`;
+
+    await db
+      .update(schema.toolsTable)
+      .set({
+        name: newToolName,
+        description: `Delegate task to agent: ${newName}`,
+      })
+      .where(eq(schema.toolsTable.delegateToAgentId, targetAgentId));
   }
 
   /**

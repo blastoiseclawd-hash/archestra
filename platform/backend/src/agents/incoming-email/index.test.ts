@@ -18,23 +18,21 @@ import {
 import { OutlookEmailProvider } from "./outlook-provider";
 
 /**
- * Helper to create a prompt for testing
+ * Helper to create an internal agent for testing
  */
-async function createTestPrompt(agentId: string, organizationId: string) {
-  const [prompt] = await db
-    .insert(schema.promptsTable)
+async function createTestInternalAgent(organizationId: string) {
+  const [agent] = await db
+    .insert(schema.agentsTable)
     .values({
       id: crypto.randomUUID(),
       organizationId,
-      name: `Test Prompt ${crypto.randomUUID().substring(0, 8)}`,
-      agentId,
+      name: `Test Internal Agent ${crypto.randomUUID().substring(0, 8)}`,
+      isInternal: true,
       userPrompt: null,
-      systemPrompt: null,
-      version: 1,
-      history: [],
+      systemPrompt: "You are a helpful assistant",
     })
     .returning();
-  return prompt;
+  return agent;
 }
 
 describe("createEmailProvider", () => {
@@ -98,7 +96,7 @@ describe("processIncomingEmail", () => {
     );
   });
 
-  test("throws error when promptId cannot be extracted", async () => {
+  test("throws error when agentId cannot be extracted", async () => {
     const mockProvider = {
       providerId: "outlook",
       displayName: "Outlook",
@@ -123,12 +121,12 @@ describe("processIncomingEmail", () => {
     };
 
     await expect(processIncomingEmail(email, mockProvider)).rejects.toThrow(
-      "Could not extract promptId from email address: invalid-address@test.com",
+      "Could not extract agentId from email address: invalid-address@test.com",
     );
   });
 
-  test("throws error when prompt is not found", async () => {
-    const promptId = crypto.randomUUID();
+  test("throws error when agent is not found", async () => {
+    const agentId = crypto.randomUUID();
 
     const mockProvider = {
       providerId: "outlook",
@@ -141,12 +139,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-msg-3",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Test body",
@@ -154,25 +152,28 @@ describe("processIncomingEmail", () => {
     };
 
     await expect(processIncomingEmail(email, mockProvider)).rejects.toThrow(
-      `Prompt ${promptId} not found`,
+      `Agent ${agentId} not found`,
     );
   });
 
-  test("processes email successfully with valid prompt and team", async ({
+  test("processes email successfully with valid internal agent and team", async ({
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     // Create test data
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    // Create a prompt for the agent
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    // Create an internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -185,12 +186,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-msg-4",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Hello, agent!",
@@ -200,7 +201,7 @@ describe("processIncomingEmail", () => {
     await processIncomingEmail(email, mockProvider);
 
     expect(vi.mocked(executeA2AMessage)).toHaveBeenCalledWith({
-      promptId,
+      agentId,
       message: "Hello, agent!",
       organizationId: org.id,
       userId: "system",
@@ -211,15 +212,18 @@ describe("processIncomingEmail", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -232,12 +236,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-msg-5",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Subject as message",
       body: "   ", // whitespace only
@@ -257,15 +261,18 @@ describe("processIncomingEmail", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -278,12 +285,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-msg-6",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "",
       body: "",
@@ -303,15 +310,18 @@ describe("processIncomingEmail", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -324,7 +334,7 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     // Create a body larger than MAX_EMAIL_BODY_SIZE
@@ -332,7 +342,7 @@ describe("processIncomingEmail", () => {
 
     const email: IncomingEmail = {
       messageId: "test-msg-7",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Large email",
       body: largeBody,
@@ -357,15 +367,18 @@ describe("processIncomingEmail", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -378,7 +391,7 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     // Create a body just under MAX_EMAIL_BODY_SIZE
@@ -386,7 +399,7 @@ describe("processIncomingEmail", () => {
 
     const email: IncomingEmail = {
       messageId: "test-msg-8",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Normal email",
       body: normalBody,
@@ -405,15 +418,13 @@ describe("processIncomingEmail", () => {
   test("throws error when agent has no teams", async ({
     makeUser,
     makeOrganization,
-    makeAgent,
   }) => {
     await makeUser(); // Need a user in the system
     const org = await makeOrganization();
-    // Create agent without assigning to any team
-    const agent = await makeAgent({ teams: [] });
 
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    // Create internal agent WITHOUT assigning to any team
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
 
     const mockProvider = {
       providerId: "outlook",
@@ -426,12 +437,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-msg-9",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test",
       body: "Test body",
@@ -439,7 +450,7 @@ describe("processIncomingEmail", () => {
     };
 
     await expect(processIncomingEmail(email, mockProvider)).rejects.toThrow(
-      `No teams found for agent ${agent.id}`,
+      `No teams found for agent ${agentId}`,
     );
   });
 
@@ -447,17 +458,20 @@ describe("processIncomingEmail", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     // Create test data
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    // Create a prompt for the agent
-    const prompt = await createTestPrompt(agent.id, org.id);
-    const promptId = prompt.id;
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+    const agentId = internalAgent.id;
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId, teamId: team.id });
 
     const mockProvider = {
       providerId: "outlook",
@@ -470,12 +484,12 @@ describe("processIncomingEmail", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => promptId,
+      extractPromptIdFromEmail: () => agentId,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: "test-dedup-msg-1",
-      toAddress: `agents+agent-${promptId}@test.com`,
+      toAddress: `agents+agent-${agentId}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Hello, agent!",
@@ -547,26 +561,18 @@ describe("processIncomingEmail with sendReply option", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Test Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockSendReply = vi.fn().mockResolvedValue("reply-id");
     const mockProvider = {
@@ -580,13 +586,13 @@ describe("processIncomingEmail with sendReply option", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: mockSendReply,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: `test-no-reply-${Date.now()}`,
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Hello, agent!",
@@ -602,26 +608,18 @@ describe("processIncomingEmail with sendReply option", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Test Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockSendReply = vi.fn().mockResolvedValue("reply-id-123");
     const mockProvider = {
@@ -635,13 +633,13 @@ describe("processIncomingEmail with sendReply option", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: mockSendReply,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: `test-with-reply-${Date.now()}`,
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Hello, agent!",
@@ -655,7 +653,7 @@ describe("processIncomingEmail with sendReply option", () => {
     expect(mockSendReply).toHaveBeenCalledWith({
       originalEmail: email,
       body: "Agent response for reply",
-      agentName: prompt.name,
+      agentName: internalAgent.name,
     });
     expect(result).toBe("Agent response for reply");
   });
@@ -664,26 +662,18 @@ describe("processIncomingEmail with sendReply option", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Test Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     vi.mocked(executeA2AMessage).mockResolvedValueOnce({
       messageId: "msg-specific",
@@ -702,13 +692,13 @@ describe("processIncomingEmail with sendReply option", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: vi.fn().mockResolvedValue("reply-123"),
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: `test-return-value-${Date.now()}`,
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test",
       body: "Test body",
@@ -726,26 +716,18 @@ describe("processIncomingEmail with sendReply option", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Test Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockSendReply = vi
       .fn()
@@ -761,13 +743,13 @@ describe("processIncomingEmail with sendReply option", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: mockSendReply,
     } as unknown as OutlookEmailProvider;
 
     const email: IncomingEmail = {
       messageId: `test-reply-failure-${Date.now()}`,
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "sender@example.com",
       subject: "Test Subject",
       body: "Hello, agent!",
@@ -798,26 +780,18 @@ describe("processIncomingEmail with conversation history", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Context Test Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockGetConversationHistory = vi.fn().mockResolvedValue([
       {
@@ -849,7 +823,7 @@ describe("processIncomingEmail with conversation history", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: vi.fn().mockResolvedValue("reply-123"),
       getConversationHistory: mockGetConversationHistory,
     } as unknown as OutlookEmailProvider;
@@ -857,7 +831,7 @@ describe("processIncomingEmail with conversation history", () => {
     const email: IncomingEmail = {
       messageId: `test-with-context-${Date.now()}`,
       conversationId: "conv-123",
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "user@example.com",
       subject: "Follow-up question",
       body: "What was my first message?",
@@ -888,26 +862,18 @@ describe("processIncomingEmail with conversation history", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "No Context Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockGetConversationHistory = vi.fn();
 
@@ -922,7 +888,7 @@ describe("processIncomingEmail with conversation history", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: vi.fn().mockResolvedValue("reply-123"),
       getConversationHistory: mockGetConversationHistory,
     } as unknown as OutlookEmailProvider;
@@ -930,7 +896,7 @@ describe("processIncomingEmail with conversation history", () => {
     const email: IncomingEmail = {
       messageId: `test-no-context-${Date.now()}`,
       // No conversationId
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "user@example.com",
       subject: "Standalone message",
       body: "Hello, agent!",
@@ -952,26 +918,18 @@ describe("processIncomingEmail with conversation history", () => {
     makeUser,
     makeOrganization,
     makeTeam,
-    makeAgent,
   }) => {
     const user = await makeUser();
     const org = await makeOrganization();
     const team = await makeTeam(org.id, user.id);
-    const agent = await makeAgent({ teams: [team.id] });
 
-    const [prompt] = await db
-      .insert(schema.promptsTable)
-      .values({
-        id: crypto.randomUUID(),
-        organizationId: org.id,
-        name: "Error Handler Prompt",
-        agentId: agent.id,
-        userPrompt: null,
-        systemPrompt: null,
-        version: 1,
-        history: [],
-      })
-      .returning();
+    // Create internal agent
+    const internalAgent = await createTestInternalAgent(org.id);
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
 
     const mockGetConversationHistory = vi
       .fn()
@@ -988,7 +946,7 @@ describe("processIncomingEmail with conversation history", () => {
       validateWebhookRequest: vi.fn(),
       handleValidationChallenge: vi.fn(),
       cleanup: vi.fn(),
-      extractPromptIdFromEmail: () => prompt.id,
+      extractPromptIdFromEmail: () => internalAgent.id,
       sendReply: vi.fn().mockResolvedValue("reply-123"),
       getConversationHistory: mockGetConversationHistory,
     } as unknown as OutlookEmailProvider;
@@ -996,7 +954,7 @@ describe("processIncomingEmail with conversation history", () => {
     const email: IncomingEmail = {
       messageId: `test-error-handling-${Date.now()}`,
       conversationId: "conv-error",
-      toAddress: `agents+agent-${prompt.id}@test.com`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
       fromAddress: "user@example.com",
       subject: "Test error handling",
       body: "Current message only",

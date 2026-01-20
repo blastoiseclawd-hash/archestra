@@ -104,24 +104,30 @@ export function useDeleteIncomingEmailSubscription() {
 }
 
 /**
- * Hook to fetch the email address for a specific prompt
+ * Hook to fetch the email address for a specific agent (internal agent)
  * Pass null to disable the query
  */
-export function usePromptEmailAddress(promptId: string | null) {
+export function useAgentEmailAddress(agentId: string | null) {
   return useQuery({
-    queryKey: incomingEmailKeys.promptEmailAddress(promptId ?? ""),
+    queryKey: incomingEmailKeys.promptEmailAddress(agentId ?? ""),
     queryFn: async () => {
-      if (!promptId) return null;
+      if (!agentId) return null;
+      // TODO: Update backend route from /api/prompts/:promptId/email-address to /api/agents/:agentId/email-address
       const { data, error } = await getPromptEmailAddress({
-        path: { promptId },
+        path: { promptId: agentId },
       });
       if (error) {
         throw new Error(
-          error?.error?.message || "Failed to fetch prompt email address",
+          error?.error?.message || "Failed to fetch agent email address",
         );
       }
       return data as archestraApiTypes.GetPromptEmailAddressResponses["200"];
     },
-    enabled: !!promptId,
+    enabled: !!agentId,
   });
 }
+
+/**
+ * @deprecated Use useAgentEmailAddress instead
+ */
+export const usePromptEmailAddress = useAgentEmailAddress;

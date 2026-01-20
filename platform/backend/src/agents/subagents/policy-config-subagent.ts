@@ -77,10 +77,17 @@ Examples:
   // Virtual agent representing the subagent for observability
   private static readonly VIRTUAL_AGENT: Agent = {
     id: PolicyConfigSubagent.SUBAGENT_ID,
+    organizationId: "",
     name: PolicyConfigSubagent.SUBAGENT_NAME,
     isDemo: false,
     isDefault: false,
     considerContextUntrusted: false,
+    isInternal: false,
+    systemPrompt: null,
+    userPrompt: null,
+    promptVersion: 1,
+    promptHistory: [],
+    allowedChatops: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     tools: [],

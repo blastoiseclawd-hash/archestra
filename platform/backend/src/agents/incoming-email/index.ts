@@ -1,10 +1,10 @@
 import { executeA2AMessage } from "@/agents/a2a-executor";
 import config from "@/config";
 import logger from "@/logging";
+import AgentModel from "@/models/agent";
 import AgentTeamModel from "@/models/agent-team";
 import IncomingEmailSubscriptionModel from "@/models/incoming-email-subscription";
 import ProcessedEmailModel from "@/models/processed-email";
-import PromptModel from "@/models/prompt";
 import TeamModel from "@/models/team";
 import type {
   AgentIncomingEmailProvider,
@@ -493,35 +493,42 @@ export async function processIncomingEmail(
     "[IncomingEmail] Processing incoming email",
   );
 
-  // Extract promptId from the email address
-  let promptId: string | null = null;
+  // Extract agentId from the email address (this is an internal agent ID)
+  let agentId: string | null = null;
 
   if (provider.providerId === "outlook") {
     const outlookProvider = provider as OutlookEmailProvider;
-    promptId = outlookProvider.extractPromptIdFromEmail(email.toAddress);
+    // Note: method still named extractPromptIdFromEmail for backwards compat, but returns agentId
+    agentId = outlookProvider.extractPromptIdFromEmail(email.toAddress);
   }
 
-  if (!promptId) {
+  if (!agentId) {
     throw new Error(
-      `Could not extract promptId from email address: ${email.toAddress}`,
+      `Could not extract agentId from email address: ${email.toAddress}`,
     );
   }
 
-  // Verify prompt exists
-  const prompt = await PromptModel.findById(promptId);
-  if (!prompt) {
-    throw new Error(`Prompt ${promptId} not found`);
+  // Verify agent exists and is internal (only internal agents can handle emails)
+  const agent = await AgentModel.findById(agentId);
+  if (!agent) {
+    throw new Error(`Agent ${agentId} not found`);
+  }
+
+  if (!agent.isInternal) {
+    throw new Error(
+      `Agent ${agentId} is not an internal agent (email requires internal agents)`,
+    );
   }
 
   // Get organization from agent's team
-  const agentTeamIds = await AgentTeamModel.getTeamsForAgent(prompt.agentId);
+  const agentTeamIds = await AgentTeamModel.getTeamsForAgent(agent.id);
   if (agentTeamIds.length === 0) {
-    throw new Error(`No teams found for agent ${prompt.agentId}`);
+    throw new Error(`No teams found for agent ${agent.id}`);
   }
 
   const teams = await TeamModel.findByIds(agentTeamIds);
   if (teams.length === 0 || !teams[0].organizationId) {
-    throw new Error(`No organization found for agent ${prompt.agentId}`);
+    throw new Error(`No organization found for agent ${agent.id}`);
   }
   const organization = teams[0].organizationId;
 
@@ -605,8 +612,8 @@ ${formattedHistory}
 
   logger.info(
     {
-      promptId,
-      agentId: prompt.agentId,
+      agentId,
+      agentName: agent.name,
       organizationId: organization,
       messageLength: message.length,
       hasConversationHistory: conversationContext.length > 0,
@@ -616,7 +623,7 @@ ${formattedHistory}
 
   // Execute using the shared A2A service
   const result = await executeA2AMessage({
-    promptId,
+    agentId,
     message,
     organizationId: organization,
     userId: "system", // Email invocations use system context
@@ -624,7 +631,7 @@ ${formattedHistory}
 
   logger.info(
     {
-      promptId,
+      agentId,
       messageId: result.messageId,
       responseLength: result.text.length,
       finishReason: result.finishReason,
@@ -635,18 +642,18 @@ ${formattedHistory}
   // Optionally send the agent's response back via email reply
   if (shouldSendReply && result.text) {
     try {
-      // Use the prompt (agent) name for the email reply
-      const agentName = prompt.name || DEFAULT_AGENT_EMAIL_NAME;
+      // Use the agent name for the email reply
+      const replyAgentName = agent.name || DEFAULT_AGENT_EMAIL_NAME;
 
       const replyId = await provider.sendReply({
         originalEmail: email,
         body: result.text,
-        agentName,
+        agentName: replyAgentName,
       });
 
       logger.info(
         {
-          promptId,
+          agentId,
           originalMessageId: email.messageId,
           replyId,
         },
@@ -656,7 +663,7 @@ ${formattedHistory}
       // Log but don't fail the entire operation if reply fails
       logger.error(
         {
-          promptId,
+          agentId,
           originalMessageId: email.messageId,
           error: error instanceof Error ? error.message : String(error),
         },

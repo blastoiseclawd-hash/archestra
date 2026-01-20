@@ -16,10 +16,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useProfiles } from "@/lib/agent.query";
-import { usePrompt } from "@/lib/prompts.query";
+import { useProfile, useProfiles } from "@/lib/agent.query";
 
-type Prompt = archestraApiTypes.GetPromptsResponses["200"][number];
+type InternalAgent = archestraApiTypes.GetAllAgentsResponses["200"][number];
 
 export default function AgentsLayout({
   children,
@@ -28,17 +27,17 @@ export default function AgentsLayout({
 }) {
   const { data: allProfiles = [] } = useProfiles();
 
-  // Dialog state for creating new agents
-  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
-  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
-  const [versionHistoryPrompt, setVersionHistoryPrompt] =
-    useState<Prompt | null>(null);
+  // Dialog state for creating/editing internal agents
+  const [isAgentDialogOpen, setIsAgentDialogOpen] = useState(false);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [versionHistoryAgent, setVersionHistoryAgent] =
+    useState<InternalAgent | null>(null);
 
-  const { data: editingPrompt } = usePrompt(editingPromptId || "");
+  const { data: editingAgent } = useProfile(editingAgentId ?? undefined);
 
-  const handleCreatePrompt = useCallback(() => {
-    setEditingPromptId(null);
-    setIsPromptDialogOpen(true);
+  const handleCreateAgent = useCallback(() => {
+    setEditingAgentId(null);
+    setIsAgentDialogOpen(true);
   }, []);
 
   const hasNoProfiles = allProfiles.length === 0;
@@ -56,7 +55,7 @@ export default function AgentsLayout({
         }
         actionButton={
           <WithPermissions
-            permissions={{ prompt: ["create"] }}
+            permissions={{ profile: ["create"] }}
             noPermissionHandle="hide"
           >
             <TooltipProvider>
@@ -64,8 +63,8 @@ export default function AgentsLayout({
                 <TooltipTrigger asChild>
                   <span>
                     <PermissionButton
-                      permissions={{ prompt: ["create"] }}
-                      onClick={handleCreatePrompt}
+                      permissions={{ profile: ["create"] }}
+                      onClick={handleCreateAgent}
                       disabled={hasNoProfiles}
                     >
                       <Plus className="mr-2 h-4 w-4" />
@@ -85,28 +84,28 @@ export default function AgentsLayout({
       >
         {children}
 
-        {/* Create/Edit Prompt Dialog */}
+        {/* Create/Edit Agent Dialog */}
         <PromptDialog
-          open={isPromptDialogOpen}
+          open={isAgentDialogOpen}
           onOpenChange={(open) => {
-            setIsPromptDialogOpen(open);
+            setIsAgentDialogOpen(open);
             if (!open) {
-              setEditingPromptId(null);
+              setEditingAgentId(null);
             }
           }}
-          prompt={editingPrompt}
-          onViewVersionHistory={setVersionHistoryPrompt}
+          agent={editingAgent}
+          onViewVersionHistory={setVersionHistoryAgent}
         />
 
         {/* Version History Dialog */}
         <PromptVersionHistoryDialog
-          open={!!versionHistoryPrompt}
+          open={!!versionHistoryAgent}
           onOpenChange={(open) => {
             if (!open) {
-              setVersionHistoryPrompt(null);
+              setVersionHistoryAgent(null);
             }
           }}
-          prompt={versionHistoryPrompt}
+          agent={versionHistoryAgent}
         />
       </PageLayout>
     </ErrorBoundary>
