@@ -165,3 +165,15 @@ export const TimeInMs = {
   Hour: 1_000 * 60 * 60,
   Day: 1_000 * 60 * 60 * 24,
 } as const;
+
+/**
+ * Default browser viewport dimensions used by Playwright MCP in browser preview feature.
+ */
+export const DEFAULT_BROWSER_PREVIEW_VIEWPORT_WIDTH = 800;
+export const DEFAULT_BROWSER_PREVIEW_VIEWPORT_HEIGHT = 800;
+
+/**
+ * Approximate height of the browser preview header (title bar + URL bar).
+ * Used when calculating popup window dimensions.
+ */
+export const BROWSER_PREVIEW_HEADER_HEIGHT = 77;

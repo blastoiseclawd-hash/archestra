@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserPanel } from "@/components/chat/browser-panel";
 import { ConversationArtifactPanel } from "@/components/chat/conversation-artifact";
 import { cn } from "@/lib/utils";
+import Divider from "../divider";
 
 interface RightSidePanelProps {
   // Artifact props
@@ -14,8 +15,6 @@ interface RightSidePanelProps {
 
   // Browser props
   isBrowserOpen: boolean;
-  isBrowserMinimized: boolean;
-  onBrowserMinimizeToggle: () => void;
   onBrowserClose: () => void;
   conversationId: string | undefined;
 }
@@ -25,8 +24,6 @@ export function RightSidePanel({
   isArtifactOpen,
   onArtifactToggle,
   isBrowserOpen,
-  isBrowserMinimized,
-  onBrowserMinimizeToggle,
   onBrowserClose,
   conversationId,
 }: RightSidePanelProps) {
@@ -116,7 +113,7 @@ export function RightSidePanel({
         <div
           className="min-h-0 overflow-hidden"
           style={{
-            flex: isBrowserOpen && !isBrowserMinimized ? "1 1 50%" : "1 1 100%",
+            height: isBrowserOpen ? "50%" : "100%",
           }}
         >
           <ConversationArtifactPanel
@@ -133,22 +130,15 @@ export function RightSidePanel({
         <div
           className="flex-shrink-0"
           style={{
-            height: isBrowserMinimized ? 40 : undefined,
-            flex:
-              !isBrowserMinimized && isArtifactOpen
-                ? "1 1 50%"
-                : !isBrowserMinimized
-                  ? "1 1 100%"
-                  : undefined,
+            height: "50%",
           }}
         >
           <BrowserPanel
             isOpen={isBrowserOpen}
             onClose={onBrowserClose}
             conversationId={conversationId}
-            isMinimized={isBrowserMinimized}
-            onMinimizeToggle={onBrowserMinimizeToggle}
           />
+          {!isArtifactOpen && <Divider className="mt-2" />}
         </div>
       )}
     </div>
