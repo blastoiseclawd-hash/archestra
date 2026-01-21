@@ -44,11 +44,6 @@ interface CohereToolMessage {
 }
 
 type CohereTextContent = { type: "text"; text: string };
-type CohereMessage =
-  | CohereUserMessage
-  | CohereAssistantMessage
-  | CohereToolMessage
-  | { role: "system"; content: string };
 
 // =============================================================================
 // Cohere Interaction Utilities Implementation
