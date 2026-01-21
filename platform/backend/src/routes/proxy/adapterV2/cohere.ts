@@ -19,10 +19,10 @@ import type {
   LLMResponseAdapter,
   LLMStreamAdapter,
   StreamAccumulatorState,
-  ToonCompressionResult,
+  ToolCompressionStats,
   UsageView,
 } from "@/types";
-import type { CompressionStats } from "../utils/toon-conversion";
+import type { ToolCompressionStats as CompressionStats } from "../utils/toon-conversion";
 import { unwrapToolContent } from "../utils/unwrap-tool-content";
 
 // =============================================================================
@@ -143,18 +143,14 @@ class CohereRequestAdapter
     Object.assign(this.toolResultUpdates, updates);
   }
 
-  async applyToonCompression(model: string): Promise<ToonCompressionResult> {
+  async applyToonCompression(model: string): Promise<ToolCompressionStats> {
     const { messages: compressedMessages, stats } =
       await convertToolResultsToToon(this.request.messages, model);
     this.request = {
       ...this.request,
       messages: compressedMessages,
     };
-    return {
-      tokensBefore: stats.toonTokensBefore,
-      tokensAfter: stats.toonTokensAfter,
-      costSavings: stats.toonCostSavings,
-    };
+    return stats;
   }
 
   convertToolResultContent(messages: CohereMessages): CohereMessages {
@@ -800,9 +796,11 @@ export async function convertToolResultsToToon(
   return {
     messages: result,
     stats: {
-      toonTokensBefore: totalTokensBefore,
-      toonTokensAfter: totalTokensAfter,
-      toonCostSavings: costSavings,
+      tokensBefore: totalTokensBefore,
+      tokensAfter: totalTokensAfter,
+      costSavings: costSavings,
+      wasEffective: totalTokensAfter < totalTokensBefore,
+      hadToolResults: totalTokensBefore > 0,
     },
   };
 }
