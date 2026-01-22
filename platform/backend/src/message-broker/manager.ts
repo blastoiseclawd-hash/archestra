@@ -1,4 +1,4 @@
-import config, { type MessageBrokerConfig } from "@/config";
+import config from "@/config";
 import logger from "@/logging";
 import { initializeMessageBrokerMetrics } from "@/metrics";
 import type {
@@ -28,7 +28,7 @@ import type {
  */
 class MessageBrokerManager {
   private provider: MessageBrokerProvider | null = null;
-  private config: MessageBrokerConfig;
+  private config: typeof config.messageBroker;
   private initialized = false;
 
   constructor() {
@@ -52,7 +52,7 @@ class MessageBrokerManager {
   /**
    * Get the worker configuration
    */
-  get workerConfig(): MessageBrokerConfig["worker"] {
+  get workerConfig(): typeof config.messageBroker.worker {
     return this.config.worker;
   }
 

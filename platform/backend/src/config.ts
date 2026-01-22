@@ -236,47 +236,9 @@ const parseKnowledgeGraphProvider = ():
 };
 
 /**
- * Message Broker configuration
- */
-export interface MessageBrokerConfig {
-  /** Type of broker to use (or undefined if disabled) */
-  type: MessageBrokerType | undefined;
-
-  /** Kafka-specific configuration */
-  kafka: {
-    brokers: string[];
-    clientId: string;
-    groupId: string;
-    topic: string;
-    dlqTopic: string;
-  };
-
-  /** Redis Streams configuration */
-  redis: {
-    url: string;
-    stream: string;
-    consumerGroup: string;
-  };
-
-  /** RabbitMQ configuration */
-  rabbitmq: {
-    url: string;
-    queue: string;
-    dlq: string;
-  };
-
-  /** Worker configuration */
-  worker: {
-    concurrency: number;
-    maxRetries: number;
-    retryDelayMs: number;
-  };
-}
-
-/**
  * Parse message broker configuration from environment variables
  */
-const parseMessageBrokerConfig = (): MessageBrokerConfig => {
+const parseMessageBrokerConfig = () => {
   const brokerType = process.env.ARCHESTRA_MESSAGE_BROKER?.toLowerCase();
   const result = MessageBrokerTypeSchema.safeParse(brokerType);
 
