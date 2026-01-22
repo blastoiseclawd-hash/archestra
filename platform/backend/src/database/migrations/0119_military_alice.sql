@@ -51,6 +51,7 @@ UPDATE "agents" SET "organization_id" = (
 -- 2.2 INSERT new agents from prompts (prompts become their own agents)
 -- Each prompt becomes a NEW agent with agent_type='agent'
 -- We use the prompt's ID as the new agent's ID to preserve relationships
+-- If a prompt has the same name as an existing agent, append " (Agent)" suffix
 INSERT INTO "agents" (
   "id",
   "organization_id",
@@ -67,7 +68,15 @@ INSERT INTO "agents" (
 SELECT
   p."id",                    -- Use prompt ID as agent ID
   p."organization_id",
-  p."name",                  -- Prompt has its own name
+  CASE
+    WHEN EXISTS (
+      SELECT 1 FROM "agents" a
+      WHERE a."organization_id" = p."organization_id"
+      AND a."name" = p."name"
+    )
+    THEN p."name" || ' (Agent)'
+    ELSE p."name"
+  END,                       -- Handle name conflicts
   'agent',                   -- Mark as internal agent
   p."system_prompt",
   p."user_prompt",
