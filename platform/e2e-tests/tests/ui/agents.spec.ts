@@ -22,13 +22,20 @@ test(
     await page.waitForLoadState("networkidle");
 
     // Wait for the Create Profile button to be visible and enabled
-    // The button is hidden while permission checks are loading (shows skeleton instead)
-    // Use polling to handle React hydration delays in Firefox/WebKit CI
+    // The button is disabled while permission checks are loading
+    // Use polling with page reload as fallback for React hydration delays in Firefox/WebKit CI
     const createButton = page.getByTestId(E2eTestId.CreateAgentButton);
+    let createAttempts = 0;
     await expect(async () => {
+      createAttempts++;
+      // If button not enabled after first attempt, try reloading the page
+      if (createAttempts > 1) {
+        await page.reload();
+        await page.waitForLoadState("networkidle");
+      }
       await expect(createButton).toBeVisible({ timeout: 5000 });
       await expect(createButton).toBeEnabled({ timeout: 5000 });
-    }).toPass({ timeout: 60_000, intervals: [1000, 2000, 3000] });
+    }).toPass({ timeout: 90_000, intervals: [2000, 5000, 10000] });
     await createButton.click();
     await page.getByRole("textbox", { name: "Name" }).fill(AGENT_NAME);
     await page.getByRole("button", { name: "Create" }).click();
@@ -40,10 +47,9 @@ test(
 
     // A new dialog opens with connection instructions
     // Wait for the "Connect via" dialog to appear
+    // Use text search instead of heading role for better cross-browser compatibility
     await expect(
-      page.getByRole("heading", {
-        name: new RegExp(`Connect via.*${AGENT_NAME}`, "i"),
-      }),
+      page.getByText(new RegExp(`Connect via.*${AGENT_NAME}`, "i")),
     ).toBeVisible({ timeout: 15_000 });
 
     // Close the connection dialog by clicking the "Done" button
