@@ -21,7 +21,10 @@ test.describe(
 
       // First wait for the "Members" card title to appear (indicates page loaded)
       // This is from better-auth-ui's OrganizationMembersCard
-      await expect(page.getByText("Members")).toBeVisible({ timeout: 15_000 });
+      // Use a more specific selector to avoid matching the navigation link and descriptions
+      await expect(
+        page.locator('[data-slot="card-title"]', { hasText: "Members" }),
+      ).toBeVisible({ timeout: 15_000 });
 
       // Wait for the "Invite Member" button to be visible before clicking
       // Firefox/WebKit may take longer to render buttons in CI environments
@@ -38,7 +41,9 @@ test.describe(
           await page.reload();
           await page.waitForLoadState("networkidle");
           // Wait for Members card to appear again after reload
-          await expect(page.getByText("Members")).toBeVisible({ timeout: 10_000 });
+          await expect(
+            page.locator('[data-slot="card-title"]', { hasText: "Members" }),
+          ).toBeVisible({ timeout: 10_000 });
         }
         await expect(inviteButton).toBeVisible({ timeout: 5000 });
         await expect(inviteButton).toBeEnabled({ timeout: 5000 });
@@ -82,7 +87,10 @@ test.describe(
 
       // First wait for the "Members" card title to appear (indicates page loaded)
       // This is from better-auth-ui's OrganizationMembersCard
-      await expect(page.getByText("Members")).toBeVisible({ timeout: 15_000 });
+      // Use a more specific selector to avoid matching the navigation link and descriptions
+      await expect(
+        page.locator('[data-slot="card-title"]', { hasText: "Members" }),
+      ).toBeVisible({ timeout: 15_000 });
 
       // Wait for the "Invite Member" button to be visible before clicking
       // Firefox/WebKit may take longer to render buttons in CI environments
@@ -99,7 +107,9 @@ test.describe(
           await page.reload();
           await page.waitForLoadState("networkidle");
           // Wait for Members card to appear again after reload
-          await expect(page.getByText("Members")).toBeVisible({ timeout: 10_000 });
+          await expect(
+            page.locator('[data-slot="card-title"]', { hasText: "Members" }),
+          ).toBeVisible({ timeout: 10_000 });
         }
         await expect(inviteButton).toBeVisible({ timeout: 5000 });
         await expect(inviteButton).toBeEnabled({ timeout: 5000 });
