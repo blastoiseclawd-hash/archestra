@@ -122,39 +122,44 @@ ON CONFLICT ("agent_id", "tool_id") DO NOTHING;
 -- 2.4 Migrate prompt_agents to agent_tools with delegation tools
 -- prompt_agents linked prompts to other prompts for delegation
 -- Now we create delegation tools where the target is the prompt ID (which is now an agent ID)
+-- IMPORTANT: Only create delegation tools for agents (type='agent'), NOT for profiles (type='mcp_gateway')
 
 -- Step 1: Create delegation tools for each unique target prompt (now agent)
+-- Only create if the target was successfully converted to an agent (agent_type='agent')
 INSERT INTO "tools" ("id", "name", "description", "delegate_to_agent_id", "created_at", "updated_at", "parameters")
 SELECT
   gen_random_uuid(),
-  'agent__' || LOWER(REGEXP_REPLACE(target_prompt."name", '[^a-zA-Z0-9]+', '_', 'g')),
-  'Delegate task to agent: ' || target_prompt."name",
-  target_prompt."id",        -- Target prompt ID = target agent ID
+  'agent__' || LOWER(REGEXP_REPLACE(target_agent."name", '[^a-zA-Z0-9]+', '_', 'g')),
+  'Delegate task to agent: ' || target_agent."name",
+  target_agent."id",
   NOW(),
   NOW(),
   '{"type": "object", "properties": {"message": {"type": "string", "description": "The task or message to send to the agent"}}, "required": ["message"]}'::jsonb
 FROM (
-  SELECT DISTINCT p."id", p."name"
+  SELECT DISTINCT p."id"
   FROM "prompt_agents" pa
   JOIN "prompts" p ON pa."agent_prompt_id" = p."id"
 ) target_prompt
+JOIN "agents" target_agent ON target_agent."id" = target_prompt."id" AND target_agent."agent_type" = 'agent'
 WHERE NOT EXISTS (
-  SELECT 1 FROM "tools" t WHERE t."delegate_to_agent_id" = target_prompt."id"
+  SELECT 1 FROM "tools" t WHERE t."delegate_to_agent_id" = target_agent."id"
 );
 
 --> statement-breakpoint
 
 -- Step 2: Create agent_tools assignments for delegation tools
+-- Only assign to agents (type='agent'), NOT to profiles (type='mcp_gateway')
 INSERT INTO "agent_tools" ("id", "agent_id", "tool_id", "created_at", "updated_at")
 SELECT
   gen_random_uuid(),
-  source_prompt."id",        -- Source prompt ID = source agent ID
+  source_agent."id",
   t."id",
   NOW(),
   NOW()
 FROM "prompt_agents" pa
 JOIN "prompts" source_prompt ON pa."prompt_id" = source_prompt."id"
 JOIN "prompts" target_prompt ON pa."agent_prompt_id" = target_prompt."id"
+JOIN "agents" source_agent ON source_agent."id" = source_prompt."id" AND source_agent."agent_type" = 'agent'
 JOIN "tools" t ON t."delegate_to_agent_id" = target_prompt."id"
 ON CONFLICT ("agent_id", "tool_id") DO NOTHING;
 
