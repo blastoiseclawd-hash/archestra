@@ -816,3 +816,89 @@ These environment variables configure the Knowledge Graph feature, which automat
 
   - Optional: Only required if your LightRAG server is configured with authentication
   - Note: Keep this value secure; do not commit to version control
+
+### Message Broker Configuration
+
+These environment variables configure the optional message broker for high-load, durable event handling. When configured, agent invocations via Email and ChatOps (MS Teams) are processed asynchronously through the message broker instead of synchronously.
+
+- **`ARCHESTRA_MESSAGE_BROKER`** - Message broker type to use.
+
+  - Default: Not set (sync mode - invocations processed immediately)
+  - Options: `kafka`, `redis`, `rabbitmq`
+  - When set, enables async processing for Email and ChatOps agent invocations
+
+#### Kafka Configuration
+
+Required when `ARCHESTRA_MESSAGE_BROKER=kafka`:
+
+- **`ARCHESTRA_MESSAGE_BROKER_KAFKA_BROKERS`** - Comma-separated list of Kafka broker addresses.
+
+  - Default: `localhost:9092`
+  - Example: `kafka1:9092,kafka2:9092,kafka3:9092`
+
+- **`ARCHESTRA_MESSAGE_BROKER_KAFKA_CLIENT_ID`** - Kafka client identifier.
+
+  - Default: `archestra`
+
+- **`ARCHESTRA_MESSAGE_BROKER_KAFKA_GROUP_ID`** - Consumer group ID for coordinating workers.
+
+  - Default: `archestra-workers`
+
+- **`ARCHESTRA_MESSAGE_BROKER_KAFKA_TOPIC`** - Topic name for agent invocation events.
+
+  - Default: `agent-invocations`
+
+- **`ARCHESTRA_MESSAGE_BROKER_KAFKA_DLQ_TOPIC`** - Dead letter queue topic for failed events.
+
+  - Default: `agent-invocations-dlq`
+
+#### Redis Streams Configuration
+
+Required when `ARCHESTRA_MESSAGE_BROKER=redis`:
+
+- **`ARCHESTRA_MESSAGE_BROKER_REDIS_URL`** - Redis connection URL.
+
+  - Default: `redis://localhost:6379`
+  - Example: `redis://user:password@redis-host:6379`
+
+- **`ARCHESTRA_MESSAGE_BROKER_REDIS_STREAM`** - Stream name for agent invocation events.
+
+  - Default: `agent-invocations`
+
+- **`ARCHESTRA_MESSAGE_BROKER_REDIS_CONSUMER_GROUP`** - Consumer group name for coordinating workers.
+
+  - Default: `archestra-workers`
+
+#### RabbitMQ Configuration
+
+Required when `ARCHESTRA_MESSAGE_BROKER=rabbitmq`:
+
+- **`ARCHESTRA_MESSAGE_BROKER_RABBITMQ_URL`** - RabbitMQ connection URL.
+
+  - Default: `amqp://localhost:5672`
+  - Example: `amqp://user:password@rabbitmq-host:5672`
+
+- **`ARCHESTRA_MESSAGE_BROKER_RABBITMQ_QUEUE`** - Queue name for agent invocation events.
+
+  - Default: `agent-invocations`
+
+- **`ARCHESTRA_MESSAGE_BROKER_RABBITMQ_DLQ`** - Dead letter queue name for failed events.
+
+  - Default: `agent-invocations-dlq`
+
+#### Worker Configuration
+
+These settings apply to all message broker types:
+
+- **`ARCHESTRA_MESSAGE_BROKER_WORKER_CONCURRENCY`** - Number of concurrent event processors.
+
+  - Default: `5`
+  - Increase for higher throughput, decrease for resource-constrained environments
+
+- **`ARCHESTRA_MESSAGE_BROKER_WORKER_MAX_RETRIES`** - Maximum retry attempts before sending to dead letter queue.
+
+  - Default: `3`
+
+- **`ARCHESTRA_MESSAGE_BROKER_WORKER_RETRY_DELAY_MS`** - Initial retry delay in milliseconds (uses exponential backoff).
+
+  - Default: `1000`

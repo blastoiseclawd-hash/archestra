@@ -1,5 +1,6 @@
 import { executeA2AMessage } from "@/agents/a2a-executor";
 import logger from "@/logging";
+import { invokeAgentAsync } from "@/message-broker";
 import {
   ChatOpsChannelBindingModel,
   ChatOpsProcessedMessageModel,
@@ -302,14 +303,59 @@ export class ChatOpsManager {
       fallbackMessage,
     } = params;
 
+    const userId = `chatops-${provider.providerId}-${message.senderId}`;
+
     try {
-      const result = await executeA2AMessage({
-        promptId: prompt.id,
+      // Use invokeAgentAsync - handles async/sync mode automatically
+      const invokeResult = await invokeAgentAsync({
+        channel: "chatops",
+        agentId: prompt.id,
         organizationId: binding.organizationId,
-        message: fullMessage,
-        userId: `chatops-${provider.providerId}-${message.senderId}`,
+        userId,
+        payload: {
+          message: fullMessage,
+          conversationId: message.threadId,
+        },
+        replyContext: {
+          provider: provider.providerId,
+          channelId: message.channelId,
+          workspaceId: message.workspaceId,
+          threadId: message.threadId,
+          messageId: message.messageId,
+          senderId: message.senderId,
+          senderName: message.senderName,
+          conversationReference: message.metadata?.conversationReference,
+        },
+        metadata: {
+          receivedAt: new Date().toISOString(),
+        },
+        // Sync fallback when broker is not enabled
+        syncHandler: async () => {
+          const result = await executeA2AMessage({
+            promptId: prompt.id,
+            organizationId: binding.organizationId,
+            message: fullMessage,
+            userId,
+          });
+          return result;
+        },
       });
 
+      // If async, the worker will handle the reply
+      if (invokeResult.async) {
+        logger.info(
+          { messageId: message.messageId, eventId: invokeResult.eventId },
+          "[ChatOps] Message queued for async processing",
+        );
+        return {
+          success: true,
+          agentResponse: undefined,
+          interactionId: invokeResult.eventId,
+        };
+      }
+
+      // Sync mode - send reply immediately
+      const result = invokeResult.result;
       const agentResponse = result.text || "";
 
       if (sendReply && agentResponse) {

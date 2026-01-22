@@ -52,6 +52,7 @@ import {
 import { initializeMetrics } from "@/llm-metrics";
 import logger from "@/logging";
 import { McpServerRuntimeManager } from "@/mcp-server-runtime";
+import { messageBrokerManager, messageBrokerWorker } from "@/message-broker";
 import { enterpriseLicenseMiddleware } from "@/middleware";
 import AgentLabelModel from "@/models/agent-label";
 import {
@@ -519,6 +520,16 @@ const start = async () => {
     // Start cache manager's background cleanup interval
     cacheManager.start();
 
+    // Initialize message broker (if configured)
+    await messageBrokerManager.initialize();
+    if (messageBrokerManager.isEnabled) {
+      await messageBrokerWorker.start();
+      logger.info(
+        { brokerType: messageBrokerManager.brokerType },
+        "Message broker worker started",
+      );
+    }
+
     // Initialize metrics with keys of custom agent labels
     const labelKeys = await AgentLabelModel.getAllKeys();
     initializeMetrics(labelKeys);
@@ -641,6 +652,10 @@ const start = async () => {
 
         // Stop cache manager's background cleanup
         cacheManager.shutdown();
+
+        // Stop message broker worker and manager
+        await messageBrokerWorker.stop();
+        await messageBrokerManager.shutdown();
 
         // Track which cleanup operations have completed
         const completedCleanups = new Set<

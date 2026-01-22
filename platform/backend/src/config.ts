@@ -13,6 +13,10 @@ import {
 import dotenv from "dotenv";
 import logger from "@/logging";
 import {
+  type MessageBrokerType,
+  MessageBrokerTypeSchema,
+} from "@/message-broker/types";
+import {
   type EmailProviderType,
   EmailProviderTypeSchema,
 } from "@/types/email-provider-type";
@@ -232,6 +236,111 @@ const parseKnowledgeGraphProvider = ():
 };
 
 /**
+ * Message Broker configuration
+ */
+export interface MessageBrokerConfig {
+  /** Type of broker to use (or undefined if disabled) */
+  type: MessageBrokerType | undefined;
+
+  /** Kafka-specific configuration */
+  kafka: {
+    brokers: string[];
+    clientId: string;
+    groupId: string;
+    topic: string;
+    dlqTopic: string;
+  };
+
+  /** Redis Streams configuration */
+  redis: {
+    url: string;
+    stream: string;
+    consumerGroup: string;
+  };
+
+  /** RabbitMQ configuration */
+  rabbitmq: {
+    url: string;
+    queue: string;
+    dlq: string;
+  };
+
+  /** Worker configuration */
+  worker: {
+    concurrency: number;
+    maxRetries: number;
+    retryDelayMs: number;
+  };
+}
+
+/**
+ * Parse message broker configuration from environment variables
+ */
+const parseMessageBrokerConfig = (): MessageBrokerConfig => {
+  const brokerType = process.env.ARCHESTRA_MESSAGE_BROKER?.toLowerCase();
+  const result = MessageBrokerTypeSchema.safeParse(brokerType);
+
+  return {
+    type: result.success ? result.data : undefined,
+
+    kafka: {
+      brokers: (
+        process.env.ARCHESTRA_MESSAGE_BROKER_KAFKA_BROKERS ?? "localhost:9092"
+      ).split(","),
+      clientId:
+        process.env.ARCHESTRA_MESSAGE_BROKER_KAFKA_CLIENT_ID ?? "archestra",
+      groupId:
+        process.env.ARCHESTRA_MESSAGE_BROKER_KAFKA_GROUP_ID ??
+        "archestra-workers",
+      topic:
+        process.env.ARCHESTRA_MESSAGE_BROKER_KAFKA_TOPIC ?? "agent-invocations",
+      dlqTopic:
+        process.env.ARCHESTRA_MESSAGE_BROKER_KAFKA_DLQ_TOPIC ??
+        "agent-invocations-dlq",
+    },
+
+    redis: {
+      url:
+        process.env.ARCHESTRA_MESSAGE_BROKER_REDIS_URL ??
+        "redis://localhost:6379",
+      stream:
+        process.env.ARCHESTRA_MESSAGE_BROKER_REDIS_STREAM ??
+        "agent-invocations",
+      consumerGroup:
+        process.env.ARCHESTRA_MESSAGE_BROKER_REDIS_CONSUMER_GROUP ??
+        "archestra-workers",
+    },
+
+    rabbitmq: {
+      url:
+        process.env.ARCHESTRA_MESSAGE_BROKER_RABBITMQ_URL ??
+        "amqp://localhost:5672",
+      queue:
+        process.env.ARCHESTRA_MESSAGE_BROKER_RABBITMQ_QUEUE ??
+        "agent-invocations",
+      dlq:
+        process.env.ARCHESTRA_MESSAGE_BROKER_RABBITMQ_DLQ ??
+        "agent-invocations-dlq",
+    },
+
+    worker: {
+      concurrency: Number.parseInt(
+        process.env.ARCHESTRA_MESSAGE_BROKER_WORKER_CONCURRENCY ?? "5",
+        10,
+      ),
+      maxRetries: Number.parseInt(
+        process.env.ARCHESTRA_MESSAGE_BROKER_WORKER_MAX_RETRIES ?? "3",
+        10,
+      ),
+      retryDelayMs: Number.parseInt(
+        process.env.ARCHESTRA_MESSAGE_BROKER_WORKER_RETRY_DELAY_MS ?? "1000",
+        10,
+      ),
+    },
+  };
+};
+
+/**
  * Parse body limit from environment variable.
  * Supports numeric bytes (e.g., "52428800") or human-readable format (e.g., "50MB", "100KB").
  */
@@ -392,6 +501,7 @@ export default {
       },
     },
   },
+  messageBroker: parseMessageBrokerConfig(),
   knowledgeGraph: {
     provider: parseKnowledgeGraphProvider(),
     lightrag: {

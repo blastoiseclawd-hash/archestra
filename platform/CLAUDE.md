@@ -198,13 +198,39 @@ ARCHESTRA_HASHICORP_VAULT_AWS_IAM_SERVER_ID=  # Optional: Value for X-Vault-AWS-
 # Sentry Error Tracking (optional - leave empty to disable)
 ARCHESTRA_SENTRY_BACKEND_DSN=  # Backend error tracking DSN
 ARCHESTRA_SENTRY_FRONTEND_DSN=  # Frontend error tracking DSN
+
+# Message Broker Configuration (optional - sync mode when not set)
+# Enables async event processing for Email and ChatOps (MS Teams) agent invocations
+ARCHESTRA_MESSAGE_BROKER=kafka  # Options: kafka, redis, rabbitmq (not set = sync mode)
+
+# Kafka Configuration (when ARCHESTRA_MESSAGE_BROKER=kafka)
+ARCHESTRA_MESSAGE_BROKER_KAFKA_BROKERS=localhost:9092  # Comma-separated list of brokers
+ARCHESTRA_MESSAGE_BROKER_KAFKA_CLIENT_ID=archestra  # Kafka client ID
+ARCHESTRA_MESSAGE_BROKER_KAFKA_GROUP_ID=archestra-workers  # Consumer group ID
+ARCHESTRA_MESSAGE_BROKER_KAFKA_TOPIC=agent-invocations  # Topic for agent invocation events
+ARCHESTRA_MESSAGE_BROKER_KAFKA_DLQ_TOPIC=agent-invocations-dlq  # Dead letter queue topic
+
+# Redis Streams Configuration (when ARCHESTRA_MESSAGE_BROKER=redis)
+ARCHESTRA_MESSAGE_BROKER_REDIS_URL=redis://localhost:6379  # Redis connection URL
+ARCHESTRA_MESSAGE_BROKER_REDIS_STREAM=agent-invocations  # Stream name for events
+ARCHESTRA_MESSAGE_BROKER_REDIS_CONSUMER_GROUP=archestra-workers  # Consumer group name
+
+# RabbitMQ Configuration (when ARCHESTRA_MESSAGE_BROKER=rabbitmq)
+ARCHESTRA_MESSAGE_BROKER_RABBITMQ_URL=amqp://localhost:5672  # RabbitMQ connection URL
+ARCHESTRA_MESSAGE_BROKER_RABBITMQ_QUEUE=agent-invocations  # Queue name for events
+ARCHESTRA_MESSAGE_BROKER_RABBITMQ_DLQ=agent-invocations-dlq  # Dead letter queue name
+
+# Worker Settings (applies to all broker types)
+ARCHESTRA_MESSAGE_BROKER_WORKER_CONCURRENCY=5  # Number of concurrent event processors
+ARCHESTRA_MESSAGE_BROKER_WORKER_MAX_RETRIES=3  # Max retry attempts before sending to DLQ
+ARCHESTRA_MESSAGE_BROKER_WORKER_RETRY_DELAY_MS=1000  # Initial retry delay (exponential backoff)
 ```
 
 ## Architecture
 
 **Tech Stack**: pnpm monorepo, Fastify backend (port 9000), metrics server (port 9050), Next.js frontend (port 3000), PostgreSQL + Drizzle ORM, Biome linting, Tilt orchestration, Kubernetes for MCP server runtime
 
-**Key Features**: MCP tool execution, dual LLM security pattern, tool invocation policies, trusted data policies, MCP response modifiers (Handlebars.js), team-based access control (profiles and MCP servers), MCP server installation request workflow, K8s-based MCP server runtime with stdio and streamable-http transport support, white-labeling (themes, logos, fonts), profile-based chat with MCP tools, comprehensive built-in Archestra MCP tools, profile chat visibility control, TOON format conversion for efficient token usage
+**Key Features**: MCP tool execution, dual LLM security pattern, tool invocation policies, trusted data policies, MCP response modifiers (Handlebars.js), team-based access control (profiles and MCP servers), MCP server installation request workflow, K8s-based MCP server runtime with stdio and streamable-http transport support, white-labeling (themes, logos, fonts), profile-based chat with MCP tools, comprehensive built-in Archestra MCP tools, profile chat visibility control, TOON format conversion for efficient token usage, pluggable message broker for async agent invocations
 
 **Workspaces**:
 
@@ -504,6 +530,24 @@ pnpm rebuild <package-name>  # Enable scripts for specific package
 - Tool execution: Routes through MCP Gateway, includes response modifiers and logging
 - No manual configuration: Deprecated `ARCHESTRA_CHAT_MCP_SERVER_URL` and `ARCHESTRA_CHAT_MCP_SERVER_HEADERS`
 - Required env var: `ARCHESTRA_CHAT_ANTHROPIC_API_KEY` (used by LLM Proxy for Anthropic calls)
+
+**Message Broker (Async Agent Invocations)**:
+
+- Pluggable message broker for high-load, durable event handling via Email and MS Teams
+- Supports Kafka (KafkaJS), Redis Streams (ioredis), and RabbitMQ (amqplib)
+- When not configured, endpoints operate in sync mode (backwards compatible)
+- A2A/webhook endpoint remains synchronous per A2A protocol specification
+- Uses `invokeAgentAsync()` utility for automatic async/sync mode switching
+- Worker system processes events and routes responses back to correct channel
+- Dead letter queue (DLQ) support for failed events after max retries
+- Lazy loading of broker client libraries to avoid loading unused dependencies
+- Implementation: `backend/src/message-broker/`
+- Key files:
+  - `types.ts` - Event schemas, provider interface
+  - `manager.ts` - Singleton manager with provider selection
+  - `invoke.ts` - Unified `invokeAgentAsync()` utility
+  - `worker.ts` - Event processor and response router
+  - `providers/` - Kafka, Redis, RabbitMQ implementations
 
 **Archestra MCP Server**:
 

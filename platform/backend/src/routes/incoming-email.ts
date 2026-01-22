@@ -5,11 +5,13 @@ import {
   getEmailProvider,
   getSubscriptionStatus,
   type OutlookEmailProvider,
+  prepareEmailForAsyncInvocation,
   processIncomingEmail,
 } from "@/agents/incoming-email";
 import { isRateLimited } from "@/agents/utils";
 import { type AllowedCacheKey, CacheKey } from "@/cache-manager";
 import logger from "@/logging";
+import { invokeAgentAsync } from "@/message-broker";
 import { PromptModel } from "@/models";
 import {
   ApiError,
@@ -161,14 +163,53 @@ const incomingEmailRoutes: FastifyPluginAsyncZod = async (fastify) => {
         });
       }
 
-      // Process each email
+      // Process each email (supports async mode when message broker is enabled)
       let processed = 0;
+      let asyncCount = 0;
       let errors = 0;
 
       for (const email of emails) {
         try {
-          await processIncomingEmail(email, provider, { sendReply: true });
+          // Prepare the email for invocation (validates and extracts data)
+          const prepared = await prepareEmailForAsyncInvocation(
+            email,
+            provider,
+          );
+
+          // Skip if email was already processed (deduplication)
+          if (!prepared) {
+            continue;
+          }
+
+          // Use invokeAgentAsync - handles async/sync mode automatically
+          const result = await invokeAgentAsync({
+            channel: "email",
+            agentId: prepared.promptId,
+            organizationId: prepared.organizationId,
+            userId: prepared.userId,
+            payload: {
+              message: prepared.message,
+              conversationId: prepared.replyContext.conversationId,
+            },
+            replyContext: prepared.replyContext,
+            metadata: {
+              receivedAt: new Date().toISOString(),
+              sourceIp: request.ip,
+              userAgent: request.headers["user-agent"],
+            },
+            // Sync fallback when broker is not enabled
+            syncHandler: () =>
+              processIncomingEmail(email, provider, { sendReply: true }),
+          });
+
           processed++;
+          if (result.async) {
+            asyncCount++;
+            logger.info(
+              { messageId: email.messageId, eventId: result.eventId },
+              "[IncomingEmail] Email queued for async processing",
+            );
+          }
         } catch (error) {
           errors++;
           logger.error(
@@ -184,7 +225,7 @@ const incomingEmailRoutes: FastifyPluginAsyncZod = async (fastify) => {
       }
 
       logger.info(
-        { processed, errors, total: emails.length },
+        { processed, asyncCount, errors, total: emails.length },
         "[IncomingEmail] Finished processing webhook notification",
       );
 

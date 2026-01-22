@@ -458,6 +458,260 @@ export interface ProcessIncomingEmailOptions {
 }
 
 /**
+ * Prepared email invocation data for async processing
+ */
+export interface PreparedEmailInvocation {
+  promptId: string;
+  organizationId: string;
+  userId: string;
+  message: string;
+  replyContext: {
+    emailId: string;
+    from: string;
+    to: string;
+    subject: string;
+    conversationId?: string;
+    providerId: string;
+  };
+}
+
+/**
+ * Prepare an email for async invocation.
+ * Performs validation and returns the data needed to invoke the agent.
+ * Use this for async mode where the actual execution happens in a worker.
+ *
+ * @param email - The incoming email
+ * @param provider - The email provider instance
+ * @returns Prepared invocation data, or null if email should be skipped
+ * @throws Error if validation fails
+ */
+export async function prepareEmailForAsyncInvocation(
+  email: IncomingEmail,
+  provider: AgentIncomingEmailProvider | null,
+): Promise<PreparedEmailInvocation | null> {
+  if (!provider) {
+    throw new Error("No email provider configured");
+  }
+
+  // Atomic deduplication
+  const isFirstToProcess = await tryMarkEmailAsProcessed(email.messageId);
+  if (!isFirstToProcess) {
+    logger.info(
+      { messageId: email.messageId },
+      "[IncomingEmail] Skipping duplicate email (already processed by another pod)",
+    );
+    return null;
+  }
+
+  logger.info(
+    {
+      messageId: email.messageId,
+      toAddress: email.toAddress,
+      fromAddress: email.fromAddress,
+      subject: email.subject,
+    },
+    "[IncomingEmail] Preparing email for async invocation",
+  );
+
+  // Extract promptId from the email address
+  let promptId: string | null = null;
+
+  if (provider.providerId === "outlook") {
+    const outlookProvider = provider as OutlookEmailProvider;
+    promptId = outlookProvider.extractPromptIdFromEmail(email.toAddress);
+  }
+
+  if (!promptId) {
+    throw new Error(
+      `Could not extract promptId from email address: ${email.toAddress}`,
+    );
+  }
+
+  // Get prompt
+  const prompt = await PromptModel.findById(promptId);
+  if (!prompt) {
+    throw new Error(`Prompt ${promptId} not found`);
+  }
+
+  // Check if incoming email is enabled
+  if (!prompt.incomingEmailEnabled) {
+    throw new Error(`Incoming email is not enabled for agent ${prompt.name}`);
+  }
+
+  // Validate security mode and determine userId
+  const userId = await validateEmailSecurityMode(email, prompt);
+
+  // Get organization
+  const agentTeamIds = await AgentTeamModel.getTeamsForAgent(prompt.agentId);
+  if (agentTeamIds.length === 0) {
+    throw new Error(`No teams found for agent ${prompt.agentId}`);
+  }
+
+  const teams = await TeamModel.findByIds(agentTeamIds);
+  if (teams.length === 0 || !teams[0].organizationId) {
+    throw new Error(`No organization found for agent ${prompt.agentId}`);
+  }
+  const organizationId = teams[0].organizationId;
+
+  // Build message with conversation history
+  let message = await buildEmailMessage(email, provider);
+
+  // Truncate if needed
+  if (Buffer.byteLength(message, "utf8") > MAX_EMAIL_BODY_SIZE) {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder("utf8", { fatal: false });
+    const encoded = encoder.encode(message);
+    const truncated = decoder.decode(encoded.slice(0, MAX_EMAIL_BODY_SIZE));
+    message = `${truncated}\n\n[Message truncated - original size exceeded ${
+      MAX_EMAIL_BODY_SIZE / 1024
+    }KB limit]`;
+  }
+
+  return {
+    promptId,
+    organizationId,
+    userId,
+    message,
+    replyContext: {
+      emailId: email.messageId,
+      from: email.fromAddress,
+      to: email.toAddress,
+      subject: email.subject,
+      conversationId: email.conversationId,
+      providerId: provider.providerId,
+    },
+  };
+}
+
+/**
+ * Validate email security mode and return the userId
+ */
+async function validateEmailSecurityMode(
+  email: IncomingEmail,
+  prompt: {
+    agentId: string;
+    organizationId: string;
+    name: string;
+    incomingEmailSecurityMode: string;
+    incomingEmailAllowedDomain: string | null;
+  },
+): Promise<string> {
+  const securityMode = prompt.incomingEmailSecurityMode;
+  const senderEmail = email.fromAddress.toLowerCase();
+
+  switch (securityMode) {
+    case "private": {
+      const user = await UserModel.findByEmail(senderEmail);
+      if (!user) {
+        throw new Error(
+          `Unauthorized: email sender ${senderEmail} is not a registered Archestra user`,
+        );
+      }
+
+      const isProfileAdmin = await userHasPermission(
+        user.id,
+        prompt.organizationId,
+        "profile",
+        "admin",
+      );
+
+      const hasAccess = await AgentTeamModel.userHasAgentAccess(
+        user.id,
+        prompt.agentId,
+        isProfileAdmin,
+      );
+
+      if (!hasAccess) {
+        throw new Error(
+          `Unauthorized: user ${senderEmail} does not have access to this agent`,
+        );
+      }
+
+      return user.id;
+    }
+
+    case "internal": {
+      const allowedDomain = prompt.incomingEmailAllowedDomain?.toLowerCase();
+      if (!allowedDomain) {
+        throw new Error(
+          `Internal mode is configured but no allowed domain is set for agent ${prompt.name}`,
+        );
+      }
+
+      const senderDomain = senderEmail.split("@")[1];
+      if (!senderDomain || senderDomain !== allowedDomain) {
+        throw new Error(
+          `Unauthorized: emails from domain ${senderDomain} are not allowed for this agent. Only @${allowedDomain} is permitted.`,
+        );
+      }
+
+      return "system";
+    }
+
+    case "public":
+      return "system";
+
+    default:
+      throw new Error(
+        `Unknown security mode: ${securityMode}. Email rejected for security.`,
+      );
+  }
+}
+
+/**
+ * Build the message content including conversation history
+ */
+async function buildEmailMessage(
+  email: IncomingEmail,
+  provider: AgentIncomingEmailProvider,
+): Promise<string> {
+  let conversationContext = "";
+
+  if (email.conversationId && provider.getConversationHistory) {
+    try {
+      const history = await provider.getConversationHistory(
+        email.conversationId,
+        email.messageId,
+      );
+
+      if (history.length > 0) {
+        const formattedHistory = history
+          .map((msg) => {
+            const role = msg.isAgentMessage ? "You (Agent)" : "User";
+            const name = msg.fromName ? ` (${msg.fromName})` : "";
+            return `[${role}${name}]: ${msg.body.trim()}`;
+          })
+          .join("\n\n---\n\n");
+
+        conversationContext = `<conversation_history>
+The following is the previous conversation in this email thread. Use this context to understand the full conversation.
+
+${formattedHistory}
+</conversation_history>
+
+`;
+      }
+    } catch (error) {
+      logger.warn(
+        {
+          messageId: email.messageId,
+          conversationId: email.conversationId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "[IncomingEmail] Failed to fetch conversation history, continuing without it",
+      );
+    }
+  }
+
+  const currentMessage =
+    email.body.trim() || email.subject || "No message content";
+
+  return conversationContext
+    ? `${conversationContext}[Current message from user]: ${currentMessage}`
+    : currentMessage;
+}
+
+/**
  * Process an incoming email and invoke the appropriate agent
  * @param email - The incoming email to process
  * @param provider - The email provider instance
