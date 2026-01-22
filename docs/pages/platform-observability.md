@@ -47,6 +47,17 @@ The endpoint `http://localhost:9050/metrics` exposes Prometheus-formatted metric
 
 > **Note:** The `agent_id` label contains the external agent ID passed via the `X-Archestra-Agent-Id` header. This allows clients to associate metrics with their own agent identifiers. If the header is not provided, the label will be empty. Use `profile_id` and `profile_name` for the internal Archestra profile identifier.
 
+### Message Broker Metrics
+
+When the message broker is enabled (`ARCHESTRA_MESSAGE_BROKER` is configured), the following metrics are exposed:
+
+- `message_broker_events_processed_total` - Total events processed by the worker, labeled by channel (email/chatops) and status
+- `message_broker_events_failed_total` - Total events that failed processing, labeled by channel and error_type
+- `message_broker_events_dlq_total` - Total events sent to the dead letter queue, labeled by channel
+- `message_broker_event_duration_seconds` - Event processing duration histogram, labeled by channel
+- `message_broker_active_processing` - Current number of events being processed by workers
+- `message_broker_queue_depth` - Current queue depth (provider-specific), labeled by provider
+
 ### Process Metrics
 
 - `process_cpu_user_seconds_total` - CPU time in user mode
@@ -251,4 +262,36 @@ Here are some PromQL queries for Grafana charts to get you started:
 
   ```promql
   sum(rate(llm_tokens_per_second_sum[5m])) by (provider, model) / sum(rate(llm_tokens_per_second_count[5m])) by (provider, model)
+  ```
+
+### Message Broker Metrics
+
+- Events processed per second by channel:
+
+  ```promql
+  sum(rate(message_broker_events_processed_total[5m])) by (channel)
+  ```
+
+- Event processing duration p95 by channel:
+
+  ```promql
+  histogram_quantile(0.95, sum(rate(message_broker_event_duration_seconds_bucket[5m])) by (channel, le))
+  ```
+
+- Failed events rate by channel and error type:
+
+  ```promql
+  sum(rate(message_broker_events_failed_total[5m])) by (channel, error_type)
+  ```
+
+- Dead letter queue events by channel:
+
+  ```promql
+  sum(rate(message_broker_events_dlq_total[5m])) by (channel)
+  ```
+
+- Current active processing (gauge):
+
+  ```promql
+  message_broker_active_processing
   ```

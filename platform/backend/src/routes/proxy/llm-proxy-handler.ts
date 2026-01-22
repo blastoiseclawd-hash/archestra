@@ -8,14 +8,14 @@
 import type { FastifyReply } from "fastify";
 import config from "@/config";
 import getDefaultPricing from "@/default-model-prices";
+import logger from "@/logging";
 import {
   reportBlockedTools,
   reportLLMCost,
   reportLLMTokens,
   reportTimeToFirstToken,
   reportTokensPerSecond,
-} from "@/llm-metrics";
-import logger from "@/logging";
+} from "@/metrics";
 import {
   AgentModel,
   AgentTeamModel,

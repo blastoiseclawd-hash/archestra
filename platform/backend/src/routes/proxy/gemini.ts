@@ -18,6 +18,7 @@ import type { FastifyReply } from "fastify";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
 import getDefaultPricing from "@/default-model-prices";
+import logger from "@/logging";
 import {
   getObservableGenAI,
   reportBlockedTools,
@@ -25,8 +26,7 @@ import {
   reportLLMTokens,
   reportTimeToFirstToken,
   reportTokensPerSecond,
-} from "@/llm-metrics";
-import logger from "@/logging";
+} from "@/metrics";
 import {
   AgentModel,
   AgentTeamModel,

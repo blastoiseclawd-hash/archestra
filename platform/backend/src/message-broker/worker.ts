@@ -2,6 +2,12 @@ import { executeA2AMessage } from "@/agents/a2a-executor";
 import { chatOpsManager } from "@/agents/chatops/chatops-manager";
 import { getEmailProvider } from "@/agents/incoming-email";
 import logger from "@/logging";
+import {
+  reportEventFailed,
+  reportEventProcessed,
+  setActiveProcessing,
+  startEventTimer,
+} from "@/metrics";
 import { PromptModel } from "@/models";
 import { messageBrokerManager } from "./manager";
 import type {
@@ -145,6 +151,10 @@ class MessageBrokerWorker {
     }
 
     this.activeProcessing++;
+    setActiveProcessing(this.activeProcessing);
+
+    // Start timing the event processing
+    const stopTimer = startEventTimer(event.channel);
 
     try {
       logger.info(
@@ -165,6 +175,10 @@ class MessageBrokerWorker {
       // Acknowledge successful processing
       await messageBrokerManager.acknowledge(event.id);
 
+      // Record metrics
+      stopTimer();
+      reportEventProcessed(event.channel);
+
       logger.info(
         {
           eventId: event.id,
@@ -173,6 +187,9 @@ class MessageBrokerWorker {
         "[Worker] Event processed successfully",
       );
     } catch (error) {
+      const errorType =
+        error instanceof Error ? error.constructor.name : "UnknownError";
+
       logger.error(
         {
           eventId: event.id,
@@ -181,10 +198,16 @@ class MessageBrokerWorker {
         "[Worker] Event processing failed",
       );
 
+      // Record failure metrics
+      stopTimer();
+      reportEventFailed(event.channel, errorType);
+
       // Let the broker handle retry/DLQ
+      // DLQ metrics are reported by the broker when it moves events to DLQ
       await messageBrokerManager.reject(event.id, false);
     } finally {
       this.activeProcessing--;
+      setActiveProcessing(this.activeProcessing);
     }
   }
 

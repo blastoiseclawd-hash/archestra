@@ -41,7 +41,7 @@ vi.mock("prom-client", () => ({
 }));
 
 // Import after mock to ensure mock is applied
-import { initializeMetrics } from "@/llm-metrics";
+import { initializeMetrics } from "@/metrics";
 import anthropicProxyRoutesV2 from "./routesv2/anthropic";
 import geminiProxyRoutesV2 from "./routesv2/gemini";
 import openAiProxyRoutesV2 from "./routesv2/openai";

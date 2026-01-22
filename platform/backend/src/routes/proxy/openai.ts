@@ -16,6 +16,7 @@ import OpenAIProvider from "openai";
 import { z } from "zod";
 import config from "@/config";
 import getDefaultPricing from "@/default-model-prices";
+import logger from "@/logging";
 import {
   getObservableFetch,
   reportBlockedTools,
@@ -23,8 +24,7 @@ import {
   reportLLMTokens,
   reportTimeToFirstToken,
   reportTokensPerSecond,
-} from "@/llm-metrics";
-import logger from "@/logging";
+} from "@/metrics";
 import {
   AgentModel,
   AgentTeamModel,

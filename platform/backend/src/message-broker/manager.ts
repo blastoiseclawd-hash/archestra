@@ -1,5 +1,6 @@
 import config, { type MessageBrokerConfig } from "@/config";
 import logger from "@/logging";
+import { initializeMessageBrokerMetrics } from "@/metrics";
 import type {
   AgentInvocationEvent,
   EventHandler,
@@ -68,6 +69,9 @@ class MessageBrokerManager {
       logger.info("[MessageBroker] No broker configured, running in sync mode");
       return;
     }
+
+    // Initialize metrics (always, even if broker isn't enabled)
+    initializeMessageBrokerMetrics();
 
     logger.info(
       { brokerType: this.config.type },
