@@ -440,13 +440,6 @@
           "notNull": true,
           "default": false
         },
-        "is_internal": {
-          "name": "is_internal",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "system_prompt": {
           "name": "system_prompt",
           "type": "text",
@@ -493,6 +486,34 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "agent_type": {
+          "name": "agent_type",
+          "type": "agent_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'mcp_gateway'"
+        },
+        "incoming_email_enabled": {
+          "name": "incoming_email_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "incoming_email_security_mode": {
+          "name": "incoming_email_security_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'private'"
+        },
+        "incoming_email_allowed_domain": {
+          "name": "incoming_email_allowed_domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -511,11 +532,11 @@
           "method": "btree",
           "with": {}
         },
-        "agents_is_internal_idx": {
-          "name": "agents_is_internal_idx",
+        "agents_agent_type_idx": {
+          "name": "agents_agent_type_idx",
           "columns": [
             {
-              "expression": "is_internal",
+              "expression": "agent_type",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1623,6 +1644,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "baseline_model": {
+          "name": "baseline_model",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "input_tokens": {
           "name": "input_tokens",
           "type": "integer",
@@ -1662,6 +1689,12 @@
         "toon_cost_savings": {
           "name": "toon_cost_savings",
           "type": "numeric(13, 10)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "toon_skip_reason": {
+          "name": "toon_skip_reason",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -2657,6 +2690,19 @@
         "local_installation_error": {
           "name": "local_installation_error",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oauth_refresh_error": {
+          "name": "oauth_refresh_error",
+          "type": "oauth_refresh_error_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "oauth_refresh_failed_at": {
+          "name": "oauth_refresh_failed_at",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
@@ -5009,7 +5055,24 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.agent_type": {
+      "name": "agent_type",
+      "schema": "public",
+      "values": [
+        "mcp_gateway",
+        "agent"
+      ]
+    },
+    "public.oauth_refresh_error_enum": {
+      "name": "oauth_refresh_error_enum",
+      "schema": "public",
+      "values": [
+        "refresh_failed",
+        "no_refresh_token"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},
