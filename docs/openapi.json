@@ -43674,6 +43674,9 @@
                         "enabled"
                       ],
                       "additionalProperties": false
+                    },
+                    "mcpServerBaseImage": {
+                      "type": "string"
                     }
                   },
                   "required": [
@@ -43686,7 +43689,8 @@
                     "globalToolPolicy",
                     "browserStreamingEnabled",
                     "incomingEmail",
-                    "knowledgeGraph"
+                    "knowledgeGraph",
+                    "mcpServerBaseImage"
                   ],
                   "additionalProperties": false
                 }

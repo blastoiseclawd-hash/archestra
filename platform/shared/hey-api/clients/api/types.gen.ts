@@ -12560,6 +12560,7 @@ export type GetFeaturesResponses = {
             provider?: 'lightrag';
             displayName?: string;
         };
+        mcpServerBaseImage: string;
     };
 };
 
