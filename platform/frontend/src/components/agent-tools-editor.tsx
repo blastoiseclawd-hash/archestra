@@ -379,6 +379,7 @@ function McpServerPill({
   const hasAssignedTools = assignedTools.length > 0;
   const assignedCount = assignedTools.length;
   const totalCount = allTools.length;
+  const hasNoTools = totalCount === 0;
 
   // Show credential selector for non-builtin servers that have credentials available
   const showCredentialSelector =
@@ -396,9 +397,12 @@ function McpServerPill({
               ? selectedToolIds.size === 0
               : !hasAssignedTools) && "border-dashed",
             hasPendingChanges && "border-primary",
+            hasNoTools && "opacity-50 text-muted-foreground",
           )}
         >
-          <span className="font-medium">{catalogItem.name}</span>
+          <span className={cn("font-medium", hasNoTools && "font-normal")}>
+            {catalogItem.name}
+          </span>
           <span className="text-muted-foreground">
             ({hasPendingChanges ? selectedToolIds.size : assignedCount})
           </span>
