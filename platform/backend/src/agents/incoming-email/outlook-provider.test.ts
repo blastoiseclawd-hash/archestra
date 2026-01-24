@@ -1,6 +1,10 @@
 import { vi } from "vitest";
 import { describe, expect, test } from "@/test";
 import type { IncomingEmail } from "@/types";
+import {
+  MAX_ATTACHMENT_SIZE,
+  MAX_TOTAL_ATTACHMENTS_SIZE,
+} from "./constants";
 import { OutlookEmailProvider } from "./outlook-provider";
 
 const validConfig = {
@@ -820,6 +824,393 @@ describe("OutlookEmailProvider", () => {
       expect(result).toContain("> User's second message");
       expect(result).toContain("> Agent's first response");
       expect(result).toContain("> User's first message");
+    });
+  });
+
+  describe("getAttachments", () => {
+    const createMockGraphClient = () => ({
+      api: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      get: vi.fn(),
+    });
+
+    test("fetches attachments with content for message", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      // First call returns attachment list
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "document.pdf",
+            contentType: "application/pdf",
+            size: 1024,
+            isInline: false,
+            contentId: null,
+          },
+        ],
+      });
+
+      // Second call returns attachment with content
+      mockGraphClient.get.mockResolvedValueOnce({
+        id: "attachment-1",
+        name: "document.pdf",
+        contentType: "application/pdf",
+        size: 1024,
+        contentBytes: "SGVsbG8gV29ybGQh", // Base64 for "Hello World!"
+      });
+
+      const attachments = await provider.getAttachments("msg-123");
+
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0]).toEqual({
+        id: "attachment-1",
+        name: "document.pdf",
+        contentType: "application/pdf",
+        size: 1024,
+        isInline: false,
+        contentId: undefined,
+        contentBase64: "SGVsbG8gV29ybGQh",
+      });
+    });
+
+    test("handles multiple attachments", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      // First call returns attachment list
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "doc1.pdf",
+            contentType: "application/pdf",
+            size: 500,
+            isInline: false,
+          },
+          {
+            id: "attachment-2",
+            name: "image.png",
+            contentType: "image/png",
+            size: 800,
+            isInline: false,
+          },
+        ],
+      });
+
+      // Content fetch calls
+      mockGraphClient.get
+        .mockResolvedValueOnce({
+          id: "attachment-1",
+          contentBytes: "cGRmY29udGVudA==",
+        })
+        .mockResolvedValueOnce({
+          id: "attachment-2",
+          contentBytes: "aW1hZ2Vjb250ZW50",
+        });
+
+      const attachments = await provider.getAttachments("msg-123");
+
+      expect(attachments).toHaveLength(2);
+      expect(attachments[0].name).toBe("doc1.pdf");
+      expect(attachments[0].contentBase64).toBe("cGRmY29udGVudA==");
+      expect(attachments[1].name).toBe("image.png");
+      expect(attachments[1].contentBase64).toBe("aW1hZ2Vjb250ZW50");
+    });
+
+    test("returns empty array when no attachments", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [],
+      });
+
+      const attachments = await provider.getAttachments("msg-no-attachments");
+
+      expect(attachments).toEqual([]);
+    });
+
+    test("skips attachments exceeding single size limit", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      // Large attachment exceeding MAX_ATTACHMENT_SIZE
+      const largeSize = MAX_ATTACHMENT_SIZE + 1;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "large-attachment",
+            name: "huge-file.zip",
+            contentType: "application/zip",
+            size: largeSize,
+            isInline: false,
+          },
+        ],
+      });
+
+      const attachments = await provider.getAttachments("msg-large");
+
+      // Attachment should be in the list but without content
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("huge-file.zip");
+      expect(attachments[0].size).toBe(largeSize);
+      expect(attachments[0].contentBase64).toBeUndefined();
+    });
+
+    test("skips content fetch when total size exceeds limit", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      // Multiple attachments that together exceed MAX_TOTAL_ATTACHMENTS_SIZE
+      const attachmentSize = Math.floor(MAX_TOTAL_ATTACHMENTS_SIZE / 2) + 1000;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "file1.dat",
+            contentType: "application/octet-stream",
+            size: attachmentSize,
+            isInline: false,
+          },
+          {
+            id: "attachment-2",
+            name: "file2.dat",
+            contentType: "application/octet-stream",
+            size: attachmentSize, // This would push total over the limit
+            isInline: false,
+          },
+        ],
+      });
+
+      // First attachment content fetch
+      mockGraphClient.get.mockResolvedValueOnce({
+        id: "attachment-1",
+        contentBytes: "Zmlyc3RmaWxl",
+      });
+
+      const attachments = await provider.getAttachments("msg-many");
+
+      expect(attachments).toHaveLength(2);
+      // First attachment should have content
+      expect(attachments[0].contentBase64).toBe("Zmlyc3RmaWxl");
+      // Second attachment should NOT have content (exceeded total limit)
+      expect(attachments[1].contentBase64).toBeUndefined();
+    });
+
+    test("respects custom maxAttachmentSize option", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      const customMaxSize = 500;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "small.txt",
+            contentType: "text/plain",
+            size: 400,
+            isInline: false,
+          },
+          {
+            id: "attachment-2",
+            name: "medium.txt",
+            contentType: "text/plain",
+            size: 600, // Exceeds custom limit
+            isInline: false,
+          },
+        ],
+      });
+
+      // Only first attachment should fetch content
+      mockGraphClient.get.mockResolvedValueOnce({
+        id: "attachment-1",
+        contentBytes: "c21hbGw=",
+      });
+
+      const attachments = await provider.getAttachments("msg-custom-limit", {
+        maxAttachmentSize: customMaxSize,
+      });
+
+      expect(attachments).toHaveLength(2);
+      expect(attachments[0].contentBase64).toBe("c21hbGw=");
+      expect(attachments[1].contentBase64).toBeUndefined();
+    });
+
+    test("excludes inline attachments when includeInline is false", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "document.pdf",
+            contentType: "application/pdf",
+            size: 1024,
+            isInline: false,
+          },
+          {
+            id: "inline-image",
+            name: "logo.png",
+            contentType: "image/png",
+            size: 512,
+            isInline: true,
+            contentId: "logo@embedded",
+          },
+        ],
+      });
+
+      // Only non-inline attachment fetches content
+      mockGraphClient.get.mockResolvedValueOnce({
+        id: "attachment-1",
+        contentBytes: "ZG9jdW1lbnQ=",
+      });
+
+      const attachments = await provider.getAttachments("msg-inline", {
+        includeInline: false,
+      });
+
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("document.pdf");
+    });
+
+    test("includes inline attachments by default", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "document.pdf",
+            contentType: "application/pdf",
+            size: 1024,
+            isInline: false,
+          },
+          {
+            id: "inline-image",
+            name: "logo.png",
+            contentType: "image/png",
+            size: 512,
+            isInline: true,
+            contentId: "logo@embedded",
+          },
+        ],
+      });
+
+      // Both attachments fetch content
+      mockGraphClient.get
+        .mockResolvedValueOnce({
+          id: "attachment-1",
+          contentBytes: "ZG9jdW1lbnQ=",
+        })
+        .mockResolvedValueOnce({
+          id: "inline-image",
+          contentBytes: "bG9nb2ltYWdl",
+        });
+
+      const attachments = await provider.getAttachments("msg-default-inline");
+
+      expect(attachments).toHaveLength(2);
+      expect(attachments[0].name).toBe("document.pdf");
+      expect(attachments[1].name).toBe("logo.png");
+      expect(attachments[1].isInline).toBe(true);
+      expect(attachments[1].contentId).toBe("logo@embedded");
+    });
+
+    test("returns empty array on API error", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      mockGraphClient.get.mockRejectedValueOnce(new Error("API Error"));
+
+      const attachments = await provider.getAttachments("msg-error");
+
+      expect(attachments).toEqual([]);
+    });
+
+    test("continues with metadata if content fetch fails", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "attachment-1",
+            name: "file.pdf",
+            contentType: "application/pdf",
+            size: 1024,
+            isInline: false,
+          },
+        ],
+      });
+
+      // Content fetch fails
+      mockGraphClient.get.mockRejectedValueOnce(
+        new Error("Content fetch failed"),
+      );
+
+      const attachments = await provider.getAttachments("msg-partial-error");
+
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("file.pdf");
+      // Content should be undefined since fetch failed
+      expect(attachments[0].contentBase64).toBeUndefined();
+    });
+
+    test("handles missing attachment properties gracefully", async () => {
+      const mockGraphClient = createMockGraphClient();
+      const provider = new OutlookEmailProvider(validConfig);
+      // @ts-expect-error - accessing private property for testing
+      provider.graphClient = mockGraphClient;
+
+      // Attachment with minimal/missing properties
+      mockGraphClient.get.mockResolvedValueOnce({
+        value: [
+          {
+            id: "minimal-attachment",
+            // name, contentType, size are missing
+          },
+        ],
+      });
+
+      mockGraphClient.get.mockResolvedValueOnce({
+        id: "minimal-attachment",
+        contentBytes: "Y29udGVudA==",
+      });
+
+      const attachments = await provider.getAttachments("msg-minimal");
+
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("unnamed");
+      expect(attachments[0].contentType).toBe("application/octet-stream");
+      expect(attachments[0].size).toBe(0);
+      expect(attachments[0].contentBase64).toBe("Y29udGVudA==");
     });
   });
 });

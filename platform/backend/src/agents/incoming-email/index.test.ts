@@ -15,7 +15,7 @@ import { executeA2AMessage } from "@/agents/a2a-executor";
 import { userHasPermission } from "@/auth";
 import db, { schema } from "@/database";
 import { beforeEach, describe, expect, test } from "@/test";
-import type { IncomingEmail } from "@/types";
+import type { EmailAttachment, IncomingEmail } from "@/types";
 import { MAX_EMAIL_BODY_SIZE } from "./constants";
 import {
   createEmailProvider,
@@ -1627,5 +1627,371 @@ describe("processIncomingEmail security modes", () => {
       "Incoming email is not enabled for agent",
     );
     expect(vi.mocked(executeA2AMessage)).not.toHaveBeenCalled();
+  });
+});
+
+describe("processIncomingEmail with attachments", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(executeA2AMessage).mockResolvedValue({
+      messageId: "msg-attachment-test",
+      text: "Agent response with attachment context",
+      finishReason: "end_turn",
+    });
+  });
+
+  test("processes email with attachments and includes attachment info in message", async ({
+    makeUser,
+    makeOrganization,
+    makeTeam,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const team = await makeTeam(org.id, user.id);
+
+    // Create internal agent with incoming email enabled
+    const internalAgent = await createTestInternalAgent(org.id, {
+      incomingEmailEnabled: true,
+      incomingEmailSecurityMode: "public",
+    });
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
+
+    const mockGetAttachments = vi.fn().mockResolvedValue([
+      {
+        id: "attachment-1",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        size: 1024,
+        contentBase64: "SGVsbG8gV29ybGQh",
+        isInline: false,
+      },
+    ] as EmailAttachment[]);
+
+    const mockProvider = {
+      providerId: "outlook",
+      displayName: "Outlook",
+      isConfigured: () => true,
+      initialize: vi.fn(),
+      generateEmailAddress: vi.fn(),
+      getEmailDomain: () => "test.com",
+      parseWebhookNotification: vi.fn(),
+      validateWebhookRequest: vi.fn(),
+      handleValidationChallenge: vi.fn(),
+      cleanup: vi.fn(),
+      extractPromptIdFromEmail: () => internalAgent.id,
+      sendReply: vi.fn().mockResolvedValue("reply-123"),
+      getConversationHistory: vi.fn().mockResolvedValue([]),
+      getAttachments: mockGetAttachments,
+    } as unknown as OutlookEmailProvider;
+
+    const attachments: EmailAttachment[] = [
+      {
+        id: "attachment-1",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        size: 1024,
+        contentBase64: "SGVsbG8gV29ybGQh",
+        isInline: false,
+      },
+    ];
+
+    const email: IncomingEmail = {
+      messageId: `test-with-attachments-${Date.now()}`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
+      fromAddress: "sender@example.com",
+      subject: "Report for review",
+      body: "Please review the attached report.",
+      receivedAt: new Date(),
+      attachments,
+    };
+
+    await processIncomingEmail(email, mockProvider);
+
+    // Verify agent was invoked
+    expect(vi.mocked(executeA2AMessage)).toHaveBeenCalled();
+
+    // The attachments are present on the email object for agent processing
+    expect(email.attachments).toHaveLength(1);
+    expect(email.attachments?.[0].name).toBe("report.pdf");
+    expect(email.attachments?.[0].contentBase64).toBe("SGVsbG8gV29ybGQh");
+  });
+
+  test("processes email with multiple attachments", async ({
+    makeUser,
+    makeOrganization,
+    makeTeam,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const team = await makeTeam(org.id, user.id);
+
+    // Create internal agent with incoming email enabled
+    const internalAgent = await createTestInternalAgent(org.id, {
+      incomingEmailEnabled: true,
+      incomingEmailSecurityMode: "public",
+    });
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
+
+    const mockProvider = {
+      providerId: "outlook",
+      displayName: "Outlook",
+      isConfigured: () => true,
+      initialize: vi.fn(),
+      generateEmailAddress: vi.fn(),
+      getEmailDomain: () => "test.com",
+      parseWebhookNotification: vi.fn(),
+      validateWebhookRequest: vi.fn(),
+      handleValidationChallenge: vi.fn(),
+      cleanup: vi.fn(),
+      extractPromptIdFromEmail: () => internalAgent.id,
+      sendReply: vi.fn().mockResolvedValue("reply-123"),
+      getConversationHistory: vi.fn().mockResolvedValue([]),
+      getAttachments: vi.fn(),
+    } as unknown as OutlookEmailProvider;
+
+    const attachments: EmailAttachment[] = [
+      {
+        id: "attachment-1",
+        name: "document.pdf",
+        contentType: "application/pdf",
+        size: 2048,
+        contentBase64: "cGRmY29udGVudA==",
+        isInline: false,
+      },
+      {
+        id: "attachment-2",
+        name: "image.png",
+        contentType: "image/png",
+        size: 4096,
+        contentBase64: "aW1hZ2Vjb250ZW50",
+        isInline: false,
+      },
+      {
+        id: "attachment-3",
+        name: "data.csv",
+        contentType: "text/csv",
+        size: 512,
+        contentBase64: "Y3N2ZGF0YQ==",
+        isInline: false,
+      },
+    ];
+
+    const email: IncomingEmail = {
+      messageId: `test-multiple-attachments-${Date.now()}`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
+      fromAddress: "sender@example.com",
+      subject: "Multiple files",
+      body: "Please process these files.",
+      receivedAt: new Date(),
+      attachments,
+    };
+
+    await processIncomingEmail(email, mockProvider);
+
+    expect(vi.mocked(executeA2AMessage)).toHaveBeenCalled();
+    expect(email.attachments).toHaveLength(3);
+    expect(email.attachments?.map((a) => a.name)).toEqual([
+      "document.pdf",
+      "image.png",
+      "data.csv",
+    ]);
+  });
+
+  test("processes email with inline attachments", async ({
+    makeUser,
+    makeOrganization,
+    makeTeam,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const team = await makeTeam(org.id, user.id);
+
+    // Create internal agent with incoming email enabled
+    const internalAgent = await createTestInternalAgent(org.id, {
+      incomingEmailEnabled: true,
+      incomingEmailSecurityMode: "public",
+    });
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
+
+    const mockProvider = {
+      providerId: "outlook",
+      displayName: "Outlook",
+      isConfigured: () => true,
+      initialize: vi.fn(),
+      generateEmailAddress: vi.fn(),
+      getEmailDomain: () => "test.com",
+      parseWebhookNotification: vi.fn(),
+      validateWebhookRequest: vi.fn(),
+      handleValidationChallenge: vi.fn(),
+      cleanup: vi.fn(),
+      extractPromptIdFromEmail: () => internalAgent.id,
+      sendReply: vi.fn().mockResolvedValue("reply-123"),
+      getConversationHistory: vi.fn().mockResolvedValue([]),
+      getAttachments: vi.fn(),
+    } as unknown as OutlookEmailProvider;
+
+    const attachments: EmailAttachment[] = [
+      {
+        id: "inline-1",
+        name: "signature.png",
+        contentType: "image/png",
+        size: 1024,
+        contentBase64: "c2lnbmF0dXJl",
+        isInline: true,
+        contentId: "signature@embedded",
+      },
+    ];
+
+    const email: IncomingEmail = {
+      messageId: `test-inline-attachment-${Date.now()}`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
+      fromAddress: "sender@example.com",
+      subject: "Email with inline image",
+      body: "See the inline image.",
+      htmlBody:
+        '<p>See the inline image: <img src="cid:signature@embedded" /></p>',
+      receivedAt: new Date(),
+      attachments,
+    };
+
+    await processIncomingEmail(email, mockProvider);
+
+    expect(vi.mocked(executeA2AMessage)).toHaveBeenCalled();
+    expect(email.attachments).toHaveLength(1);
+    expect(email.attachments?.[0].isInline).toBe(true);
+    expect(email.attachments?.[0].contentId).toBe("signature@embedded");
+  });
+
+  test("processes email with large attachment (metadata only)", async ({
+    makeUser,
+    makeOrganization,
+    makeTeam,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const team = await makeTeam(org.id, user.id);
+
+    // Create internal agent with incoming email enabled
+    const internalAgent = await createTestInternalAgent(org.id, {
+      incomingEmailEnabled: true,
+      incomingEmailSecurityMode: "public",
+    });
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
+
+    const mockProvider = {
+      providerId: "outlook",
+      displayName: "Outlook",
+      isConfigured: () => true,
+      initialize: vi.fn(),
+      generateEmailAddress: vi.fn(),
+      getEmailDomain: () => "test.com",
+      parseWebhookNotification: vi.fn(),
+      validateWebhookRequest: vi.fn(),
+      handleValidationChallenge: vi.fn(),
+      cleanup: vi.fn(),
+      extractPromptIdFromEmail: () => internalAgent.id,
+      sendReply: vi.fn().mockResolvedValue("reply-123"),
+      getConversationHistory: vi.fn().mockResolvedValue([]),
+      getAttachments: vi.fn(),
+    } as unknown as OutlookEmailProvider;
+
+    // Large attachment without content (exceeds size limit)
+    const attachments: EmailAttachment[] = [
+      {
+        id: "large-file",
+        name: "huge-video.mp4",
+        contentType: "video/mp4",
+        size: 50 * 1024 * 1024, // 50MB
+        isInline: false,
+        // contentBase64 is undefined because it exceeded size limit
+      },
+    ];
+
+    const email: IncomingEmail = {
+      messageId: `test-large-attachment-${Date.now()}`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
+      fromAddress: "sender@example.com",
+      subject: "Large file",
+      body: "I've attached a large video file.",
+      receivedAt: new Date(),
+      attachments,
+    };
+
+    await processIncomingEmail(email, mockProvider);
+
+    expect(vi.mocked(executeA2AMessage)).toHaveBeenCalled();
+    expect(email.attachments).toHaveLength(1);
+    expect(email.attachments?.[0].name).toBe("huge-video.mp4");
+    // Content should be undefined for large files
+    expect(email.attachments?.[0].contentBase64).toBeUndefined();
+  });
+
+  test("processes email without attachments", async ({
+    makeUser,
+    makeOrganization,
+    makeTeam,
+  }) => {
+    const user = await makeUser();
+    const org = await makeOrganization();
+    const team = await makeTeam(org.id, user.id);
+
+    // Create internal agent with incoming email enabled
+    const internalAgent = await createTestInternalAgent(org.id, {
+      incomingEmailEnabled: true,
+      incomingEmailSecurityMode: "public",
+    });
+
+    // Assign agent to team
+    await db
+      .insert(schema.agentTeamsTable)
+      .values({ agentId: internalAgent.id, teamId: team.id });
+
+    const mockProvider = {
+      providerId: "outlook",
+      displayName: "Outlook",
+      isConfigured: () => true,
+      initialize: vi.fn(),
+      generateEmailAddress: vi.fn(),
+      getEmailDomain: () => "test.com",
+      parseWebhookNotification: vi.fn(),
+      validateWebhookRequest: vi.fn(),
+      handleValidationChallenge: vi.fn(),
+      cleanup: vi.fn(),
+      extractPromptIdFromEmail: () => internalAgent.id,
+      sendReply: vi.fn().mockResolvedValue("reply-123"),
+      getConversationHistory: vi.fn().mockResolvedValue([]),
+      getAttachments: vi.fn(),
+    } as unknown as OutlookEmailProvider;
+
+    const email: IncomingEmail = {
+      messageId: `test-no-attachments-${Date.now()}`,
+      toAddress: `agents+agent-${internalAgent.id}@test.com`,
+      fromAddress: "sender@example.com",
+      subject: "Plain email",
+      body: "This email has no attachments.",
+      receivedAt: new Date(),
+      // No attachments field
+    };
+
+    await processIncomingEmail(email, mockProvider);
+
+    expect(vi.mocked(executeA2AMessage)).toHaveBeenCalled();
+    expect(email.attachments).toBeUndefined();
   });
 });

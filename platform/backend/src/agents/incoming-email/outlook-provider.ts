@@ -6,12 +6,17 @@ import logger from "@/logging";
 import IncomingEmailSubscriptionModel from "@/models/incoming-email-subscription";
 import type {
   AgentIncomingEmailProvider,
+  EmailAttachment,
   EmailProviderConfig,
   EmailReplyOptions,
   IncomingEmail,
   SubscriptionInfo,
 } from "@/types";
-import { DEFAULT_AGENT_EMAIL_NAME } from "./constants";
+import {
+  DEFAULT_AGENT_EMAIL_NAME,
+  MAX_ATTACHMENT_SIZE,
+  MAX_TOTAL_ATTACHMENTS_SIZE,
+} from "./constants";
 
 /**
  * Microsoft Outlook/Exchange email provider using Microsoft Graph API
@@ -311,6 +316,9 @@ export class OutlookEmailProvider implements AgentIncomingEmailProvider {
           body = this.stripHtml(message.body.content);
         }
 
+        // Fetch attachments for this message
+        const attachments = await this.getAttachments(message.id);
+
         emails.push({
           messageId: message.id,
           conversationId: message.conversationId,
@@ -323,6 +331,7 @@ export class OutlookEmailProvider implements AgentIncomingEmailProvider {
               ? message.body.content
               : undefined,
           receivedAt: new Date(message.receivedDateTime),
+          attachments: attachments.length > 0 ? attachments : undefined,
           metadata: {
             provider: this.providerId,
             originalResource: notif.resource,
@@ -854,6 +863,148 @@ export class OutlookEmailProvider implements AgentIncomingEmailProvider {
         "[OutlookEmailProvider] Failed to fetch conversation history",
       );
       // Return empty history on error - allow processing to continue
+      return [];
+    }
+  }
+
+  /**
+   * Fetch attachments for a specific email message
+   * @param messageId - The email message ID
+   * @param options - Optional configuration for attachment fetching
+   * @returns Array of attachments with their content
+   */
+  async getAttachments(
+    messageId: string,
+    options?: {
+      maxAttachmentSize?: number;
+      includeInline?: boolean;
+    },
+  ): Promise<EmailAttachment[]> {
+    const client = this.getGraphClient();
+    const maxSize = options?.maxAttachmentSize ?? MAX_ATTACHMENT_SIZE;
+    const includeInline = options?.includeInline ?? true;
+
+    try {
+      // Fetch attachment metadata first
+      const response = await client
+        .api(
+          `/users/${this.config.mailboxAddress}/messages/${messageId}/attachments`,
+        )
+        .select("id,name,contentType,size,isInline,contentId")
+        .get();
+
+      const attachmentItems = response.value || [];
+
+      if (attachmentItems.length === 0) {
+        return [];
+      }
+
+      logger.debug(
+        {
+          messageId,
+          attachmentCount: attachmentItems.length,
+        },
+        "[OutlookEmailProvider] Found attachments for message",
+      );
+
+      const attachments: EmailAttachment[] = [];
+      let totalSize = 0;
+
+      for (const item of attachmentItems) {
+        // Skip inline attachments if not requested
+        if (!includeInline && item.isInline) {
+          continue;
+        }
+
+        const attachment: EmailAttachment = {
+          id: item.id,
+          name: item.name || "unnamed",
+          contentType: item.contentType || "application/octet-stream",
+          size: item.size || 0,
+          isInline: item.isInline || false,
+          contentId: item.contentId || undefined,
+        };
+
+        // Check if we should fetch content based on size limits
+        const withinSingleLimit = attachment.size <= maxSize;
+        const withinTotalLimit =
+          totalSize + attachment.size <= MAX_TOTAL_ATTACHMENTS_SIZE;
+
+        if (withinSingleLimit && withinTotalLimit) {
+          try {
+            // Fetch the attachment content
+            const attachmentWithContent = await client
+              .api(
+                `/users/${this.config.mailboxAddress}/messages/${messageId}/attachments/${item.id}`,
+              )
+              .get();
+
+            // Microsoft Graph returns contentBytes as base64 for file attachments
+            if (attachmentWithContent.contentBytes) {
+              attachment.contentBase64 = attachmentWithContent.contentBytes;
+              totalSize += attachment.size;
+            }
+          } catch (contentError) {
+            logger.warn(
+              {
+                messageId,
+                attachmentId: item.id,
+                attachmentName: item.name,
+                error:
+                  contentError instanceof Error
+                    ? contentError.message
+                    : String(contentError),
+              },
+              "[OutlookEmailProvider] Failed to fetch attachment content, including metadata only",
+            );
+          }
+        } else {
+          logger.info(
+            {
+              messageId,
+              attachmentId: item.id,
+              attachmentName: item.name,
+              attachmentSize: attachment.size,
+              maxSize,
+              totalSize,
+              maxTotalSize: MAX_TOTAL_ATTACHMENTS_SIZE,
+              reason: !withinSingleLimit
+                ? "exceeds_single_limit"
+                : "exceeds_total_limit",
+            },
+            "[OutlookEmailProvider] Skipping attachment content fetch due to size limits",
+          );
+        }
+
+        attachments.push(attachment);
+      }
+
+      logger.info(
+        {
+          messageId,
+          totalAttachments: attachments.length,
+          attachmentsWithContent: attachments.filter((a) => a.contentBase64)
+            .length,
+          totalContentSize: totalSize,
+        },
+        "[OutlookEmailProvider] Fetched attachments for message",
+      );
+
+      return attachments;
+    } catch (error) {
+      const errorDetails =
+        error instanceof Error
+          ? { message: error.message, name: error.name }
+          : { raw: String(error) };
+
+      logger.error(
+        {
+          messageId,
+          errorDetails,
+        },
+        "[OutlookEmailProvider] Failed to fetch attachments",
+      );
+      // Return empty array on error - allow processing to continue without attachments
       return [];
     }
   }

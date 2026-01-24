@@ -25,6 +25,7 @@ import { OutlookEmailProvider } from "./outlook-provider";
 export type {
   AgentIncomingEmailProvider,
   ConversationMessage,
+  EmailAttachment,
   EmailProviderConfig,
   EmailProviderType,
   EmailReplyOptions,
@@ -33,7 +34,9 @@ export type {
 } from "@/types";
 export {
   EMAIL_SUBSCRIPTION_RENEWAL_INTERVAL,
+  MAX_ATTACHMENT_SIZE,
   MAX_EMAIL_BODY_SIZE,
+  MAX_TOTAL_ATTACHMENTS_SIZE,
   PROCESSED_EMAIL_CLEANUP_INTERVAL_MS,
   PROCESSED_EMAIL_RETENTION_MS,
 } from "./constants";

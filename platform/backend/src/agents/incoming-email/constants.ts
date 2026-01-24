@@ -36,3 +36,15 @@ export const PROCESSED_EMAIL_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
  * Used when the agent's name is not available
  */
 export const DEFAULT_AGENT_EMAIL_NAME = "Archestra Agent";
+
+/**
+ * Maximum size of an individual attachment to fetch content for (10MB)
+ * Attachments larger than this will have metadata only, not content.
+ */
+export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
+
+/**
+ * Maximum total size of all attachments per email (25MB)
+ * If the total exceeds this, only attachment metadata will be included.
+ */
+export const MAX_TOTAL_ATTACHMENTS_SIZE = 25 * 1024 * 1024; // 25MB

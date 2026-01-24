@@ -82,6 +82,29 @@ export type SubscriptionInfo = Omit<
 };
 
 /**
+ * Represents an email attachment
+ */
+export interface EmailAttachment {
+  /** The unique ID of the attachment from the email provider */
+  id: string;
+  /** The filename of the attachment */
+  name: string;
+  /** The MIME content type (e.g., 'application/pdf', 'image/png') */
+  contentType: string;
+  /** Size in bytes */
+  size: number;
+  /**
+   * The attachment content as a base64-encoded string.
+   * May be undefined if the attachment was not fetched (e.g., too large).
+   */
+  contentBase64?: string;
+  /** Whether this is an inline attachment (embedded in HTML body) */
+  isInline?: boolean;
+  /** Content ID for inline attachments (used in HTML body references) */
+  contentId?: string;
+}
+
+/**
  * Represents an incoming email that will invoke an agent
  */
 export interface IncomingEmail {
@@ -101,6 +124,8 @@ export interface IncomingEmail {
   htmlBody?: string;
   /** When the email was received */
   receivedAt: Date;
+  /** File attachments from the email */
+  attachments?: EmailAttachment[];
   /** Any additional metadata from the provider */
   metadata?: Record<string, unknown>;
 }
@@ -254,6 +279,22 @@ export interface AgentIncomingEmailProvider {
     conversationId: string,
     currentMessageId: string,
   ): Promise<ConversationMessage[]>;
+
+  /**
+   * Fetch attachments for a specific email message
+   * @param messageId - The email message ID
+   * @param options - Optional configuration for attachment fetching
+   * @returns Array of attachments with their content
+   */
+  getAttachments(
+    messageId: string,
+    options?: {
+      /** Maximum attachment size in bytes to fetch content for (default: 10MB) */
+      maxAttachmentSize?: number;
+      /** Whether to include inline attachments (default: true) */
+      includeInline?: boolean;
+    },
+  ): Promise<EmailAttachment[]>;
 }
 
 /**
