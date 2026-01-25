@@ -190,7 +190,7 @@ export function ToolDetailsDialog({
                   <div className="border-t border-border">
                     {tool.assignments.length === 0 ? (
                       <div className="p-4 text-sm text-muted-foreground text-center">
-                        Not assignmed to agents.
+                        Not assigned to agents.
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
