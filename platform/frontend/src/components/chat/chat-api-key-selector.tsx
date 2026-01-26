@@ -190,7 +190,8 @@ export function ChatApiKeySelector({
     const keyToSelect =
       keyFromLocalStorage || personalKey || teamKey || orgWideKey;
     const keyToSelectValid =
-      keyToSelect && keysForCurrentProvider.some((k) => k.id === keyToSelect.id);
+      keyToSelect &&
+      keysForCurrentProvider.some((k) => k.id === keyToSelect.id);
 
     // Auto-select first key if no valid key is selected
     if (!currentKeyValid && keyToSelectValid) {
