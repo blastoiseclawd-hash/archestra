@@ -10,7 +10,7 @@ Check ../docs_writer_prompt.md before changing this file.
 This document is human-built, shouldn't be updated with AI. Don't change anything here.
 -->
 
-The Archestra Platform can be deployed using Docker for development and testing, or Helm for production environments. Both deployment methods provide access to the Admin UI on port 3000 and the API on port 9000.
+The Archestra Platform can be deployed using Docker for development and testing, or Helm for production environments. The Admin UI and API are both available on port 3000.
 
 ## Docker Deployment
 
@@ -26,7 +26,7 @@ Run the platform with a single command:
 
 ```bash
 docker pull archestra/platform:latest;
-docker run -p 9000:9000 -p 3000:3000 \
+docker run -p 3000:3000 \
    -e ARCHESTRA_QUICKSTART=true \
    -v /var/run/docker.sock:/var/run/docker.sock \
    -v archestra-postgres-data:/var/lib/postgresql/data \
@@ -36,8 +36,8 @@ docker run -p 9000:9000 -p 3000:3000 \
 
 This will start the platform with:
 
-- **Admin UI** available at <http://localhost:3000>
-- **API** available at <http://localhost:9000>
+- **Admin UI** and **API** available at <http://localhost:3000>
+- **API** available at <http://localhost:3000>
 - **Auth Secret** auto-generated and saved to `/app/data/.auth_secret` (persisted across restarts)
 - **MCP Kubernetes Orchestrator** via KinD
 
@@ -46,7 +46,7 @@ This will start the platform with:
 If you have Kubernetes installed locally, you can use it for the MCP orchestrator. Make sure `kubectl` points to the right cluster and run the container without the socket and without `ARCHESTRA_QUICKSTART`. The orchestrator will create a cluster in the current context. See [Development with Standalone Kubernetes](./platform-orchestrator#local-development-with-docker-and-standalone-kubernetes)
 
 ```diff
-docker run -p 9000:9000 -p 3000:3000 \
+docker run -p 3000:3000 \
 -  -e ARCHESTRA_QUICKSTART=true \
 -  -v /var/run/docker.sock:/var/run/docker.sock \
    -v archestra-postgres-data:/var/lib/postgresql/data \
@@ -62,7 +62,7 @@ To use an external PostgreSQL database, pass the `DATABASE_URL` environment vari
 
 ```bash
 docker pull archestra/platform:latest;
-docker run -p 9000:9000 -p 3000:3000 \
+docker run -p 3000:3000 \
   -e DATABASE_URL=postgresql://user:password@host:5432/database \
   archestra/platform
 ```
@@ -171,6 +171,7 @@ openssl rand -base64 32
 **Service Settings**:
 
 - `archestra.service.type` - Service type: ClusterIP, NodePort, or LoadBalancer (default: ClusterIP)
+- `archestra.service.exposeBackend` - Whether to expose the backend API port (9000) on the service. The API is also available through the frontend (port 3000), so this is optional. Set to true for backward compatibility with existing deployments (default: true)
 - `archestra.service.annotations` - Annotations to add to the Kubernetes Service for cloud provider integrations
 - `archestra.service.nodePorts` - Node ports for NodePort service type (backend, metrics, frontend)
 
@@ -181,6 +182,8 @@ openssl rand -base64 32
 - `archestra.ingress.spec` - Complete ingress specification for advanced configurations
 
 **GKE BackendConfig Settings** (Google Cloud only):
+
+Note: Backend configuration (port 9000) is only needed when `archestra.service.exposeBackend` is true. For new deployments, you can use only the frontend configuration since the API is available through port 3000.
 
 - `archestra.gkeBackendConfig.enabled` - Enable or disable GKE BackendConfig resources (default: false)
 - `archestra.gkeBackendConfig.backend.timeoutSec` - Request timeout for backend API (recommended: 600 for streaming)
@@ -204,17 +207,14 @@ Enable the `gkeBackendConfig` section in your values:
 archestra:
   gkeBackendConfig:
     enabled: true
-    backend:
+    frontend:
       timeoutSec: 600 # 10 minutes for streaming responses
       connectionDraining:
         drainingTimeoutSec: 60
-    frontend:
-      timeoutSec: 600
-      connectionDraining:
-        drainingTimeoutSec: 60
   service:
+    exposeBackend: false # API is available through frontend (port 3000)
     annotations:
-      cloud.google.com/backend-config: '{"ports": {"9000":"RELEASE_NAME-archestra-platform-backend-config", "3000":"RELEASE_NAME-archestra-platform-frontend-config"}}'
+      cloud.google.com/backend-config: '{"ports": {"3000":"RELEASE_NAME-archestra-platform-frontend-config"}}'
 ```
 
 Apply via Helm (replace `RELEASE_NAME` with your actual release name, e.g., `archestra-platform`):
@@ -226,16 +226,18 @@ helm upgrade archestra-platform \
   --namespace archestra \
   --create-namespace \
   --set archestra.gkeBackendConfig.enabled=true \
-  --set archestra.gkeBackendConfig.backend.timeoutSec=600 \
   --set archestra.gkeBackendConfig.frontend.timeoutSec=600 \
-  --set-string archestra.service.annotations."cloud\.google\.com/backend-config"='{"ports": {"9000":"archestra-platform-archestra-platform-backend-config", "3000":"archestra-platform-archestra-platform-frontend-config"}}' \
+  --set archestra.service.exposeBackend=false \
+  --set-string archestra.service.annotations."cloud\.google\.com/backend-config"='{"ports": {"3000":"archestra-platform-archestra-platform-frontend-config"}}' \
   --wait
 ```
 
-The Helm chart creates two BackendConfig resources with health checks tuned for deployments:
+The Helm chart creates BackendConfig resources with health checks tuned for deployments. For new deployments, only the frontend config is needed:
 
+- `<release>-archestra-platform-frontend-config` - For the frontend and API (port 3000)
+
+For backward compatibility with existing deployments using port 9000, set `archestra.service.exposeBackend: true` and add the backend config:
 - `<release>-archestra-platform-backend-config` - For the API backend (port 9000)
-- `<release>-archestra-platform-frontend-config` - For the frontend (port 3000)
 
 ##### Amazon Web Services (AWS EKS)
 
@@ -412,14 +414,14 @@ If you don't specify `postgresql.external_database_url`, the chart will deploy a
 After installation, access the platform using port forwarding:
 
 ```bash
-# Forward the API (port 9000) and the Admin UI (port 3000)
-kubectl --namespace archestra port-forward svc/archestra-platform 9000:9000 3000:3000
+# Forward the Admin UI and API (port 3000)
+kubectl --namespace archestra port-forward svc/archestra-platform 3000:3000
 ```
 
 Then visit:
 
 - **Admin UI**: <http://localhost:3000>
-- **API**: <http://localhost:9000>
+- **API**: <http://localhost:3000>
 
 ### Production Recommendations
 
@@ -453,7 +455,7 @@ terraform {
 }
 
 provider "archestra" {
-  base_url = "http://localhost:9000" # Your Archestra API URL
+  base_url = "http://localhost:3000" # Your Archestra API URL
   api_key  = "your-api-key-here"     # Can also use ARCHESTRA_API_KEY env var
 }
 ```
@@ -483,12 +485,12 @@ The following environment variables can be used to configure Archestra Platform.
 
 - **`ARCHESTRA_API_BASE_URL`** - Archestra API Base URL(s) for connecting to Archestra's LLM Proxy, MCP Gateway and A2A Gateway.
 
-  This URL is displayed in the UI connection instructions to help users configure their agents. It doesn\'t affect internal routing (Archestra frontend communicates with backend via `http://localhost:9000`).
+  This URL is displayed in the UI connection instructions to help users configure their agents. It doesn\'t affect internal routing (Archestra frontend communicates with backend internally).
 
-  - Default: Falls back to `http://localhost:9000`
+  - Default: Falls back to `http://localhost:3000`
   - Supports multiple comma-separated URLs for different connection options (e.g., internal K8s URL and external ingress)
   - Single URL example: `https://api.archestra.com`
-  - Multiple URLs example: `http://archestra.default.svc:9000,https://api.archestra.example.com`
+  - Multiple URLs example: `http://archestra.default.svc:3000,https://api.archestra.example.com`
   - Use case: Set this when your external access URL differs from the internal service URL (common in Kubernetes with ingress/load balancers)
 
 - **`ARCHESTRA_API_BODY_LIMIT`** - Maximum request body size for LLM proxy and chat routes.
