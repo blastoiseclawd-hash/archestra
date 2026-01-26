@@ -37,7 +37,6 @@ docker run -p 3000:3000 \
 This will start the platform with:
 
 - **Admin UI** and **API** available at <http://localhost:3000>
-- **API** available at <http://localhost:3000>
 - **Auth Secret** auto-generated and saved to `/app/data/.auth_secret` (persisted across restarts)
 - **MCP Kubernetes Orchestrator** via KinD
 
@@ -204,13 +203,17 @@ Enable the `gkeBackendConfig` section in your values:
 archestra:
   gkeBackendConfig:
     enabled: true
-    frontend:
+    backend:
       timeoutSec: 600 # 10 minutes for streaming responses
+      connectionDraining:
+        drainingTimeoutSec: 60
+    frontend:
+      timeoutSec: 600
       connectionDraining:
         drainingTimeoutSec: 60
   service:
     annotations:
-      cloud.google.com/backend-config: '{"ports": {"3000":"RELEASE_NAME-archestra-platform-frontend-config"}}'
+      cloud.google.com/backend-config: '{"ports": {"9000":"RELEASE_NAME-archestra-platform-backend-config", "3000":"RELEASE_NAME-archestra-platform-frontend-config"}}'
 ```
 
 Apply via Helm (replace `RELEASE_NAME` with your actual release name, e.g., `archestra-platform`):
@@ -222,14 +225,16 @@ helm upgrade archestra-platform \
   --namespace archestra \
   --create-namespace \
   --set archestra.gkeBackendConfig.enabled=true \
+  --set archestra.gkeBackendConfig.backend.timeoutSec=600 \
   --set archestra.gkeBackendConfig.frontend.timeoutSec=600 \
-  --set-string archestra.service.annotations."cloud\.google\.com/backend-config"='{"ports": {"3000":"archestra-platform-archestra-platform-frontend-config"}}' \
+  --set-string archestra.service.annotations."cloud\.google\.com/backend-config"='{"ports": {"9000":"archestra-platform-archestra-platform-backend-config", "3000":"archestra-platform-archestra-platform-frontend-config"}}' \
   --wait
 ```
 
-The Helm chart creates a BackendConfig resource with health checks tuned for deployments:
+The Helm chart creates two BackendConfig resources with health checks tuned for deployments:
 
-- `<release>-archestra-platform-frontend-config` - For the frontend and API (port 3000)
+- `<release>-archestra-platform-backend-config` - For the API backend (port 9000)
+- `<release>-archestra-platform-frontend-config` - For the frontend (port 3000)
 
 ##### Amazon Web Services (AWS EKS)
 
@@ -413,7 +418,6 @@ kubectl --namespace archestra port-forward svc/archestra-platform 3000:3000
 Then visit:
 
 - **Admin UI**: <http://localhost:3000>
-- **API**: <http://localhost:3000>
 
 ### Production Recommendations
 
@@ -477,12 +481,12 @@ The following environment variables can be used to configure Archestra Platform.
 
 - **`ARCHESTRA_API_BASE_URL`** - Archestra API Base URL(s) for connecting to Archestra's LLM Proxy, MCP Gateway and A2A Gateway.
 
-  This URL is displayed in the UI connection instructions to help users configure their agents. It doesn\'t affect internal routing (Archestra frontend communicates with backend internally).
+  This URL is displayed in the UI connection instructions to help users configure their agents. It doesn\'t affect internal routing (Archestra frontend communicates with backend via `http://localhost:9000`).
 
-  - Default: Falls back to `http://localhost:3000`
+  - Default: Falls back to `http://localhost:9000`
   - Supports multiple comma-separated URLs for different connection options (e.g., internal K8s URL and external ingress)
   - Single URL example: `https://api.archestra.com`
-  - Multiple URLs example: `http://archestra.default.svc:3000,https://api.archestra.example.com`
+  - Multiple URLs example: `http://archestra.default.svc:9000,https://api.archestra.example.com`
   - Use case: Set this when your external access URL differs from the internal service URL (common in Kubernetes with ingress/load balancers)
 
 - **`ARCHESTRA_API_BODY_LIMIT`** - Maximum request body size for LLM proxy and chat routes.
