@@ -123,7 +123,7 @@ Examples:
       mcpServerName,
       anthropicApiKey,
       organizationId,
-      model = PolicyConfigSubagent.DEFAULT_MODEL,
+      model = config.chat.defaultModel,
     } = params;
 
     logger.info(
