@@ -5682,6 +5682,10 @@ export type GetAgentsResponses = {
             incomingEmailEnabled: boolean;
             incomingEmailSecurityMode: 'private' | 'internal' | 'public';
             incomingEmailAllowedDomain: string | null;
+            llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+            llmModel: string | null;
+            llmApiKeyStrategy: 'dynamic' | 'static';
+            llmStaticApiKeyId: string | null;
             createdAt: string;
             updatedAt: string;
             tools: Array<{
@@ -5753,6 +5757,10 @@ export type CreateAgentData = {
         incomingEmailEnabled?: boolean;
         incomingEmailSecurityMode?: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain?: string | null;
+        llmProvider?: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel?: string | null;
+        llmApiKeyStrategy?: 'dynamic' | 'static';
+        llmStaticApiKeyId?: string | null;
         teams: Array<string>;
         labels?: Array<{
             key: string;
@@ -5849,6 +5857,10 @@ export type CreateAgentResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{
@@ -5994,6 +6006,10 @@ export type GetAllAgentsResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{
@@ -6130,6 +6146,10 @@ export type GetDefaultAgentResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{
@@ -6347,6 +6367,10 @@ export type GetAgentResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{
@@ -6409,6 +6433,10 @@ export type UpdateAgentData = {
         incomingEmailEnabled?: boolean;
         incomingEmailSecurityMode?: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain?: string | null;
+        llmProvider?: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel?: string | null;
+        llmApiKeyStrategy?: 'dynamic' | 'static';
+        llmStaticApiKeyId?: string | null;
         teams?: Array<string>;
         labels?: Array<{
             key: string;
@@ -6507,6 +6535,10 @@ export type UpdateAgentResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{
@@ -6646,6 +6678,10 @@ export type GetAgentVersionsResponses = {
             incomingEmailEnabled: boolean;
             incomingEmailSecurityMode: 'private' | 'internal' | 'public';
             incomingEmailAllowedDomain: string | null;
+            llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+            llmModel: string | null;
+            llmApiKeyStrategy: 'dynamic' | 'static';
+            llmStaticApiKeyId: string | null;
             createdAt: string;
             updatedAt: string;
             tools: Array<{
@@ -6796,6 +6832,10 @@ export type RollbackAgentResponses = {
         incomingEmailEnabled: boolean;
         incomingEmailSecurityMode: 'private' | 'internal' | 'public';
         incomingEmailAllowedDomain: string | null;
+        llmProvider: 'anthropic' | 'cerebras' | 'gemini' | 'cohere' | 'openai' | 'vllm' | 'ollama' | 'zhipuai';
+        llmModel: string | null;
+        llmApiKeyStrategy: 'dynamic' | 'static';
+        llmStaticApiKeyId: string | null;
         createdAt: string;
         updatedAt: string;
         tools: Array<{

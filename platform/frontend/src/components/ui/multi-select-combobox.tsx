@@ -97,7 +97,7 @@ export function MultiSelectCombobox({
           aria-expanded={open}
           tabIndex={-1}
           className={cn(
-            "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+            "flex min-h-9 w-full flex-wrap items-center gap-1.5 rounded-md border border-input bg-transparent dark:bg-input/30 px-3 py-1.5 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
             className,
           )}
           onClick={() => {

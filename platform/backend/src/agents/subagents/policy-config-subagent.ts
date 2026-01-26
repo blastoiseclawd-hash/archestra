@@ -116,15 +116,22 @@ Examples:
     mcpServerName: string | null;
     anthropicApiKey: string;
     organizationId: string;
+    model?: string;
   }): Promise<PolicyConfig> {
-    const { tool, mcpServerName, anthropicApiKey, organizationId } = params;
+    const {
+      tool,
+      mcpServerName,
+      anthropicApiKey,
+      organizationId,
+      model = PolicyConfigSubagent.DEFAULT_MODEL,
+    } = params;
 
     logger.info(
       {
         toolName: tool.name,
         mcpServerName,
         subagentId: PolicyConfigSubagent.SUBAGENT_ID,
-        model: config.chat.defaultModel,
+        model,
       },
       "[PolicyConfigSubagent] Starting policy analysis",
     );
