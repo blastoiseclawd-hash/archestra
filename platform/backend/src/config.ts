@@ -92,10 +92,10 @@ export const getDatabaseUrl = (): string => {
 };
 
 /**
- * Parse port from ARCHESTRA_API_BASE_URL if provided
+ * Parse port from ARCHESTRA_INTERNAL_API_BASE_URL if provided
  */
 const getPortFromUrl = (): number => {
-  const url = process.env.ARCHESTRA_API_BASE_URL;
+  const url = process.env.ARCHESTRA_INTERNAL_API_BASE_URL;
   const defaultPort = 9000;
 
   if (!url) {
@@ -419,18 +419,15 @@ export default {
     openai: {
       baseUrl:
         process.env.ARCHESTRA_OPENAI_BASE_URL || "https://api.openai.com/v1",
-      useV2Routes: process.env.ARCHESTRA_OPENAI_USE_V2_ROUTES !== "false",
     },
     anthropic: {
       baseUrl:
         process.env.ARCHESTRA_ANTHROPIC_BASE_URL || "https://api.anthropic.com",
-      useV2Routes: process.env.ARCHESTRA_ANTHROPIC_USE_V2_ROUTES !== "false",
     },
     gemini: {
       baseUrl:
         process.env.ARCHESTRA_GEMINI_BASE_URL ||
         "https://generativelanguage.googleapis.com",
-      useV2Routes: process.env.ARCHESTRA_GEMINI_USE_V2_ROUTES !== "false",
       vertexAi: {
         enabled: process.env.ARCHESTRA_GEMINI_VERTEX_AI_ENABLED === "true",
         project: process.env.ARCHESTRA_GEMINI_VERTEX_AI_PROJECT || "",
@@ -442,25 +439,37 @@ export default {
           process.env.ARCHESTRA_GEMINI_VERTEX_AI_CREDENTIALS_FILE || "",
       },
     },
+    cohere: {
+      enabled: Boolean(process.env.ARCHESTRA_COHERE_BASE_URL),
+      baseUrl: process.env.ARCHESTRA_COHERE_BASE_URL || "https://api.cohere.ai",
+    },
     cerebras: {
       baseUrl:
         process.env.ARCHESTRA_CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1",
-      useV2Routes: process.env.ARCHESTRA_CEREBRAS_USE_V2_ROUTES !== "false",
+    },
+    mistral: {
+      baseUrl:
+        process.env.ARCHESTRA_MISTRAL_BASE_URL || "https://api.mistral.ai/v1",
     },
     vllm: {
       enabled: Boolean(process.env.ARCHESTRA_VLLM_BASE_URL),
       baseUrl: process.env.ARCHESTRA_VLLM_BASE_URL,
-      useV2Routes: process.env.ARCHESTRA_VLLM_USE_V2_ROUTES !== "false",
     },
     ollama: {
       enabled: Boolean(process.env.ARCHESTRA_OLLAMA_BASE_URL),
       baseUrl: process.env.ARCHESTRA_OLLAMA_BASE_URL,
-      useV2Routes: process.env.ARCHESTRA_OLLAMA_USE_V2_ROUTES !== "false",
     },
     zhipuai: {
       baseUrl:
         process.env.ARCHESTRA_ZHIPUAI_BASE_URL ||
         "https://api.z.ai/api/paas/v4",
+    },
+    bedrock: {
+      enabled: Boolean(process.env.ARCHESTRA_BEDROCK_BASE_URL),
+      baseUrl: process.env.ARCHESTRA_BEDROCK_BASE_URL || "",
+      /** Prefix for cross-region inference profile models (e.g., "us." or "eu.") */
+      inferenceProfilePrefix:
+        process.env.ARCHESTRA_BEDROCK_INFERENCE_PROFILE_PREFIX || "",
     },
   },
   chat: {
@@ -475,9 +484,9 @@ export default {
     },
     cerebras: {
       apiKey: process.env.ARCHESTRA_CHAT_CEREBRAS_API_KEY || "",
-      baseUrl:
-        process.env.ARCHESTRA_CHAT_CEREBRAS_BASE_URL ||
-        "https://api.cerebras.ai/v1",
+    },
+    mistral: {
+      apiKey: process.env.ARCHESTRA_CHAT_MISTRAL_API_KEY || "",
     },
     vllm: {
       apiKey: process.env.ARCHESTRA_CHAT_VLLM_API_KEY || "",
@@ -485,11 +494,14 @@ export default {
     ollama: {
       apiKey: process.env.ARCHESTRA_CHAT_OLLAMA_API_KEY || "",
     },
+    cohere: {
+      apiKey: process.env.ARCHESTRA_CHAT_COHERE_API_KEY || "",
+    },
     zhipuai: {
       apiKey: process.env.ARCHESTRA_CHAT_ZHIPUAI_API_KEY || "",
-      baseUrl:
-        process.env.ARCHESTRA_CHAT_ZHIPUAI_BASE_URL ||
-        "https://api.z.ai/api/paas/v4",
+    },
+    bedrock: {
+      apiKey: process.env.ARCHESTRA_CHAT_BEDROCK_API_KEY || "",
     },
     mcp: {
       remoteServerUrl: process.env.ARCHESTRA_CHAT_MCP_SERVER_URL || "",
@@ -527,9 +539,11 @@ export default {
    */
   codegenMode: process.env.CODEGEN === "true",
   orchestrator: {
+    // The MCP server base image version is automatically updated by release-please during releases.
+    // See: https://github.com/googleapis/release-please/blob/main/docs/customizing.md#updating-arbitrary-files
     mcpServerBaseImage:
       process.env.ARCHESTRA_ORCHESTRATOR_MCP_SERVER_BASE_IMAGE ||
-      "europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:0.0.3",
+      "europe-west1-docker.pkg.dev/friendly-path-465518-r6/archestra-public/mcp-server-base:1.0.34", // x-release-please-version
     kubernetes: {
       namespace: process.env.ARCHESTRA_ORCHESTRATOR_K8S_NAMESPACE || "default",
       kubeconfig: process.env.ARCHESTRA_ORCHESTRATOR_KUBECONFIG,

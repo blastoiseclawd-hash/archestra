@@ -17,6 +17,7 @@
 7. **Always Add Tests** - When working on any feature, ALWAYS add or modify appropriate test cases (unit tests, integration tests, or e2e tests under `platform/e2e-tests/tests`)
 8. **Enterprise Edition Imports** - NEVER directly import from `.ee.ts` files unless the importing file is itself an `.ee.ts` file. Use runtime conditional logic with `config.enterpriseLicenseActivated` checks instead to avoid bundling enterprise code into free builds
 9. **No Auto Commits** - Never commit or push changes without explicit user approval. Always ask before running git commit or git push
+10. **No Database Modifications Without Approval** - NEVER run INSERT, UPDATE, DELETE, or any data-modifying SQL queries without explicit user approval. SELECT queries for reading data are allowed. Always ask before modifying database data directly.
 
 ## Docs
 
@@ -77,6 +78,16 @@ pnpm db:studio       # Open Drizzle Studio
 pnpm db:generate     # Generate new migrations (CI checks for uncommitted migrations)
 drizzle-kit check    # Check consistency of generated SQL migrations history
 
+# Manual Migrations with Data Migration Logic
+# When creating migrations that include data migration (INSERT/UPDATE statements),
+# you must use the Drizzle-generated migration file name to ensure proper tracking:
+# 1. First, update the Drizzle schema files with your schema changes
+# 2. Run `pnpm db:generate` - this creates a migration with a random name (e.g., 0119_military_alice.sql)
+# 3. Add your data migration SQL to the generated file (INSERT, UPDATE statements, etc.)
+# 4. Run `drizzle-kit check` to verify consistency
+# IMPORTANT: Never create manually-named migration files - Drizzle tracks migrations
+# via the meta/_journal.json file which references the generated file names.
+
 # Database Connection
 # PostgreSQL is running in Kubernetes (managed by Tilt)
 # Connect to database:
@@ -85,8 +96,9 @@ kubectl exec -n archestra-dev postgresql-0 -- env PGPASSWORD=archestra_dev_passw
 # Common queries: \dt (list tables), \d table_name (describe table), SELECT COUNT(*) FROM drizzle.__drizzle_migrations;
 
 # Logs
-tilt logs pnpm-dev                   # Get logs for frontend + backend
-tilt trigger <pnpm-dev|wiremock|etc> # Trigger an update for the specified resource
+tilt logs pnpm-dev-backend           # Get backend logs
+tilt logs pnpm-dev-frontend          # Get frontend logs
+tilt trigger <pnpm-dev-backend|pnpm-dev-frontend|wiremock|etc> # Trigger an update for the specified resource
 
 # E2E setup
 Runs wiremock and seeds test data to database. Note that in development e2e use your development database. This means some of your local data may cause e2e to fail locally.
@@ -352,7 +364,7 @@ pnpm rebuild <package-name>  # Enable scripts for specific package
 
 **Frontend**:
 
-- Use TanStack Query for data fetching
+- Use TanStack Query for data fetching (prefer `useQuery` over `useSuspenseQuery` with explicit loading states)
 - Use shadcn/ui components only
 - **Use components from `frontend/src/components/ui` over plain HTML elements**: Never use raw `<button>`, `<input>`, `<select>`, etc. when a component exists in `frontend/src/components/ui` (Button over button, Input over input, etc.)
 - **Handle toasts in .query.ts files, not in components**: Toast notifications for mutations (success/error) should be defined in the mutation's `onSuccess`/`onError` callbacks within `.query.ts` files, not in components
@@ -511,11 +523,14 @@ pnpm rebuild <package-name>  # Enable scripts for specific package
 - Tools must be explicitly assigned to profiles (not auto-injected)
 - Tools prefixed with `archestra__` to avoid conflicts
 - Available tools:
-  - Profile management: `whoami`, `create_profile`, `get_profile`
-  - Limits: `create_limit`, `get_limits`, `update_limit`, `delete_limit`, `get_profile_token_usage`
+  - Identity: `whoami`
+  - Agents: `create_agent`, `get_agent`
+  - LLM Proxies: `create_llm_proxy`, `get_llm_proxy`
+  - MCP Gateways: `create_mcp_gateway`, `get_mcp_gateway`
+  - Limits: `create_limit`, `get_limits`, `update_limit`, `delete_limit`, `get_agent_token_usage`, `get_llm_proxy_token_usage`
   - Policies: `get/create/update/delete_tool_invocation_policy`, `get/create/update/delete_trusted_data_policy`
   - MCP servers: `search_private_mcp_registry`, `get_mcp_servers`, `get_mcp_server_tools`
-  - Tool assignment: `bulk_assign_tools_to_profiles`
+  - Tool assignment: `bulk_assign_tools_to_agents`, `bulk_assign_tools_to_mcp_gateways`
   - Operators: `get_autonomy_policy_operators`
 - Implementation: `backend/src/archestra-mcp-server.ts`
 - Catalog entry: Created automatically on startup with fixed ID `ARCHESTRA_MCP_CATALOG_ID`

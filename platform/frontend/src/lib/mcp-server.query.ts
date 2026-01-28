@@ -1,10 +1,5 @@
 import { archestraApiSdk, type archestraApiTypes } from "@shared";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { authClient } from "./clients/auth/auth-client";
@@ -26,7 +21,7 @@ export function useMcpServers(params?: {
   hasInstallingServers?: boolean;
   catalogId?: string;
 }) {
-  return useSuspenseQuery({
+  return useQuery({
     // Include catalogId in queryKey only when provided to maintain cache separation
     queryKey: params?.catalogId
       ? ["mcp-servers", { catalogId: params.catalogId }]
@@ -116,6 +111,12 @@ export function useInstallMcpServer() {
       if (installedServer) {
         queryClient.invalidateQueries({
           queryKey: ["mcp-servers", installedServer.id, "tools"],
+        });
+      }
+      // Invalidate catalog tools query so the manage-tools dialog shows discovered tools
+      if (variables.catalogId) {
+        queryClient.invalidateQueries({
+          queryKey: ["mcp-catalog", variables.catalogId, "tools"],
         });
       }
       // Invalidate all chat MCP tools (new tools may be available)

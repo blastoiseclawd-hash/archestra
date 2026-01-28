@@ -8,18 +8,21 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { uniqBy } from "lodash-es";
 import { z } from "zod";
 import { CacheKey, cacheManager } from "@/cache-manager";
-import config from "@/config";
-import logger from "@/logging";
-import { ChatApiKeyModel, TeamModel } from "@/models";
 import {
   createGoogleGenAIClient,
   isVertexAiEnabled,
-} from "@/routes/proxy/utils/gemini-client";
+} from "@/clients/gemini-client";
+import { modelsDevClient } from "@/clients/models-dev-client";
+import config from "@/config";
+import logger from "@/logging";
+import { ChatApiKeyModel, ModelModel, TeamModel } from "@/models";
 import { getSecretValueForLlmProviderApiKey } from "@/secrets-manager";
 import {
   type Anthropic,
   constructResponseSchema,
   type Gemini,
+  type ModelCapabilities,
+  ModelCapabilitiesSchema,
   type OpenAi,
   SupportedChatProviderSchema,
 } from "@/types";
@@ -30,6 +33,7 @@ const ChatModelSchema = z.object({
   displayName: z.string(),
   provider: SupportedChatProviderSchema,
   createdAt: z.string().optional(),
+  capabilities: ModelCapabilitiesSchema.optional(),
 });
 
 export interface ModelInfo {
@@ -37,6 +41,7 @@ export interface ModelInfo {
   displayName: string;
   provider: SupportedProvider;
   createdAt?: string;
+  capabilities?: ModelCapabilities;
 }
 
 /**
@@ -194,7 +199,7 @@ export async function fetchGeminiModels(apiKey: string): Promise<ModelInfo[]> {
  * Note: Llama models are excluded as they are not allowed in chat
  */
 async function fetchCerebrasModels(apiKey: string): Promise<ModelInfo[]> {
-  const baseUrl = config.chat.cerebras.baseUrl;
+  const baseUrl = config.llm.cerebras.baseUrl;
   const url = `${baseUrl}/models`;
 
   const response = await fetch(url, {
@@ -229,6 +234,44 @@ async function fetchCerebrasModels(apiKey: string): Promise<ModelInfo[]> {
       provider: "cerebras" as const,
       createdAt: new Date(model.created * 1000).toISOString(),
     }));
+}
+
+/**
+ * Fetch models from Mistral API (OpenAI-compatible)
+ */
+async function fetchMistralModels(apiKey: string): Promise<ModelInfo[]> {
+  const baseUrl = config.llm.mistral.baseUrl;
+  const url = `${baseUrl}/models`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(
+      { status: response.status, error: errorText },
+      "Failed to fetch Mistral models",
+    );
+    throw new Error(`Failed to fetch Mistral models: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    data: Array<{
+      id: string;
+      created: number;
+      owned_by: string;
+    }>;
+  };
+
+  return data.data.map((model) => ({
+    id: model.id,
+    displayName: model.id,
+    provider: "mistral" as const,
+    createdAt: new Date(model.created * 1000).toISOString(),
+  }));
 }
 
 /**
@@ -324,6 +367,59 @@ async function fetchOllamaModels(apiKey: string): Promise<ModelInfo[]> {
 }
 
 /**
+ * Fetch models from Cohere API
+ */
+async function fetchCohereModels(apiKey: string): Promise<ModelInfo[]> {
+  const baseUrl = config.llm.cohere.baseUrl;
+  const url = `${baseUrl}/v2/models`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(
+      { status: response.status, error: errorText },
+      "Failed to fetch Cohere models",
+    );
+    throw new Error(`Failed to fetch Cohere models: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    models: Array<{
+      name: string;
+      endpoints?: string[];
+      created_at?: string;
+    }>;
+  };
+
+  // Only include models that expose chat/generate endpoints (exclude embed/rerank)
+  const models = data.models
+    .filter((model) => {
+      const endpoints = model.endpoints || [];
+      // accept models that support chat or generate
+      return endpoints.includes("chat") || endpoints.includes("generate");
+    })
+    .map((model) => ({
+      id: model.name,
+      displayName: model.name,
+      provider: "cohere" as const,
+      createdAt: model.created_at,
+    }));
+
+  // Sort models to put command-r-08-2024 first (default choice)
+  return models.sort((a, b) => {
+    const preferredModel = "command-r-08-2024";
+    if (a.id === preferredModel) return -1;
+    if (b.id === preferredModel) return 1;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
  * Fetch models from Zhipuai API
  */
 async function fetchZhipuaiModels(apiKey: string): Promise<ModelInfo[]> {
@@ -408,6 +504,112 @@ async function fetchZhipuaiModels(apiKey: string): Promise<ModelInfo[]> {
   allModels.push(...apiModels);
 
   return allModels;
+}
+
+/**
+ * Fetch models from AWS Bedrock API
+ * Uses Bearer token authentication (proxy handles AWS credentials)
+ */
+export async function fetchBedrockModels(apiKey: string): Promise<ModelInfo[]> {
+  const baseUrl = config.llm.bedrock.baseUrl;
+  if (!baseUrl) {
+    logger.warn("Bedrock base URL not configured");
+    return [];
+  }
+
+  // Remove '-runtime' from base URL to get the control plane endpoint
+  const url = `${baseUrl.replace("-runtime", "")}/foundation-models?byOutputModality=TEXT&byInputModality=TEXT`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(
+      { status: response.status, error: errorText },
+      "Failed to fetch Bedrock models",
+    );
+    throw new Error(`Failed to fetch Bedrock models: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    modelSummaries?: Array<{
+      modelId?: string;
+      modelName?: string;
+      providerName?: string;
+      inferenceTypesSupported?: string[];
+      inputModalities?: string[];
+    }>;
+  };
+
+  logger.info(
+    { url, modelCount: data.modelSummaries?.length, data },
+    "[fetchBedrockModels] full response from Bedrock ListFoundationModels",
+  );
+
+  if (!data.modelSummaries) {
+    logger.warn("No models returned from Bedrock ListFoundationModels");
+    return [];
+  }
+
+  // Filter to include models that support on-demand or inference profile (cross-region)
+  // INFERENCE_PROFILE models (like Claude) require the prefix env var to be set
+  const inferenceProfilePrefix = config.llm.bedrock.inferenceProfilePrefix;
+
+  const models = data.modelSummaries
+    .filter((model) => {
+      // Must support TEXT input modality
+      if (!model.inputModalities?.includes("TEXT")) {
+        return false;
+      }
+
+      const supportsOnDemand =
+        model.inferenceTypesSupported?.includes("ON_DEMAND");
+      const supportsInferenceProfile =
+        model.inferenceTypesSupported?.includes("INFERENCE_PROFILE");
+
+      // Include ON_DEMAND models always
+      // Include INFERENCE_PROFILE models only if prefix is configured
+      return (
+        supportsOnDemand || (supportsInferenceProfile && inferenceProfilePrefix)
+      );
+    })
+    .map((model) => {
+      // Generate a readable display name
+      const providerName = model.providerName || "Unknown";
+      const modelName = model.modelName || model.modelId || "Unknown Model";
+      const displayName = `${providerName} ${modelName}`;
+
+      // For INFERENCE_PROFILE models, prefix with region (e.g., "us" or "eu")
+      const isInferenceProfile =
+        model.inferenceTypesSupported?.includes("INFERENCE_PROFILE");
+      const prefix = inferenceProfilePrefix.endsWith(".")
+        ? inferenceProfilePrefix
+        : `${inferenceProfilePrefix}.`;
+      const modelId =
+        isInferenceProfile && inferenceProfilePrefix
+          ? `${prefix}${model.modelId}`
+          : model.modelId;
+
+      return {
+        id: modelId || "",
+        displayName,
+        provider: "bedrock" as const,
+      };
+    });
+
+  logger.info(
+    {
+      modelCount: models.length,
+      models: models.map((m) => ({ id: m.id, displayName: m.displayName })),
+    },
+    "[fetchBedrockModels] filtered models returned for bedrock",
+  );
+
+  return models;
 }
 
 /**
@@ -531,26 +733,22 @@ async function getProviderApiKey({
   }
 
   // Fall back to environment variable
-  switch (provider) {
-    case "anthropic":
-      return config.chat.anthropic.apiKey || null;
-    case "cerebras":
-      return config.chat.cerebras.apiKey || null;
-    case "gemini":
-      return config.chat.gemini.apiKey || null;
-    case "openai":
-      return config.chat.openai.apiKey || null;
-    case "vllm":
-      // vLLM typically doesn't require API keys, return empty or configured key
-      return config.chat.vllm.apiKey || "";
-    case "ollama":
-      // Ollama typically doesn't require API keys, return empty or configured key
-      return config.chat.ollama.apiKey || "";
-    case "zhipuai":
-      return config.chat.zhipuai?.apiKey || null;
-    default:
-      return null;
-  }
+  // Using Record<SupportedProvider, ...> ensures TypeScript will error if a new provider is added
+  // but not included in this map. This prevents missing API key fallbacks for new providers.
+  const envApiKeyFallbacks: Record<SupportedProvider, () => string | null> = {
+    anthropic: () => config.chat.anthropic.apiKey || null,
+    cerebras: () => config.chat.cerebras.apiKey || null,
+    cohere: () => config.chat.cohere?.apiKey || null,
+    gemini: () => config.chat.gemini.apiKey || null,
+    mistral: () => config.chat.mistral.apiKey || null,
+    ollama: () => config.chat.ollama.apiKey || "", // Ollama typically doesn't require API keys
+    openai: () => config.chat.openai.apiKey || null,
+    vllm: () => config.chat.vllm.apiKey || "", // vLLM typically doesn't require API keys
+    zhipuai: () => config.chat.zhipuai?.apiKey || null,
+    bedrock: () => config.chat.bedrock.apiKey || null,
+  };
+
+  return envApiKeyFallbacks[provider]();
 }
 
 // We need to make sure that every new provider we support has a model fetcher function
@@ -559,11 +757,14 @@ const modelFetchers: Record<
   (apiKey: string) => Promise<ModelInfo[]>
 > = {
   anthropic: fetchAnthropicModels,
+  bedrock: fetchBedrockModels,
   cerebras: fetchCerebrasModels,
   gemini: fetchGeminiModels,
+  mistral: fetchMistralModels,
   openai: fetchOpenAiModels,
   vllm: fetchVllmModels,
   ollama: fetchOllamaModels,
+  cohere: fetchCohereModels,
   zhipuai: fetchZhipuaiModels,
 };
 
@@ -603,10 +804,19 @@ export async function fetchModelsForProvider({
   // vLLM and Ollama typically don't require API keys, but need base URL configured
   const isVllmEnabled = provider === "vllm" && config.llm.vllm.enabled;
   const isOllamaEnabled = provider === "ollama" && config.llm.ollama.enabled;
+  // Bedrock uses AWS credentials which may come from default credential chain
+  const isBedrockEnabled = provider === "bedrock" && config.llm.bedrock.enabled;
 
   // For Gemini with Vertex AI, we don't need an API key - authentication is via ADC
   // For vLLM and Ollama, API key is optional but base URL must be configured
-  if (!apiKey && !vertexAiEnabled && !isVllmEnabled && !isOllamaEnabled) {
+  // For Bedrock, we check if it's enabled (may use default AWS credential chain)
+  if (
+    !apiKey &&
+    !vertexAiEnabled &&
+    !isVllmEnabled &&
+    !isOllamaEnabled &&
+    !isBedrockEnabled
+  ) {
     logger.debug(
       { provider, organizationId },
       "No API key available for provider",
@@ -616,7 +826,11 @@ export async function fetchModelsForProvider({
 
   try {
     let models: ModelInfo[] = [];
-    if (["anthropic", "cerebras", "openai"].includes(provider)) {
+    if (
+      ["anthropic", "cerebras", "cohere", "mistral", "openai"].includes(
+        provider,
+      )
+    ) {
       if (apiKey) {
         models = await modelFetchers[provider](apiKey);
       }
@@ -635,6 +849,11 @@ export async function fetchModelsForProvider({
       // Ollama doesn't require API key, pass empty or configured key
       models = await modelFetchers[provider](apiKey || "EMPTY");
     } else if (provider === "zhipuai") {
+      if (apiKey) {
+        models = await modelFetchers[provider](apiKey);
+      }
+    } else if (provider === "bedrock" && isBedrockEnabled) {
+      // Bedrock uses AWS credentials via the proxy
       if (apiKey) {
         models = await modelFetchers[provider](apiKey);
       }
@@ -666,7 +885,7 @@ const chatModelsRoutes: FastifyPluginAsyncZod = async (fastify) => {
       schema: {
         operationId: RouteId.GetChatModels,
         description:
-          "Get available LLM models from all configured providers. Models are fetched directly from provider APIs.",
+          "Get available LLM models from all configured providers. Models are fetched directly from provider APIs. Includes model capabilities (context length, modalities, tool calling support) when available.",
         tags: ["Chat"],
         querystring: z.object({
           provider: SupportedChatProviderSchema.optional(),
@@ -677,6 +896,9 @@ const chatModelsRoutes: FastifyPluginAsyncZod = async (fastify) => {
     async ({ query, organizationId, user }, reply) => {
       const { provider } = query;
       const providersToFetch = provider ? [provider] : SupportedProviders;
+
+      // Trigger models.dev metadata sync in background if needed
+      modelsDevClient.syncIfNeeded();
 
       // Cache key includes user ID since API keys can be personal, team, or org-wide
       const cacheKey =
@@ -706,7 +928,28 @@ const chatModelsRoutes: FastifyPluginAsyncZod = async (fastify) => {
             "Fetched chat models from providers",
           );
 
-          return uniqBy(flatModels, (model) => `${model.provider}:${model.id}`);
+          const uniqueModels = uniqBy(
+            flatModels,
+            (model) => `${model.provider}:${model.id}`,
+          );
+
+          // Fetch metadata for all models
+          const metadataKeys = uniqueModels.map((m) => ({
+            provider: m.provider,
+            modelId: m.id,
+          }));
+          const metadataMap =
+            await ModelModel.findByProviderModelIds(metadataKeys);
+
+          // Attach capabilities to each model
+          return uniqueModels.map((model) => {
+            const key = `${model.provider}:${model.id}`;
+            const metadata = metadataMap.get(key);
+            return {
+              ...model,
+              capabilities: ModelModel.toCapabilities(metadata ?? null),
+            };
+          });
         },
         { ttl: 5 * TimeInMs.Minute },
       );

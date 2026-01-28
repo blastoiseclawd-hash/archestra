@@ -3,7 +3,7 @@ title: Adding LLM Providers
 category: Development
 order: 2
 description: Developer guide for implementing new LLM provider support in Archestra Platform
-lastUpdated: 2026-01-17
+lastUpdated: 2026-01-27
 ---
 
 <!--
@@ -157,10 +157,10 @@ The function must:
 
 Dual LLM pattern uses a secondary LLM for Q&A verification of tool invocations. Each provider needs its own client implementation.
 
-| File                                                | Description                                                                                                                |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `backend/src/routes/proxy/utils/dual-llm-client.ts` | Create `{Provider}DualLlmClient` class implementing `DualLlmClient` interface with `chat()` and `chatWithSchema()` methods |
-| `backend/src/routes/proxy/utils/dual-llm-client.ts` | Add case to `createDualLlmClient()` factory switch                                                                         |
+| File                                     | Description                                                                                                                |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `backend/src/clients/dual-llm-client.ts` | Create `{Provider}DualLlmClient` class implementing `DualLlmClient` interface with `chat()` and `chatWithSchema()` methods |
+| `backend/src/clients/dual-llm-client.ts` | Add case to `createDualLlmClient()` factory switch                                                                         |
 
 ### Metrics
 
@@ -170,11 +170,11 @@ Prometheus metrics for request duration, token usage, and costs. Requires instru
 
 For example: OpenAI and Anthropic SDKs accept a custom `fetch` function, so we inject an instrumented fetch via `getObservableFetch()`. Gemini SDK doesn't expose fetch, so we wrap the SDK instance directly via `getObservableGenAI()`.
 
-| File                                                    | Description                                                                          |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `backend/src/llm-metrics.ts`                            | Implement instrumented API calls for the SDK                                         |
-| `backend/src/routes/proxy/utils/adapters/{provider}.ts` | Legacy adapter with `getUsageTokens()` function for metrics token extraction         |
-| `backend/src/routes/proxy/utils/adapters/index.ts`      | Export the legacy adapter (e.g., `export * as {provider} from "./{provider}"`)       |
+| File                                                    | Description                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `backend/src/llm-metrics.ts`                            | Implement instrumented API calls for the SDK                                   |
+| `backend/src/routes/proxy/utils/adapters/{provider}.ts` | Legacy adapter with `getUsageTokens()` function for metrics token extraction   |
+| `backend/src/routes/proxy/utils/adapters/index.ts`      | Export the legacy adapter (e.g., `export * as {provider} from "./{provider}"`) |
 
 ### Frontend: Logs UI
 
@@ -187,17 +187,21 @@ Interaction handlers parse stored request/response data for display in the LLM P
 
 ### E2E Tests
 
-Each provider must be added to the LLM Proxy e2e tests to ensure all features work correctly.
+Each provider must be added to the LLM Proxy and Chat UI e2e tests to ensure all features work correctly.
 
-| File                                                            | Description                                                                                                             |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `helm/e2e-tests/mappings/{provider}-*.json`                     | WireMock stub mappings for mocking provider API responses (models list, chat completions, tool calls, etc.)             |
-| `.github/values-ci.yaml`                                        | Add provider base URL pointing to WireMock (e.g., `ARCHESTRA_{PROVIDER}_BASE_URL: "http://e2e-tests-wiremock:8080/v1"`) |
-| `e2e-tests/tests/api/llm-proxy/tool-invocation.spec.ts`         | Tool invocation policy tests - add `{provider}Config` to `testConfigs` array                                            |
-| `e2e-tests/tests/api/llm-proxy/tool-persistence.spec.ts`        | Tool call persistence tests - add `{provider}Config` to `testConfigs` array                                             |
-| `e2e-tests/tests/api/llm-proxy/tool-result-compression.spec.ts` | TOON compression tests - add `{provider}Config` to `testConfigs` array                                                  |
-| `e2e-tests/tests/api/llm-proxy/model-optimization.spec.ts`      | Model optimization tests - add `{provider}Config` to `testConfigs` array                                                |
-| `e2e-tests/tests/api/llm-proxy/token-cost-limits.spec.ts`       | Token cost limits tests - add `{provider}Config` to `testConfigs` array                                                 |
+#### LLM Proxy E2E Tests
+
+| File                                                            | Description                                                                                                                              |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `helm/e2e-tests/mappings/{provider}-*.json`                     | WireMock stub mappings for mocking provider API responses (models list, chat completions, tool calls, etc.)                              |
+| `helm/e2e-tests/mappings/{provider}-chat-ui-e2e-test.json`      | WireMock stub mapping for Chat UI streaming responses - must use SSE format with `bodyPatterns` matching on `chat-ui-e2e-test`           |
+| `.github/values-ci.yaml`                                        | Add provider base URL pointing to WireMock (e.g., `ARCHESTRA_{PROVIDER}_BASE_URL: "http://e2e-tests-wiremock:8080/v1"`)                  |
+| `e2e-tests/tests/api/llm-proxy/tool-invocation.spec.ts`         | Tool invocation policy tests - add `{provider}Config` to `testConfigs` array                                                             |
+| `e2e-tests/tests/api/llm-proxy/tool-persistence.spec.ts`        | Tool call persistence tests - add `{provider}Config` to `testConfigs` array                                                              |
+| `e2e-tests/tests/api/llm-proxy/tool-result-compression.spec.ts` | TOON compression tests - add `{provider}Config` to `testConfigs` array                                                                   |
+| `e2e-tests/tests/api/llm-proxy/model-optimization.spec.ts`      | Model optimization tests - add `{provider}Config` to `testConfigs` array                                                                 |
+| `e2e-tests/tests/api/llm-proxy/token-cost-limits.spec.ts`       | Token cost limits tests - add `{provider}Config` to `testConfigs` array                                                                  |
+| `e2e-tests/tests/ui/chat.spec.ts`                               | Chat UI tests - add `{provider}Config` to `testConfigs` array with `providerName`, `modelId`, `modelDisplayName`, and `expectedResponse` |
 
 ## Chat Support
 
@@ -223,20 +227,20 @@ Allows users to select this provider's models in the Chat UI.
 
 Each provider has a different API for listing available models.
 
-| File                                         | Description                                                            |
-| -------------------------------------------- | ---------------------------------------------------------------------- |
-| `backend/src/routes/chat/routes.models.ts`   | Add `fetch{Provider}Models()` function and register in `modelFetchers` |
-| `backend/src/routes/chat/routes.models.ts`   | Add case to `getProviderApiKey()` switch                               |
+| File                                       | Description                                                            |
+| ------------------------------------------ | ---------------------------------------------------------------------- |
+| `backend/src/routes/chat/routes.models.ts` | Add `fetch{Provider}Models()` function and register in `modelFetchers` |
+| `backend/src/routes/chat/routes.models.ts` | Add case to `getProviderApiKey()` switch                               |
 
 ### LLM Client
 
 Chat uses Vercel AI SDK which requires provider-specific model creation.
 
-| File                                 | Description                                                                                      |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `backend/src/clients/llm-client.ts`  | Add to `detectProviderFromModel()` - model naming conventions differ (e.g., `gpt-*`, `claude-*`) |
-| `backend/src/clients/llm-client.ts`  | Add case to `resolveProviderApiKey()` switch                                                     |
-| `backend/src/clients/llm-client.ts`  | Add case to `createLLMModel()` - AI SDK requires provider-specific initialization                |
+| File                                | Description                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `backend/src/clients/llm-client.ts` | Add to `detectProviderFromModel()` - model naming conventions differ (e.g., `gpt-*`, `claude-*`) |
+| `backend/src/clients/llm-client.ts` | Add case to `resolveProviderApiKey()` switch                                                     |
+| `backend/src/clients/llm-client.ts` | Add case to `createLLMModel()` - AI SDK requires provider-specific initialization                |
 
 ### Error Handling
 
@@ -266,6 +270,7 @@ Existing provider implementations for reference:
 
 - OpenAI: `backend/src/routes/proxy/routesv2/openai.ts`, `backend/src/routes/proxy/adapterV2/openai.ts`
 - Anthropic: `backend/src/routes/proxy/routesv2/anthropic.ts`, `backend/src/routes/proxy/adapterV2/anthropic.ts`
+- Cohere: `backend/src/routes/proxy/routesv2/cohere.ts`, `backend/src/routes/proxy/adapterV2/cohere.ts`
 - Gemini: `backend/src/routes/proxy/routesv2/gemini.ts`, `backend/src/routes/proxy/adapterV2/gemini.ts`
 
 **OpenAI-compatible implementations** (reuse OpenAI types/adapters with minor modifications):
