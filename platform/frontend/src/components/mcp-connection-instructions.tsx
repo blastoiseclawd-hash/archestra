@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { showErrorToastFromApiError } from "@/lib/utils";
 import { CodeText } from "@/components/code-text";
 import { ConnectionBaseUrlSelect } from "@/components/connection-base-url-select";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,6 @@ import {
 } from "@/lib/mcp-server.query";
 import { useTokens } from "@/lib/team-token.query";
 import { useUserToken } from "@/lib/user-token.query";
-import { showErrorToastFromApiError } from "@/lib/utils";
 
 const { externalProxyUrls, internalProxyUrl } = config.api;
 

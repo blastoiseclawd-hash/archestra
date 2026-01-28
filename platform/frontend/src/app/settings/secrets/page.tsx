@@ -70,16 +70,15 @@ export default function SecretsSettingsPage() {
             </Alert>
           )}
 
-          {checkConnectivityMutation.isSuccess &&
-            checkConnectivityMutation.data && (
-              <Alert>
-                <AlertTitle>Connection Successful</AlertTitle>
-                <AlertDescription>
-                  Found {checkConnectivityMutation.data.secretCount} secret
-                  {checkConnectivityMutation.data.secretCount === 1 ? "" : "s"}.
-                </AlertDescription>
-              </Alert>
-            )}
+          {checkConnectivityMutation.isSuccess && checkConnectivityMutation.data && (
+            <Alert>
+              <AlertTitle>Connection Successful</AlertTitle>
+              <AlertDescription>
+                Found {checkConnectivityMutation.data.secretCount} secret
+                {checkConnectivityMutation.data.secretCount === 1 ? "" : "s"}.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
     </div>
