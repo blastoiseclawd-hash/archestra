@@ -43,23 +43,13 @@ The endpoint `http://localhost:9050/metrics` exposes Prometheus-formatted metric
 - `llm_tokens_total` - Token consumption by provider, external_agent_id, llm_proxy_id, llm_proxy_name, and type (input/output)
 - `llm_time_to_first_token_seconds` - Time to first token (TTFT) for streaming requests, by provider, external_agent_id, llm_proxy_id, llm_proxy_name, and model. Helps developers choose models with lower initial response latency.
 - `llm_tokens_per_second` - Output tokens per second throughput, by provider, external_agent_id, llm_proxy_id, llm_proxy_name, and model. Allows comparing model response speeds for latency-sensitive applications.
-- `llm_blocked_tool_total` - Total tool calls blocked by policy, with the following labels:
-  - `llm_proxy_id` - Internal Archestra LLM proxy ID
-  - `llm_proxy_name` - Internal Archestra LLM proxy name
-  - `tool_name` - Full tool name including MCP server prefix
-  - `mcp_server_name` - The MCP server that hosts the tool
-  - `credential_name` - Team name or user name that provided the credential
+- `llm_blocked_tool_total` - Total tool calls blocked by policy, by llm_proxy_id, llm_proxy_name, tool_name, mcp_server_name, and credential_name
 
 > **Note:** The `external_agent_id` label contains the external agent ID passed via the `X-Archestra-Agent-Id` header. This allows clients to associate metrics with their own agent identifiers. If the header is not provided, the label will be empty. Use `llm_proxy_id` and `llm_proxy_name` for the internal Archestra LLM proxy identifier.
 
 ### MCP Metrics
 
-- `mcp_tool_call_total` - Total MCP tool calls, with the following labels:
-  - `mcp_gateway_name` - Name of the MCP gateway
-  - `credential_name` - Team name or user name that provided the credential
-  - `tool_name` - Full tool name including MCP server prefix
-  - `mcp_server_name` - The MCP server that hosts the tool
-  - `success` - Whether the tool call was successful ("true" or "false")
+- `mcp_tool_call_total` - Total MCP tool calls, by mcp_gateway_name, credential_name, tool_name, mcp_server_name, and success
 
 ### Process Metrics
 
