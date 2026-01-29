@@ -54,6 +54,9 @@ spec:
   {{- if not .Values.archestra.horizontalPodAutoscaler.enabled }}
   replicas: {{ .Values.archestra.replicaCount }}
   {{- end }}
+  {{- with .Values.archestra.minReadySeconds }}
+  minReadySeconds: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "archestra-platform.selectorLabels" . | nindent 6 }}
@@ -71,6 +74,9 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "archestra-platform.serviceAccountName" . }}
+      {{- with .Values.archestra.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       # Init container to wait for PostgreSQL to be ready before starting the application
       # This prevents the application from crashing when PostgreSQL is still starting up
       # and the application tries to run database migrations (in which it assumes that the database is already ready)
@@ -138,6 +144,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          {{- with .Values.archestra.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if and .Values.archestra.orchestrator.kubernetes.kubeconfig.enabled .Values.archestra.orchestrator.kubernetes.kubeconfig.secretName }}
           volumeMounts:
             - name: kubeconfig

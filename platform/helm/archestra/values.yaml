@@ -55,6 +55,26 @@ archestra:
       maxUnavailable: 0
       maxSurge: 1
 
+  # Minimum number of seconds a newly created pod should be ready before considering it available
+  # This prevents traffic from switching to new pods too quickly and ensures stability
+  # Recommended: 10-30 seconds for production workloads
+  minReadySeconds: 10
+
+  # Time in seconds given to pods to terminate gracefully after receiving SIGTERM
+  # The pod continues serving in-flight requests during this period
+  # Should be longer than your longest expected request + preStop delay
+  # See: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination
+  terminationGracePeriodSeconds: 60
+
+  # Lifecycle hooks for graceful shutdown
+  # preStop hook runs before SIGTERM is sent, allowing time for load balancer to drain traffic
+  lifecycle:
+    preStop:
+      # Sleep for 15 seconds before SIGTERM to allow load balancer to stop routing traffic
+      # This is critical for zero-downtime deployments with GKE/AWS load balancers
+      exec:
+        command: ["sleep", "15"]
+
   # Additional environment variables to pass to the container
   # These will be merged with the default DATABASE_URL environment variable
   #
