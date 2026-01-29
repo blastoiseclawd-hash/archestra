@@ -150,10 +150,10 @@
             "type": "prometheus",
             "uid": "$metrics_datasource"
           },
-          "expr": "sum by (agent_name) (rate(llm_tokens_total{type=\"input\"}[$__rate_interval]))",
+          "expr": "sum by (llm_proxy_name) (rate(llm_tokens_total{type=\"input\"}[$__rate_interval]))",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{agent_name}} (input)",
+          "legendFormat": "{{llm_proxy_name}} (input)",
           "queryType": "range",
           "range": true,
           "refId": "A"
@@ -163,10 +163,10 @@
             "type": "prometheus",
             "uid": "$metrics_datasource"
           },
-          "expr": "sum by (agent_name) (rate(llm_tokens_total{type=\"output\"}[$__rate_interval]))",
+          "expr": "sum by (llm_proxy_name) (rate(llm_tokens_total{type=\"output\"}[$__rate_interval]))",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{agent_name}} (output)",
+          "legendFormat": "{{llm_proxy_name}} (output)",
           "queryType": "range",
           "range": true,
           "refId": "B"
@@ -393,10 +393,10 @@
             "type": "prometheus",
             "uid": "$metrics_datasource"
           },
-          "expr": "sum by (agent_name, mcp_server_name, success) (rate(mcp_tool_call_total[$__rate_interval]))",
+          "expr": "sum by (mcp_gateway_name, mcp_server_name, success) (rate(mcp_tool_call_total[$__rate_interval]))",
           "hide": false,
           "instant": false,
-          "legendFormat": "{{agent_name}} / {{mcp_server_name}} (success={{success}})",
+          "legendFormat": "{{mcp_gateway_name}} / {{mcp_server_name}} (success={{success}})",
           "queryType": "range",
           "range": true,
           "refId": "A"
