@@ -197,7 +197,7 @@ Here are some PromQL queries for Grafana charts to get you started:
 
 ### LLM Metrics
 
-- LLM requests per second by agent and provider:
+- LLM requests per second by LLM proxy and provider:
 
   ```promql
   sum(rate(llm_request_duration_seconds_count[5m])) by (llm_proxy_name, provider)
@@ -209,25 +209,25 @@ Here are some PromQL queries for Grafana charts to get you started:
   sum(rate(llm_request_duration_seconds_count{status_code!="200"}[5m])) by (provider) / sum(rate(llm_request_duration_seconds_count[5m])) by (provider) * 100
   ```
 
-- LLM token usage rate (tokens/sec) by agent name:
+- LLM token usage rate (tokens/sec) by LLM proxy name:
 
   ```promql
   sum(rate(llm_tokens_total[5m])) by (provider, llm_proxy_name, type)
   ```
 
-- Total tokens by agent name:
+- Total tokens by LLM proxy name:
 
   ```promql
   sum(rate(llm_tokens_total[5m])) by (llm_proxy_name, type)
   ```
 
-- Request duration by agent name and provider:
+- Request duration by LLM proxy name and provider:
 
   ```promql
   histogram_quantile(0.95, sum(rate(llm_request_duration_seconds_bucket[5m])) by (llm_proxy_name, provider, le))
   ```
 
-- Error rate by agent:
+- Error rate by LLM proxy name:
 
   ```promql
   sum(rate(llm_request_duration_seconds_count{status_code!~"2.."}[5m])) by (llm_proxy_name) / sum(rate(llm_request_duration_seconds_count[5m])) by (llm_proxy_name)
