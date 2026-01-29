@@ -19,6 +19,8 @@ import { getUsageTokens as getOpenAIUsage } from "@/routes/proxy/adapterV2/opena
 import { getUsageTokens as getZhipuaiUsage } from "@/routes/proxy/adapterV2/zhipuai";
 import type { Agent } from "@/types";
 
+import { sanitizeLabelKey } from "./utils";
+
 type Fetch = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -34,24 +36,6 @@ let llmTokensPerSecond: client.Histogram<string>;
 
 // Store current label keys for comparison
 let currentLabelKeys: string[] = [];
-
-// Regexp pattern to sanitize label keys
-const sanitizeRegexp = /[^a-zA-Z0-9_]/g;
-
-/**
- * Sanitize a label key for Prometheus compatibility.
- * Prometheus label names must match [a-zA-Z_][a-zA-Z0-9_]*
- * - Replace invalid characters with underscores
- * - Prefix with underscore if starts with a digit
- */
-export function sanitizeLabelKey(key: string): string {
-  let sanitized = key.replace(sanitizeRegexp, "_");
-  // Prometheus labels cannot start with a digit
-  if (/^[0-9]/.test(sanitized)) {
-    sanitized = `_${sanitized}`;
-  }
-  return sanitized;
-}
 
 /**
  * Initialize LLM metrics with dynamic agent label keys

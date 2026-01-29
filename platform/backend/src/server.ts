@@ -50,9 +50,9 @@ import {
   cleanupKnowledgeGraphProvider,
   initializeKnowledgeGraphProvider,
 } from "@/knowledge-graph";
-import { initializeLlmMetrics, initializeMcpMetrics } from "@/metrics";
 import logger from "@/logging";
 import { McpServerRuntimeManager } from "@/mcp-server-runtime";
+import { initializeLlmMetrics, initializeMcpMetrics } from "@/metrics";
 import { enterpriseLicenseMiddleware } from "@/middleware";
 import AgentLabelModel from "@/models/agent-label";
 import {

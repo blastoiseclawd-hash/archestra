@@ -5,7 +5,7 @@
 
 import client from "prom-client";
 import logger from "@/logging";
-import { sanitizeLabelKey } from "./llm";
+import { sanitizeLabelKey } from "./utils";
 
 // MCP tool call counter metric
 let mcpToolCallCounter: client.Counter<string>;
@@ -50,6 +50,7 @@ export function initializeMcpMetrics(labelKeys: string[]): void {
   // - tool_name: Full tool name including MCP server prefix
   // - mcp_server_name: The MCP server that hosts the tool
   // - success: Whether the tool call was successful ("true" or "false")
+  // - blocked: Whether the tool call was blocked by policy ("true" or "false")
   const baseLabelNames = [
     "agent_id",
     "agent_name",
@@ -57,6 +58,7 @@ export function initializeMcpMetrics(labelKeys: string[]): void {
     "tool_name",
     "mcp_server_name",
     "success",
+    "blocked",
   ];
 
   mcpToolCallCounter = new client.Counter({
@@ -88,6 +90,8 @@ export interface McpToolCallMetricContext {
   mcpServerName: string;
   /** Whether the tool call was successful */
   success: boolean;
+  /** Whether the tool call was blocked by policy */
+  blocked: boolean;
   /** Optional agent labels for additional dimensions */
   agentLabels?: Array<{ key: string; value: string }>;
 }
@@ -109,6 +113,7 @@ export function reportMcpToolCall(context: McpToolCallMetricContext): void {
     tool_name: context.toolName,
     mcp_server_name: context.mcpServerName,
     success: context.success ? "true" : "false",
+    blocked: context.blocked ? "true" : "false",
   };
 
   // Add agent label values for all registered label keys

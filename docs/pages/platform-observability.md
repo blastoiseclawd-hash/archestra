@@ -55,6 +55,7 @@ The endpoint `http://localhost:9050/metrics` exposes Prometheus-formatted metric
   - `tool_name` - Full tool name including MCP server prefix
   - `mcp_server_name` - The MCP server that hosts the tool
   - `success` - Whether the tool call was successful ("true" or "false")
+  - `blocked` - Whether the tool call was blocked by policy ("true" or "false")
 
 ### Process Metrics
 
@@ -202,7 +203,7 @@ Here are some PromQL queries for Grafana charts to get you started:
 
 ### LLM Metrics
 
-- LLM requests per second by profile and provider:
+- LLM requests per second by agent and provider:
 
   ```promql
   sum(rate(llm_request_duration_seconds_count[5m])) by (agent_name, provider)
@@ -214,25 +215,25 @@ Here are some PromQL queries for Grafana charts to get you started:
   sum(rate(llm_request_duration_seconds_count{status_code!="200"}[5m])) by (provider) / sum(rate(llm_request_duration_seconds_count[5m])) by (provider) * 100
   ```
 
-- LLM token usage rate (tokens/sec) by profile name:
+- LLM token usage rate (tokens/sec) by agent name:
 
   ```promql
   sum(rate(llm_tokens_total[5m])) by (provider, agent_name, type)
   ```
 
-- Total tokens by profile name:
+- Total tokens by agent name:
 
   ```promql
   sum(rate(llm_tokens_total[5m])) by (agent_name, type)
   ```
 
-- Request duration by profile name and provider:
+- Request duration by agent name and provider:
 
   ```promql
   histogram_quantile(0.95, sum(rate(llm_request_duration_seconds_bucket[5m])) by (agent_name, provider, le))
   ```
 
-- Error rate by profile:
+- Error rate by agent:
 
   ```promql
   sum(rate(llm_request_duration_seconds_count{status_code!~"2.."}[5m])) by (agent_name) / sum(rate(llm_request_duration_seconds_count[5m])) by (agent_name)

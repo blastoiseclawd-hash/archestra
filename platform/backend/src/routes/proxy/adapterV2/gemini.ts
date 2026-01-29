@@ -13,8 +13,8 @@ import { encode as toonEncode } from "@toon-format/toon";
 import { get } from "lodash-es";
 import { createGoogleGenAIClient } from "@/clients/gemini-client";
 import config from "@/config";
-import { getObservableGenAI } from "@/metrics";
 import logger from "@/logging";
+import { getObservableGenAI } from "@/metrics";
 import { TokenPriceModel } from "@/models";
 import { getTokenizer } from "@/tokenizers";
 import type {

@@ -1,21 +1,17 @@
-/**
- * Metrics module - exports all observability metrics for the platform.
- */
-
 export {
-  initializeLlmMetrics,
-  reportLLMTokens,
-  reportLLMCost,
-  reportTimeToFirstToken,
-  reportTokensPerSecond,
+  buildMetricLabels,
   getObservableFetch,
   getObservableGenAI,
-  buildMetricLabels,
+  initializeLlmMetrics,
+  reportLLMCost,
+  reportLLMTokens,
+  reportTimeToFirstToken,
+  reportTokensPerSecond,
   sanitizeLabelKey,
 } from "./llm";
 
 export {
   initializeMcpMetrics,
-  reportMcpToolCall,
   type McpToolCallMetricContext,
+  reportMcpToolCall,
 } from "./mcp";

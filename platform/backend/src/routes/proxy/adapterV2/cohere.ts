@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { encode as toonEncode } from "@toon-format/toon";
 import { get } from "lodash-es";
 import config from "@/config";
-import { getObservableFetch } from "@/metrics";
 import logger from "@/logging";
+import { getObservableFetch } from "@/metrics";
 import { TokenPriceModel } from "@/models";
 import { getTokenizer } from "@/tokenizers";
 import type {

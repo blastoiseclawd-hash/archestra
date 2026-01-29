@@ -6,8 +6,8 @@ import type {
   ChatCompletionCreateParamsStreaming,
 } from "openai/resources/chat/completions/completions";
 import config from "@/config";
-import { getObservableFetch } from "@/metrics";
 import logger from "@/logging";
+import { getObservableFetch } from "@/metrics";
 import { TokenPriceModel } from "@/models";
 import { getTokenizer } from "@/tokenizers";
 import type {

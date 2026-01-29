@@ -82,6 +82,7 @@ describe("reportMcpToolCall", () => {
       toolName: "github__create_issue",
       mcpServerName: "github",
       success: true,
+      blocked: false,
     });
 
     expect(counterInc).toHaveBeenCalledWith({
@@ -91,6 +92,7 @@ describe("reportMcpToolCall", () => {
       tool_name: "github__create_issue",
       mcp_server_name: "github",
       success: "true",
+      blocked: "false",
     });
   });
 
@@ -102,6 +104,7 @@ describe("reportMcpToolCall", () => {
       toolName: "slack__send_message",
       mcpServerName: "slack",
       success: false,
+      blocked: false,
     });
 
     expect(counterInc).toHaveBeenCalledWith({
@@ -111,6 +114,29 @@ describe("reportMcpToolCall", () => {
       tool_name: "slack__send_message",
       mcp_server_name: "slack",
       success: "false",
+      blocked: "false",
+    });
+  });
+
+  test("records blocked tool call", () => {
+    reportMcpToolCall({
+      agentId: "agent-blocked",
+      agentName: "blocked-agent",
+      credentialName: "team-epsilon",
+      toolName: "dangerous__execute",
+      mcpServerName: "dangerous",
+      success: false,
+      blocked: true,
+    });
+
+    expect(counterInc).toHaveBeenCalledWith({
+      agent_id: "agent-blocked",
+      agent_name: "blocked-agent",
+      credential_name: "team-epsilon",
+      tool_name: "dangerous__execute",
+      mcp_server_name: "dangerous",
+      success: "false",
+      blocked: "true",
     });
   });
 
@@ -124,6 +150,7 @@ describe("reportMcpToolCall", () => {
       toolName: "jira__create_ticket",
       mcpServerName: "jira",
       success: true,
+      blocked: false,
       agentLabels: [
         { key: "environment", value: "production" },
         { key: "team", value: "platform" },
@@ -137,6 +164,7 @@ describe("reportMcpToolCall", () => {
       tool_name: "jira__create_ticket",
       mcp_server_name: "jira",
       success: "true",
+      blocked: "false",
       environment: "production",
       team: "platform",
     });
@@ -152,6 +180,7 @@ describe("reportMcpToolCall", () => {
       toolName: "linear__get_issues",
       mcpServerName: "linear",
       success: true,
+      blocked: false,
       agentLabels: [{ key: "environment", value: "staging" }],
     });
 
@@ -162,6 +191,7 @@ describe("reportMcpToolCall", () => {
       tool_name: "linear__get_issues",
       mcp_server_name: "linear",
       success: "true",
+      blocked: "false",
       environment: "staging",
       team: "",
     });
@@ -177,6 +207,7 @@ describe("reportMcpToolCall", () => {
       toolName: "notion__search",
       mcpServerName: "notion",
       success: true,
+      blocked: false,
       agentLabels: [
         { key: "env-name", value: "dev" },
         { key: "team.id", value: "t-123" },
@@ -190,6 +221,7 @@ describe("reportMcpToolCall", () => {
       tool_name: "notion__search",
       mcp_server_name: "notion",
       success: "true",
+      blocked: "false",
       env_name: "dev",
       team_id: "t-123",
     });

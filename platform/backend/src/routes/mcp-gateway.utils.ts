@@ -97,6 +97,7 @@ async function reportToolCallMetric(
   agent: { id: string; name: string },
   toolName: string,
   success: boolean,
+  blocked: boolean,
   tokenAuth?: TokenAuthContext,
   fullAgent?: Agent,
 ): Promise<void> {
@@ -110,6 +111,7 @@ async function reportToolCallMetric(
     toolName,
     mcpServerName,
     success,
+    blocked,
     agentLabels: fullAgent?.labels,
   });
 }
@@ -214,7 +216,7 @@ export async function createAgentServer(
           });
 
           // Report metric for Archestra tool call (always success since errors are thrown)
-          reportToolCallMetric(agent, name, true, tokenAuth, fullAgent);
+          reportToolCallMetric(agent, name, true, false, tokenAuth, fullAgent);
 
           logger.info(
             {
@@ -257,7 +259,14 @@ export async function createAgentServer(
         const contentLength = estimateToolResultContentLength(result.content);
 
         // Report metric for MCP tool call
-        reportToolCallMetric(agent, name, !result.isError, tokenAuth, fullAgent);
+        reportToolCallMetric(
+          agent,
+          name,
+          !result.isError,
+          false,
+          tokenAuth,
+          fullAgent,
+        );
 
         logger.info(
           {
@@ -283,7 +292,7 @@ export async function createAgentServer(
         };
       } catch (error) {
         // Report metric for failed tool call
-        reportToolCallMetric(agent, name, false, tokenAuth, fullAgent);
+        reportToolCallMetric(agent, name, false, false, tokenAuth, fullAgent);
 
         if (typeof error === "object" && error !== null && "code" in error) {
           throw error; // Re-throw JSON-RPC errors
