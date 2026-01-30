@@ -76,7 +76,8 @@ export const MODEL_MARKER_PATTERNS: Record<
   },
   gemini: {
     fastest: ["flash"],
-    best: ["pro", "ultra"],
+    // Prefer stable pro versions, avoid preview/experimental
+    best: ["2.0-pro", "1.5-pro", "ultra"],
   },
   cerebras: {
     fastest: ["llama-3.3-70b"],
