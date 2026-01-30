@@ -22,11 +22,9 @@ import {
   User,
   Users,
   X,
-  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import {
   type ProfileLabel,
   ProfileLabels,
@@ -36,10 +34,19 @@ import {
   AgentToolsEditor,
   type AgentToolsEditorRef,
 } from "@/components/agent-tools-editor";
+import { ModelSelectorLogo } from "@/components/ai-elements/model-selector";
 import { EmailNotConfiguredMessage } from "@/components/email-not-configured-message";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -50,26 +57,16 @@ import {
 import { ExpandableText } from "@/components/ui/expandable-text";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { MultiSelectCombobox } from "@/components/ui/multi-select-combobox";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel as SelectGroupLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -87,10 +84,7 @@ import {
 } from "@/lib/agent-tools.query";
 import { useHasPermissions } from "@/lib/auth.query";
 import { useChatProfileMcpTools } from "@/lib/chat.query";
-import {
-  type ChatModel,
-  useModelsByProvider,
-} from "@/lib/chat-models.query";
+import { type ChatModel, useModelsByProvider } from "@/lib/chat-models.query";
 import { useAvailableChatApiKeys } from "@/lib/chat-settings.query";
 import { useChatOpsStatus } from "@/lib/chatops.query";
 import { useFeatures } from "@/lib/features.query";
@@ -376,8 +370,9 @@ function LlmConfigurationPills({
   const apiKeysByProvider = useMemo(() => {
     const grouped: Record<string, NonNullable<typeof availableApiKeys>> = {};
     for (const key of availableApiKeys || []) {
-      if (!grouped[key.provider]) grouped[key.provider] = [];
-      grouped[key.provider]!.push(key);
+      const providerKeys = grouped[key.provider] ?? [];
+      providerKeys.push(key);
+      grouped[key.provider] = providerKeys;
     }
     return grouped;
   }, [availableApiKeys]);
@@ -387,7 +382,7 @@ function LlmConfigurationPills({
       <Label>LLM Configuration</Label>
       <div className="flex flex-wrap items-center gap-2">
         {/* Model Pill */}
-        <Popover open={modelOpen} onOpenChange={setModelOpen}>
+        <Popover open={modelOpen} onOpenChange={setModelOpen} modal={true}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -410,7 +405,7 @@ function LlmConfigurationPills({
           <PopoverContent className="w-80 p-0" align="start">
             <Command>
               <CommandInput placeholder="Search models..." />
-              <CommandList>
+              <CommandList className="max-h-[300px] overflow-y-auto">
                 <CommandEmpty>No models found.</CommandEmpty>
                 {Object.entries(modelsByProvider)
                   .filter(([, models]) => models && models.length > 0)
@@ -439,10 +434,16 @@ function LlmConfigurationPills({
                           >
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <ModelSelectorLogo
-                                provider={providerToLogoProvider[provider as SupportedProvider]}
+                                provider={
+                                  providerToLogoProvider[
+                                    provider as SupportedProvider
+                                  ]
+                                }
                                 className="shrink-0"
                               />
-                              <span className="truncate">{model.displayName}</span>
+                              <span className="truncate">
+                                {model.displayName}
+                              </span>
                             </div>
                             <Check
                               className={`h-4 w-4 shrink-0 ${llmModel === model.id ? "opacity-100" : "opacity-0"}`}
@@ -458,7 +459,7 @@ function LlmConfigurationPills({
         </Popover>
 
         {/* API Key Pill */}
-        <Popover open={apiKeyOpen} onOpenChange={setApiKeyOpen}>
+        <Popover open={apiKeyOpen} onOpenChange={setApiKeyOpen} modal={true}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -474,7 +475,7 @@ function LlmConfigurationPills({
           <PopoverContent className="w-80 p-0" align="start">
             <Command>
               <CommandInput placeholder="Search API keys..." />
-              <CommandList>
+              <CommandList className="max-h-[300px] overflow-y-auto">
                 <CommandEmpty>No API keys found.</CommandEmpty>
                 {Object.entries(apiKeysByProvider).map(([provider, keys]) => (
                   <CommandGroup
