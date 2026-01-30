@@ -837,13 +837,37 @@ export default function ChatPage() {
         const allModels = Object.values(modelsByProvider).flat();
         if (allModels.some((m) => m.id === newAgent.llmModel)) {
           setInitialModel(newAgent.llmModel);
+          if (newAgent.llmApiKeyId) {
+            setInitialApiKeyId(newAgent.llmApiKeyId);
+          }
+          return;
         }
       }
-      if (newAgent?.llmApiKeyId) {
-        setInitialApiKeyId(newAgent.llmApiKeyId);
+
+      // Agent has no configured model - select best model from preferred API key
+      const scopePriority = { org_wide: 0, team: 1, personal: 2 } as const;
+      const bestModelWithKey = modelsWithApiKeys
+        .filter((m) => m.isBest && m.apiKeys.length > 0)
+        .map((m) => {
+          const sortedKeys = [...m.apiKeys].sort(
+            (a, b) =>
+              (scopePriority[a.scope as keyof typeof scopePriority] ?? 3) -
+              (scopePriority[b.scope as keyof typeof scopePriority] ?? 3),
+          );
+          return { model: m, apiKey: sortedKeys[0] };
+        })
+        .sort(
+          (a, b) =>
+            (scopePriority[a.apiKey.scope as keyof typeof scopePriority] ?? 3) -
+            (scopePriority[b.apiKey.scope as keyof typeof scopePriority] ?? 3),
+        )[0];
+
+      if (bestModelWithKey) {
+        setInitialModel(bestModelWithKey.model.id);
+        setInitialApiKeyId(bestModelWithKey.apiKey.id);
       }
     },
-    [internalAgents, modelsByProvider],
+    [internalAgents, modelsByProvider, modelsWithApiKeys],
   );
 
   // Handle initial submit (when no conversation exists)
