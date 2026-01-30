@@ -66,18 +66,16 @@ export const MODEL_MARKER_PATTERNS: Record<
   }
 > = {
   anthropic: {
-    fastest: ["haiku"],
-    best: ["opus", "sonnet"],
+    fastest: ["claude-haiku-4-5"],
+    best: ["claude-opus-4-5"],
   },
   openai: {
-    fastest: ["gpt-4o-mini", "gpt-3.5"],
-    // "4o-2" matches "gpt-4o-2024..." but not "gpt-4o-mini-..."
-    best: ["o1", "o3", "4o-2", "gpt-4-turbo"],
+    fastest: ["gpt-5.2"],
+    best: ["gpt-5-mini"],
   },
   gemini: {
-    fastest: ["flash"],
-    // Prefer stable pro versions, avoid preview/experimental
-    best: ["2.0-pro", "1.5-pro", "ultra"],
+    fastest: ["gemini-2.5-flash"],
+    best: ["gemini-3-pro"],
   },
   cerebras: {
     fastest: ["llama-3.3-70b"],
