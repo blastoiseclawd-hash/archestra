@@ -234,7 +234,7 @@ export default function ChatPage() {
         )[0];
 
       if (bestModelWithKey) {
-        setInitialModel(bestModelWithKey.model.id);
+        setInitialModel(bestModelWithKey.model.modelId);
         setInitialApiKeyId(bestModelWithKey.apiKey.id);
         return;
       }
@@ -863,7 +863,7 @@ export default function ChatPage() {
         )[0];
 
       if (bestModelWithKey) {
-        setInitialModel(bestModelWithKey.model.id);
+        setInitialModel(bestModelWithKey.model.modelId);
         setInitialApiKeyId(bestModelWithKey.apiKey.id);
       }
     },
