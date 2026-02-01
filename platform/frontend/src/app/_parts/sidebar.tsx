@@ -12,7 +12,11 @@ import {
   Bot,
   Bug,
   Cable,
+  Calendar,
+  Calendar1,
+  CalendarClock,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   DollarSign,
   Folder,
@@ -30,6 +34,7 @@ import {
   Network,
   Plus,
   Router,
+  Search,
   Settings,
   Shield,
   Slack,
@@ -45,6 +50,7 @@ import Divider from "@/components/divider";
 import { WithPermissions } from "@/components/roles/with-permissions";
 import { SecurityEngineWarning } from "@/components/security-engine-warning";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   Sidebar,
   SidebarContent,
@@ -517,10 +523,10 @@ const MainSideBarSection = ({
   );
 
   const menuBtnClassName = "opacity-99";
-  const sidebarGroupClassName = "pb-0";
+  const sidebarGroupClassName = "pb-0 pt-0";
   const groupLabelClassName = "height-[28px]";
   const dividerClassName =
-    "w-[calc(100%-10px)] mx-auto mt-[-4px] mb-[6px] opacity-90";
+    "w-[calc(100%-10px)] mx-auto mt-[-8px] mb-[4px] opacity-60";
   const option3 = (
     <SidebarContent className="gap-1">
       {/* <Divider className="w-[calc(100%-30px)] mx-auto" /> */}
@@ -543,8 +549,25 @@ const MainSideBarSection = ({
           <SidebarMenuButton asChild className={menuBtnClassName}>
             <Link href="/chat">
               <MessagesSquare />
-              My Chats
-              <ChevronUp className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
+              My Chats (14)
+              <Search className="ml-auto" />
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem className="pl-6 mt-[-6px]">
+          <SidebarMenuButton asChild className="h-6 text-xs">
+            <Link href="/chat">Sarcastic Greeting...</Link>
+          </SidebarMenuButton>
+          <SidebarMenuButton asChild className="h-6 text-xs">
+            <Link href="/chat">Best Car in the World...</Link>
+          </SidebarMenuButton>
+          <SidebarMenuButton asChild className="h-6 text-xs">
+            <Link href="/chat">Finance Help... </Link>
+          </SidebarMenuButton>
+          <SidebarMenuButton asChild className="h-6 text-xs">
+            <Link href="/chat" className="opacity-70">
+              <ChevronRight className="h-1 w-1 [&>svg]:size-1 [&>svg]:shrink-0" />
+              <span className="text-xs">show more</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -566,8 +589,8 @@ const MainSideBarSection = ({
         <SidebarMenuItem>
           <SidebarMenuButton asChild className={menuBtnClassName}>
             <Link href="/chat">
-              <Grip />
-              <span>Agent Builder</span>
+              <Calendar />
+              <span>Schedules</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -606,7 +629,7 @@ const MainSideBarSection = ({
       {/* <Divider className="w-[calc(100%-30px)] mx-auto" /> */}
       <SidebarGroup className={sidebarGroupClassName}>
         <SidebarGroupLabel className={groupLabelClassName}>
-          MCP & Tools
+          MCP Gateways
         </SidebarGroupLabel>
         <Divider className={dividerClassName} />
         <SidebarMenuItem>
@@ -624,6 +647,20 @@ const MainSideBarSection = ({
         <SidebarMenuItem>
           <SidebarMenuButton asChild className={menuBtnClassName}>
             <Link href="/chat">
+              <Logs />
+              <span>Logs</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarGroup>
+      <SidebarGroup className={sidebarGroupClassName}>
+        <SidebarGroupLabel className={groupLabelClassName}>
+          Tools
+        </SidebarGroupLabel>
+        <Divider className={dividerClassName} />
+        <SidebarMenuItem>
+          <SidebarMenuButton asChild className={menuBtnClassName}>
+            <Link href="/chat">
               <Router />
               <span>MCP Registry</span>
             </Link>
@@ -638,11 +675,8 @@ const MainSideBarSection = ({
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarGroup>
+      <Divider className="border-t-2 border-black/13 dark:border-white/13 mt-2 mb-2" />
       <SidebarGroup className={sidebarGroupClassName}>
-        <SidebarGroupLabel className={groupLabelClassName}>
-          Configure
-        </SidebarGroupLabel>
-        <Divider className={dividerClassName} />
         <SidebarMenuItem>
           <SidebarMenuButton asChild className={menuBtnClassName}>
             <Link href="/chat">
