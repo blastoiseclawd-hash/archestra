@@ -50,7 +50,10 @@ interface ChatApiKeySelectorProps {
   /** Current provider (derived from selected model) - used for auto-selection */
   currentProvider?: SupportedChatProvider;
   /** Callback when user explicitly selects a key with different provider */
-  onProviderChange?: (provider: SupportedChatProvider) => void;
+  onProviderChange?: (
+    provider: SupportedChatProvider,
+    apiKeyId: string,
+  ) => void;
   /** Callback when the selector opens or closes */
   onOpenChange?: (open: boolean) => void;
   /** Whether models are still loading - don't render until models are loaded */
@@ -272,7 +275,7 @@ export function ChatApiKeySelector({
       selectedKeyProvider !== currentProvider &&
       onProviderChange
     ) {
-      onProviderChange(selectedKeyProvider);
+      onProviderChange(selectedKeyProvider, keyId);
     }
   };
 

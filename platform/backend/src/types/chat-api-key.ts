@@ -83,6 +83,8 @@ export const ChatApiKeyWithScopeInfoSchema = SelectChatApiKeySchema.extend({
   vaultSecretKey: z.string().nullable().optional(),
   // Secret storage type (database, vault, external_vault, or none)
   secretStorageType: SecretStorageTypeSchema.optional(),
+  // Best model ID for this API key (based on pattern matching)
+  bestModelId: z.string().nullable().optional(),
 });
 
 export type ChatApiKeyWithScopeInfo = z.infer<

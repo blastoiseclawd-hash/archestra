@@ -42017,6 +42017,10 @@
                           "database",
                           "none"
                         ]
+                      },
+                      "bestModelId": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -42736,6 +42740,10 @@
                           "database",
                           "none"
                         ]
+                      },
+                      "bestModelId": {
+                        "nullable": true,
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -43080,6 +43088,10 @@
                         "database",
                         "none"
                       ]
+                    },
+                    "bestModelId": {
+                      "nullable": true,
+                      "type": "string"
                     }
                   },
                   "required": [

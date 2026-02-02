@@ -66,7 +66,10 @@ interface ArchestraPromptInputProps {
   /** Callback for API key change in initial chat mode (no conversation) */
   onApiKeyChange?: (apiKeyId: string) => void;
   /** Callback when user selects an API key with a different provider */
-  onProviderChange?: (provider: SupportedChatProvider) => void;
+  onProviderChange?: (
+    provider: SupportedChatProvider,
+    apiKeyId: string,
+  ) => void;
   // Ref for autofocus
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   /** Whether file uploads are allowed (controlled by organization setting) */

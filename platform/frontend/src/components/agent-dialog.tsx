@@ -377,9 +377,18 @@ function LlmConfigurationPills({
     return grouped;
   }, [availableApiKeys]);
 
+  const hasNoSelection = !llmModel && !llmApiKeyId;
+
   return (
     <div className="space-y-2">
       <Label>LLM Configuration</Label>
+      {hasNoSelection && (
+        <p className="text-sm text-muted-foreground">
+          When not configured, the agent automatically selects the best
+          available model using this priority: organization-wide API keys, then
+          team keys, then personal keys.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {/* Model Pill */}
         <Popover open={modelOpen} onOpenChange={setModelOpen} modal={true}>
@@ -1353,12 +1362,19 @@ export function AgentDialog({
                   }
                   // Only auto-select model if no model selected or model is for different provider
                   if (!llmModel || currentModelProvider !== provider) {
-                    const providerModels =
-                      modelsByProvider[provider as SupportedProvider] || [];
-                    if (providerModels.length > 0) {
-                      // Select first model from this provider
-                      const modelToSelect = providerModels[0];
-                      setLlmModel(modelToSelect.id);
+                    // Use bestModelId from API key (computed by backend)
+                    const selectedKey = availableApiKeys.find(
+                      (k) => k.id === keyId,
+                    );
+                    if (selectedKey?.bestModelId) {
+                      setLlmModel(selectedKey.bestModelId);
+                    } else {
+                      // Fallback to first model from provider
+                      const providerModels =
+                        modelsByProvider[provider as SupportedProvider] || [];
+                      if (providerModels.length > 0) {
+                        setLlmModel(providerModels[0].id);
+                      }
                     }
                   }
                 }}

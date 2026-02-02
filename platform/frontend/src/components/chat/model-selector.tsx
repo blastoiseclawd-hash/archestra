@@ -34,7 +34,15 @@ import {
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
 import { PromptInputButton } from "@/components/ai-elements/prompt-input";
+import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyContent,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Toggle } from "@/components/ui/toggle";
 import {
   Tooltip,
@@ -656,14 +664,7 @@ export function ModelSelector({
     );
   }
 
-  // If no providers configured, show disabled state
-  if (availableProviders.length === 0) {
-    return (
-      <PromptInputButton disabled>
-        <ModelSelectorName>No models available</ModelSelectorName>
-      </PromptInputButton>
-    );
-  }
+  const hasNoProviders = availableProviders.length === 0;
 
   return (
     <div>
@@ -674,14 +675,16 @@ export function ModelSelector({
             className="max-w-[280px] min-w-0"
             data-testid={E2eTestId.ChatModelSelectorTrigger}
           >
-            {selectedModelLogo && (
+            {selectedModelLogo && !hasNoProviders && (
               <ModelSelectorLogo
                 provider={selectedModelLogo}
                 className="shrink-0"
               />
             )}
             <ModelSelectorName className="truncate flex-1 text-left">
-              {selectedModelDisplayName || "Select model"}
+              {hasNoProviders
+                ? "No models available"
+                : selectedModelDisplayName || "Select model"}
             </ModelSelectorName>
           </PromptInputButton>
         </ModelSelectorTrigger>
@@ -699,11 +702,40 @@ export function ModelSelector({
           />
           <ModelSelectorInput placeholder="Search models..." />
           <ModelSelectorList>
-            <ModelSelectorEmpty>
-              {hasActiveFilters
-                ? "No models match the selected filters."
-                : "No models found."}
-            </ModelSelectorEmpty>
+            {hasNoProviders ? (
+              <Empty className="border-0 py-8">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Layers className="size-5" />
+                  </EmptyMedia>
+                  <EmptyTitle className="text-base">
+                    No models loaded
+                  </EmptyTitle>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => syncMutation.mutate()}
+                    disabled={syncMutation.isPending}
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "size-4 mr-2",
+                        syncMutation.isPending && "animate-spin",
+                      )}
+                    />
+                    Refresh models
+                  </Button>
+                </EmptyContent>
+              </Empty>
+            ) : (
+              <ModelSelectorEmpty>
+                {hasActiveFilters
+                  ? "No models match the selected filters."
+                  : "No models found."}
+              </ModelSelectorEmpty>
+            )}
 
             {/* Show current model if not in available list */}
             {!isModelAvailable && selectedModel && (

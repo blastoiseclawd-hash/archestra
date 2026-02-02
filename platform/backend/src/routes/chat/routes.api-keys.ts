@@ -6,7 +6,7 @@ import { z } from "zod";
 import { hasPermission } from "@/auth";
 import { isVertexAiEnabled } from "@/clients/gemini-client";
 import logger from "@/logging";
-import { ChatApiKeyModel, TeamModel } from "@/models";
+import { ApiKeyModelModel, ChatApiKeyModel, TeamModel } from "@/models";
 import { testProviderApiKey } from "@/routes/chat/routes.models";
 import {
   assertByosEnabled,
@@ -86,7 +86,19 @@ const chatApiKeysRoutes: FastifyPluginAsyncZod = async (fastify) => {
         userTeamIds,
         query.provider,
       );
-      return reply.send(apiKeys);
+
+      // Fetch best model for each API key
+      const apiKeysWithBestModel = await Promise.all(
+        apiKeys.map(async (key) => {
+          const bestModel = await ApiKeyModelModel.getBestModel(key.id);
+          return {
+            ...key,
+            bestModelId: bestModel?.modelId ?? null,
+          };
+        }),
+      );
+
+      return reply.send(apiKeysWithBestModel);
     },
   );
 

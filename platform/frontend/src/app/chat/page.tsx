@@ -69,6 +69,7 @@ import {
 } from "@/lib/chat-models.query";
 import {
   type SupportedChatProvider,
+  useAvailableChatApiKeys,
   useChatApiKeys,
 } from "@/lib/chat-settings.query";
 import { useDialogs } from "@/lib/dialog.hook";
@@ -139,6 +140,9 @@ export default function ChatPage() {
 
   // Fetch models with API keys for best model selection
   const { data: modelsWithApiKeys = [] } = useModelsWithApiKeys();
+
+  // Get all available API keys with bestModelId for model selection
+  const { data: availableApiKeys = [] } = useAvailableChatApiKeys();
 
   // State for initial chat (when no conversation exists yet)
   const [initialAgentId, setInitialAgentId] = useState<string | null>(null);
@@ -264,11 +268,27 @@ export default function ChatPage() {
     localStorage.setItem("selected-chat-model", modelId);
   }, []);
 
-  // Handle provider change from API key selector - auto-select a model from new provider
+  // Handle provider change from API key selector - auto-select best model for the new provider
   const handleInitialProviderChange = useCallback(
-    (newProvider: SupportedChatProvider) => {
+    (newProvider: SupportedChatProvider, apiKeyId?: string) => {
       const providerModels = modelsByProvider[newProvider];
       if (providerModels && providerModels.length > 0) {
+        // Try to use bestModelId from the selected API key
+        if (apiKeyId) {
+          const selectedKey = availableApiKeys.find((k) => k.id === apiKeyId);
+          if (
+            selectedKey?.bestModelId &&
+            providerModels.some((m) => m.id === selectedKey.bestModelId)
+          ) {
+            setInitialModel(selectedKey.bestModelId);
+            localStorage.setItem(
+              "selected-chat-model",
+              selectedKey.bestModelId,
+            );
+            return;
+          }
+        }
+
         // Try to restore from localStorage for this provider
         const savedModelKey = `selected-chat-model-${newProvider}`;
         const savedModelId = localStorage.getItem(savedModelKey);
@@ -283,7 +303,7 @@ export default function ChatPage() {
         localStorage.setItem("selected-chat-model", firstModel.id);
       }
     },
-    [modelsByProvider],
+    [modelsByProvider, availableApiKeys],
   );
 
   // Derive provider from initial model for API key filtering
@@ -437,19 +457,30 @@ export default function ChatPage() {
     [conversation, chatModels, updateConversationMutation],
   );
 
-  // Handle provider change from API key selector - auto-select a model from new provider
+  // Handle provider change from API key selector - auto-select best model for the new provider
   const handleProviderChange = useCallback(
-    (newProvider: SupportedChatProvider) => {
+    (newProvider: SupportedChatProvider, apiKeyId?: string) => {
       if (!conversation) return;
 
       const providerModels = modelsByProvider[newProvider];
       if (providerModels && providerModels.length > 0) {
-        // Select first model from the new provider
-        const firstModel = providerModels[0];
+        let selectedModelId = providerModels[0].id;
+
+        // Try to use bestModelId from the selected API key
+        if (apiKeyId) {
+          const selectedKey = availableApiKeys.find((k) => k.id === apiKeyId);
+          if (
+            selectedKey?.bestModelId &&
+            providerModels.some((m) => m.id === selectedKey.bestModelId)
+          ) {
+            selectedModelId = selectedKey.bestModelId;
+          }
+        }
+
         updateConversationMutation.mutate(
           {
             id: conversation.id,
-            selectedModel: firstModel.id,
+            selectedModel: selectedModelId,
             selectedProvider: newProvider,
           },
           {
@@ -462,7 +493,12 @@ export default function ChatPage() {
         );
       }
     },
-    [conversation, modelsByProvider, updateConversationMutation],
+    [
+      conversation,
+      modelsByProvider,
+      availableApiKeys,
+      updateConversationMutation,
+    ],
   );
 
   // Find the specific internal agent for this conversation (if any)
