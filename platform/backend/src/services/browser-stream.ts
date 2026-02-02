@@ -3,6 +3,7 @@ import {
   DEFAULT_BROWSER_PREVIEW_VIEWPORT_WIDTH,
   isBrowserMcpTool,
 } from "@shared";
+import { LRUCacheManager } from "@/cache-manager";
 import { getChatMcpClient } from "@/clients/chat-mcp-client";
 import logger from "@/logging";
 import { ToolModel } from "@/models";
@@ -72,21 +73,65 @@ export interface SnapshotResult {
  */
 type ConversationTabKey = `${string}:${string}:${string}`;
 
-const conversationTabMap = new Map<ConversationTabKey, number>();
+/**
+ * Cache for conversation-to-tab-index mappings.
+ * Key: ConversationTabKey (agentId:userId:conversationId)
+ * Value: tab index number
+ */
+const conversationTabCache = new LRUCacheManager<number>({
+  maxSize: 500, // Reasonable limit for tab mappings
+  defaultTtl: 0, // No expiration - managed by cleanup logic
+});
 
 /**
  * Tracks pending tab creation requests to prevent duplicate tabs.
  * When a tab is being created for a conversation, other concurrent requests
  * will wait for the pending creation to complete instead of creating duplicates.
+ * Note: Uses Map because Promises cannot be serialized/cached.
  */
 const pendingTabCreation = new Map<ConversationTabKey, Promise<TabResult>>();
 
 /**
  * Tracks which agent+user combos have been cleaned up after server restart.
  * On first browser panel open after restart, we close all orphaned tabs.
+ *
+ * Uses LRUCacheManager for consistency and to prevent unbounded growth.
+ * If an entry is evicted due to LRU, cleanup will simply re-run (idempotent).
  */
 type AgentUserKey = `${string}:${string}`;
-const cleanedUpAgents = new Set<AgentUserKey>();
+const cleanedUpAgentsCache = new LRUCacheManager<boolean>({
+  maxSize: 500,
+  defaultTtl: 0, // No expiration - cleanup state persists until server restart
+});
+
+/**
+ * Maximum number of browser tabs per agent+user combination.
+ * When this limit is reached, the least recently used tab is evicted.
+ */
+const MAX_TABS_PER_AGENT_USER = 5;
+
+/**
+ * Tracks tab usage for LRU eviction decisions.
+ */
+interface TabLRUEntry {
+  tabIndex: number;
+  lastUsedAt: number; // Date.now() timestamp
+  conversationId: string;
+}
+
+/**
+ * Cache for tab LRU entries.
+ * Key: ConversationTabKey (agentId:userId:conversationId)
+ * Value: TabLRUEntry with tab index and last-used timestamp
+ *
+ * Note: Uses flat key structure instead of nested maps for consistency
+ * with LRUCacheManager patterns. To get all tabs for an agent+user,
+ * iterate keys with matching prefix (agentId:userId:).
+ */
+const tabLRUCache = new LRUCacheManager<TabLRUEntry>({
+  maxSize: 500,
+  defaultTtl: 0, // No expiration - managed by cleanup logic
+});
 
 const toConversationTabKey = (
   agentId: string,
@@ -187,12 +232,12 @@ export class BrowserStreamService {
     const agentUserKey = toAgentUserKey(agentId, userContext.userId);
 
     // Skip if already cleaned up
-    if (cleanedUpAgents.has(agentUserKey)) {
+    if (cleanedUpAgentsCache.has(agentUserKey)) {
       return;
     }
 
     // Mark as cleaned up immediately to prevent concurrent cleanup attempts
-    cleanedUpAgents.add(agentUserKey);
+    cleanedUpAgentsCache.set(agentUserKey, true);
 
     try {
       // List all existing tabs
@@ -246,10 +291,168 @@ export class BrowserStreamService {
           "Finished cleaning up orphaned browser tabs",
         );
       }
+
+      // Clear all entries for this agent+user since all tabs are now orphaned/closed
+      const agentUserPrefix = `${agentId}:${userContext.userId}:`;
+      tabLRUCache.deleteByPrefix(agentUserPrefix);
+      conversationTabCache.deleteByPrefix(agentUserPrefix);
     } catch (error) {
       logger.error(
         { agentId, userId: userContext.userId, error },
         "Error during orphaned tabs cleanup",
+      );
+    }
+  }
+
+  /**
+   * Update the LRU timestamp for a tab when it's accessed.
+   * Called whenever a browser action is performed on a conversation's tab.
+   */
+  private touchTab(
+    tabKey: ConversationTabKey,
+    _agentUserKey: AgentUserKey,
+    tabIndex: number,
+    conversationId: string,
+  ): void {
+    tabLRUCache.set(tabKey, {
+      tabIndex,
+      lastUsedAt: Date.now(),
+      conversationId,
+    });
+  }
+
+  /**
+   * Find the least recently used tab for a given agent+user combination.
+   * Returns null if no tabs exist.
+   * Skips tab 0 (protected default tab).
+   */
+  private findLRUTab(agentUserKey: AgentUserKey): {
+    tabKey: ConversationTabKey;
+    entry: TabLRUEntry;
+  } | null {
+    const prefix = `${agentUserKey}:`;
+    let oldestKey: ConversationTabKey | null = null;
+    let oldestEntry: TabLRUEntry | null = null;
+
+    for (const key of tabLRUCache.keys()) {
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+
+      const entry = tabLRUCache.get(key);
+      if (!entry) {
+        continue;
+      }
+
+      // Skip tab 0 (protected - it's the default tab)
+      if (entry.tabIndex === 0) {
+        continue;
+      }
+
+      if (!oldestEntry || entry.lastUsedAt < oldestEntry.lastUsedAt) {
+        oldestKey = key as ConversationTabKey;
+        oldestEntry = entry;
+      }
+    }
+
+    return oldestKey && oldestEntry
+      ? { tabKey: oldestKey, entry: oldestEntry }
+      : null;
+  }
+
+  /**
+   * Get the number of tabs for an agent+user combination.
+   */
+  private getTabCountForAgentUser(agentUserKey: AgentUserKey): number {
+    const prefix = `${agentUserKey}:`;
+    let count = 0;
+    for (const key of tabLRUCache.keys()) {
+      if (key.startsWith(prefix)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Evict the least recently used tab to make room for a new one.
+   * Closes the tab in Playwright and removes it from tracking maps.
+   */
+  private async evictLRUTab(
+    agentUserKey: AgentUserKey,
+    client: NonNullable<Awaited<ReturnType<typeof getChatMcpClient>>>,
+    tabsTool: string,
+  ): Promise<void> {
+    const lruTab = this.findLRUTab(agentUserKey);
+    if (!lruTab) {
+      return;
+    }
+
+    const { tabKey, entry } = lruTab;
+
+    logger.info(
+      {
+        agentUserKey,
+        evictedTabKey: tabKey,
+        evictedTabIndex: entry.tabIndex,
+        lastUsedAt: entry.lastUsedAt,
+        ageMs: Date.now() - entry.lastUsedAt,
+      },
+      "Evicting LRU browser tab to make room for new conversation",
+    );
+
+    // Close the tab in Playwright (tab 0 is protected and won't be evicted)
+    try {
+      await client.callTool({
+        name: tabsTool,
+        arguments: { action: "close", index: entry.tabIndex },
+      });
+
+      // Update indices for tabs with higher indices (they shift down)
+      this.updateIndicesAfterEviction(agentUserKey, entry.tabIndex);
+    } catch (error) {
+      logger.warn(
+        { tabKey, tabIndex: entry.tabIndex, error },
+        "Failed to close evicted tab in Playwright (continuing anyway)",
+      );
+    }
+
+    // Remove from both caches
+    conversationTabCache.delete(tabKey);
+    tabLRUCache.delete(tabKey);
+  }
+
+  /**
+   * Update tab indices after a tab is evicted/closed.
+   * When a tab is closed, Playwright shifts indices down for tabs above it.
+   */
+  private updateIndicesAfterEviction(
+    agentUserKey: AgentUserKey,
+    closedIndex: number,
+  ): void {
+    const prefix = `${agentUserKey}:`;
+
+    for (const key of tabLRUCache.keys()) {
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+
+      const entry = tabLRUCache.get(key);
+      if (!entry || entry.tabIndex <= closedIndex) {
+        continue;
+      }
+
+      // Update the entry with decremented index
+      const updatedEntry: TabLRUEntry = {
+        ...entry,
+        tabIndex: entry.tabIndex - 1,
+      };
+      tabLRUCache.set(key, updatedEntry);
+
+      // Also update conversationTabCache
+      conversationTabCache.set(
+        key as ConversationTabKey,
+        updatedEntry.tabIndex,
       );
     }
   }
@@ -333,14 +536,16 @@ export class BrowserStreamService {
         agentId,
         userId: userContext.userId,
         conversationId,
-        existingTabIndex: conversationTabMap.get(tabKey),
-        allTabKeys: Array.from(conversationTabMap.keys()),
+        existingTabIndex: conversationTabCache.get(tabKey),
+        allTabKeys: Array.from(conversationTabCache.keys()),
       },
       "selectOrCreateTab called",
     );
 
     try {
-      const existingTabIndex = conversationTabMap.get(tabKey);
+      const existingTabIndex = conversationTabCache.get(tabKey);
+
+      const agentUserKey = toAgentUserKey(agentId, userContext.userId);
 
       if (existingTabIndex !== undefined) {
         try {
@@ -350,6 +555,13 @@ export class BrowserStreamService {
           });
 
           if (!selectExistingResult.isError) {
+            // Touch tab to update LRU timestamp
+            this.touchTab(
+              tabKey,
+              agentUserKey,
+              existingTabIndex,
+              conversationId,
+            );
             return { success: true, tabIndex: existingTabIndex };
           }
 
@@ -381,7 +593,7 @@ export class BrowserStreamService {
           );
         }
         // Clear stale entry and fall through to create new tab
-        conversationTabMap.delete(tabKey);
+        conversationTabCache.delete(tabKey);
       }
 
       const listResult = await client.callTool({
@@ -400,7 +612,13 @@ export class BrowserStreamService {
       // Look for a tab that:
       // 1. Is at about:blank or has no URL
       // 2. Is not already claimed by another conversation
-      const claimedTabIndices = new Set(conversationTabMap.values());
+      const claimedTabIndices = new Set<number>();
+      for (const key of conversationTabCache.keys()) {
+        const index = conversationTabCache.get(key as ConversationTabKey);
+        if (index !== undefined) {
+          claimedTabIndices.add(index);
+        }
+      }
       const reusableTab = existingTabs.find(
         (tab) =>
           !claimedTabIndices.has(tab.index) &&
@@ -424,7 +642,14 @@ export class BrowserStreamService {
         });
 
         if (!selectResult.isError) {
-          conversationTabMap.set(tabKey, reusableTab.index);
+          conversationTabCache.set(tabKey, reusableTab.index);
+          // Touch tab to update LRU timestamp
+          this.touchTab(
+            tabKey,
+            agentUserKey,
+            reusableTab.index,
+            conversationId,
+          );
           return { success: true, tabIndex: reusableTab.index };
         }
         // Fall through to create new tab if selection failed
@@ -434,7 +659,17 @@ export class BrowserStreamService {
         );
       }
 
-      // No reusable tab found, create a new one
+      // No reusable tab found, check if we need to evict a tab first
+      const tabCount = this.getTabCountForAgentUser(agentUserKey);
+      if (tabCount >= MAX_TABS_PER_AGENT_USER) {
+        logger.info(
+          { agentUserKey, tabCount, maxTabs: MAX_TABS_PER_AGENT_USER },
+          "Tab limit reached, evicting LRU tab",
+        );
+        await this.evictLRUTab(agentUserKey, client, tabsTool);
+      }
+
+      // Create a new tab
       const expectedNewTabIndex = this.getMaxTabIndex(existingTabs) + 1;
 
       const createResult = await client.callTool({
@@ -492,7 +727,9 @@ export class BrowserStreamService {
         return { success: false, error: errorText || "Failed to select tab" };
       }
 
-      conversationTabMap.set(tabKey, resolvedTabIndex);
+      conversationTabCache.set(tabKey, resolvedTabIndex);
+      // Touch tab to update LRU timestamp
+      this.touchTab(tabKey, agentUserKey, resolvedTabIndex, conversationId);
       return { success: true, tabIndex: resolvedTabIndex };
     } catch (error) {
       const errorMessage =
@@ -628,6 +865,17 @@ export class BrowserStreamService {
       );
     }
 
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
+    }
+
     const toolName = await this.findNavigateTool(agentId);
     if (!toolName) {
       throw new ApiError(
@@ -685,6 +933,17 @@ export class BrowserStreamService {
         500,
         tabResult.error ?? "Failed to select browser tab",
       );
+    }
+
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
     }
 
     const toolName = await this.findNavigateBackTool(agentId);
@@ -967,11 +1226,13 @@ export class BrowserStreamService {
       userContext.userId,
       conversationId,
     );
-    let tabIndex = conversationTabMap.get(tabKey);
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    let tabIndex = conversationTabCache.get(tabKey);
 
     const tabsTool = await this.findTabsTool(agentId);
     if (!tabsTool) {
-      conversationTabMap.delete(tabKey);
+      conversationTabCache.delete(tabKey);
+      tabLRUCache.delete(tabKey);
       return { success: true };
     }
 
@@ -981,7 +1242,7 @@ export class BrowserStreamService {
       userContext.userIsProfileAdmin,
     );
     if (!client) {
-      conversationTabMap.delete(tabKey);
+      conversationTabCache.delete(tabKey);
       return { success: true };
     }
 
@@ -1040,25 +1301,17 @@ export class BrowserStreamService {
         arguments: { action: "close", index: tabIndex },
       });
 
-      conversationTabMap.delete(tabKey);
+      conversationTabCache.delete(tabKey);
+      tabLRUCache.delete(tabKey);
 
-      // Update indices for all conversations with higher tab indices
-      // When a tab is closed, all tabs with higher indices shift down by one
-      const closedIndex = tabIndex;
-      for (const [key, index] of conversationTabMap.entries()) {
-        if (index > closedIndex) {
-          conversationTabMap.set(key, index - 1);
-          logger.debug(
-            { key, oldIndex: index, newIndex: index - 1 },
-            "Shifted tab index after tab close",
-          );
-        }
-      }
+      // Update indices for all tabs with higher indices (they shift down)
+      this.updateIndicesAfterEviction(agentUserKey, tabIndex);
 
       return { success: true };
     } catch (error) {
       logger.error({ error, agentId, conversationId }, "Failed to close tab");
-      conversationTabMap.delete(tabKey);
+      conversationTabCache.delete(tabKey);
+      tabLRUCache.delete(tabKey);
       return { success: true }; // Consider success even if close fails
     }
   }
@@ -1204,6 +1457,17 @@ export class BrowserStreamService {
         500,
         tabResult.error ?? "Failed to select browser tab",
       );
+    }
+
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
     }
 
     // Resize browser to ensure consistent viewport dimensions for preview
@@ -1541,6 +1805,17 @@ export class BrowserStreamService {
       );
     }
 
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
+    }
+
     const client = await getChatMcpClient(
       agentId,
       userContext.userId,
@@ -1657,6 +1932,17 @@ export class BrowserStreamService {
       );
     }
 
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
+    }
+
     const client = await getChatMcpClient(
       agentId,
       userContext.userId,
@@ -1755,6 +2041,17 @@ export class BrowserStreamService {
       );
     }
 
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
+    }
+
     const toolName = await this.findPressKeyTool(agentId);
     if (!toolName) {
       throw new ApiError(
@@ -1808,6 +2105,17 @@ export class BrowserStreamService {
         500,
         tabResult.error ?? "Failed to select browser tab",
       );
+    }
+
+    // Touch tab to update LRU timestamp for this browser action
+    const tabKey = toConversationTabKey(
+      agentId,
+      userContext.userId,
+      conversationId,
+    );
+    const agentUserKey = toAgentUserKey(agentId, userContext.userId);
+    if (tabResult.tabIndex !== undefined) {
+      this.touchTab(tabKey, agentUserKey, tabResult.tabIndex, conversationId);
     }
 
     const toolName = await this.findSnapshotTool(agentId);
