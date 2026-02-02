@@ -37,7 +37,12 @@ export interface ScreenshotResult {
 export interface TabResult {
   success: boolean;
   tabIndex?: number;
-  tabs?: Array<{ index: number; title?: string; url?: string }>;
+  tabs?: Array<{
+    index: number;
+    title?: string;
+    url?: string;
+    current?: boolean;
+  }>;
   error?: string;
 }
 
@@ -697,6 +702,170 @@ export class BrowserStreamService {
   }
 
   /**
+   * Select a specific browser tab by index.
+   * Does NOT create a new tab if the index doesn't exist.
+   */
+  async selectTab(
+    agentId: string,
+    tabIndex: number,
+    userContext: BrowserUserContext,
+  ): Promise<TabResult> {
+    const tabsTool = await this.findTabsTool(agentId);
+    if (!tabsTool) {
+      return { success: false, error: "No browser_tabs tool available" };
+    }
+
+    const client = await getChatMcpClient(
+      agentId,
+      userContext.userId,
+      userContext.userIsProfileAdmin,
+    );
+    if (!client) {
+      return { success: false, error: "Failed to connect to MCP Gateway" };
+    }
+
+    try {
+      const result = await client.callTool({
+        name: tabsTool,
+        arguments: { action: "select", index: tabIndex },
+      });
+
+      if (result.isError) {
+        const errorText = this.extractTextContent(result.content);
+        return { success: false, error: errorText || "Failed to select tab" };
+      }
+
+      return { success: true, tabIndex };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Tab selection failed",
+      };
+    }
+  }
+
+  /**
+   * Create a new browser tab (without conversation association).
+   * Returns the index of the newly created tab.
+   */
+  async createTab(
+    agentId: string,
+    userContext: BrowserUserContext,
+  ): Promise<TabResult> {
+    const tabsTool = await this.findTabsTool(agentId);
+    if (!tabsTool) {
+      return { success: false, error: "No browser_tabs tool available" };
+    }
+
+    const client = await getChatMcpClient(
+      agentId,
+      userContext.userId,
+      userContext.userIsProfileAdmin,
+    );
+    if (!client) {
+      return { success: false, error: "Failed to connect to MCP Gateway" };
+    }
+
+    try {
+      // List existing tabs first
+      const beforeList = await client.callTool({
+        name: tabsTool,
+        arguments: { action: "list" },
+      });
+      const existingTabs = beforeList.isError
+        ? []
+        : this.parseTabsList(beforeList.content);
+
+      // Create new tab
+      const createResult = await client.callTool({
+        name: tabsTool,
+        arguments: { action: "new" },
+      });
+
+      if (createResult.isError) {
+        const errorText = this.extractTextContent(createResult.content);
+        return { success: false, error: errorText || "Failed to create tab" };
+      }
+
+      // List tabs again to find the new tab index
+      const afterList = await client.callTool({
+        name: tabsTool,
+        arguments: { action: "list" },
+      });
+      const afterTabs = afterList.isError
+        ? []
+        : this.parseTabsList(afterList.content);
+
+      // Find the new tab index (highest index not in beforeList)
+      const existingIndexSet = new Set(existingTabs.map((tab) => tab.index));
+      const newIndices = afterTabs
+        .map((tab) => tab.index)
+        .filter(
+          (index) => Number.isInteger(index) && !existingIndexSet.has(index),
+        );
+
+      const newTabIndex =
+        newIndices.length > 0
+          ? Math.max(...newIndices)
+          : this.getMaxTabIndex(afterTabs);
+
+      return { success: true, tabIndex: newTabIndex };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Tab creation failed",
+      };
+    }
+  }
+
+  /**
+   * Close a specific browser tab by index.
+   * Cannot close tab 0 (the default tab).
+   */
+  async closeTabByIndex(
+    agentId: string,
+    tabIndex: number,
+    userContext: BrowserUserContext,
+  ): Promise<TabResult> {
+    if (tabIndex === 0) {
+      return { success: false, error: "Cannot close the default tab (tab 0)" };
+    }
+
+    const tabsTool = await this.findTabsTool(agentId);
+    if (!tabsTool) {
+      return { success: false, error: "No browser_tabs tool available" };
+    }
+
+    const client = await getChatMcpClient(
+      agentId,
+      userContext.userId,
+      userContext.userIsProfileAdmin,
+    );
+    if (!client) {
+      return { success: false, error: "Failed to connect to MCP Gateway" };
+    }
+
+    try {
+      const result = await client.callTool({
+        name: tabsTool,
+        arguments: { action: "close", index: tabIndex },
+      });
+
+      if (result.isError) {
+        const errorText = this.extractTextContent(result.content);
+        return { success: false, error: errorText || "Failed to close tab" };
+      }
+
+      return { success: true, tabIndex };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Tab close failed",
+      };
+    }
+  }
+
+  /**
    * Close a conversation's browser tab.
    *
    * Note: The conversation-to-tab mapping is stored in-memory only.
@@ -813,12 +982,20 @@ export class BrowserStreamService {
   /**
    * Parse tabs list from tool response
    */
-  private parseTabsList(
-    content: unknown,
-  ): Array<{ index: number; title?: string; url?: string }> {
+  private parseTabsList(content: unknown): Array<{
+    index: number;
+    title?: string;
+    url?: string;
+    current?: boolean;
+  }> {
     const textContent = this.extractTextContent(content);
     // This is a simplified parser - actual format depends on Playwright MCP
-    const tabs: Array<{ index: number; title?: string; url?: string }> = [];
+    const tabs: Array<{
+      index: number;
+      title?: string;
+      url?: string;
+      current?: boolean;
+    }> = [];
 
     const parseIndex = (value: unknown, fallback: number): number => {
       if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
@@ -833,6 +1010,16 @@ export class BrowserStreamService {
       return fallback;
     };
 
+    const parseCurrentFlag = (candidate: Record<string, unknown>): boolean => {
+      const flag =
+        candidate.current ??
+        candidate.isCurrent ??
+        candidate.is_current ??
+        candidate.active ??
+        candidate.selected;
+      return flag === true || flag === "true" || flag === 1;
+    };
+
     // Try to parse JSON if content is JSON
     try {
       const parsed: unknown = JSON.parse(textContent);
@@ -845,10 +1032,12 @@ export class BrowserStreamService {
             const rawIndex = candidate.index ?? candidate.id;
             const title = typeof rawTitle === "string" ? rawTitle : undefined;
             const url = typeof rawUrl === "string" ? rawUrl : undefined;
+            const current = parseCurrentFlag(candidate);
             return {
               index: parseIndex(rawIndex, fallbackIndex),
               title,
               url,
+              current: current || undefined,
             };
           }
           if (typeof item === "string") {
@@ -859,13 +1048,34 @@ export class BrowserStreamService {
       }
     } catch {
       // Not JSON, try line-by-line parsing
+      // Playwright MCP format: "- 0: [title](url)" or "- 1: (current) [title](url)"
       const lines = textContent.split("\n");
       for (const line of lines) {
         const match = line.match(/(\d+)[:\s]+(.+)/);
         if (match) {
+          const isCurrent = line.includes("(current)");
+          let rawContent = match[2].trim();
+
+          // Remove "(current)" prefix if present
+          rawContent = rawContent.replace(/^\(current\)\s*/, "");
+
+          // Parse markdown link format: [title](url)
+          const linkMatch = rawContent.match(/^\[([^\]]*)\]\(([^)]*)\)$/);
+          let title: string | undefined;
+          let url: string | undefined;
+
+          if (linkMatch) {
+            title = linkMatch[1] || undefined; // Empty string becomes undefined
+            url = linkMatch[2] || undefined;
+          } else {
+            title = rawContent || undefined;
+          }
+
           tabs.push({
             index: Number.parseInt(match[1], 10),
-            title: match[2].trim(),
+            title,
+            url,
+            current: isCurrent || undefined,
           });
         }
       }
@@ -875,7 +1085,12 @@ export class BrowserStreamService {
   }
 
   private getMaxTabIndex(
-    tabs: Array<{ index: number; title?: string; url?: string }>,
+    tabs: Array<{
+      index: number;
+      title?: string;
+      url?: string;
+      current?: boolean;
+    }>,
   ): number {
     let maxIndex = -1;
     for (const tab of tabs) {

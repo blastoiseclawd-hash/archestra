@@ -57,6 +57,25 @@ const BrowserSetZoomPayloadSchema = z.object({
   zoomPercent: z.number().min(10).max(200), // Zoom percentage (10% to 200%)
 });
 
+// Browser tabs payloads
+const BrowserListTabsPayloadSchema = z.object({
+  conversationId: z.string().uuid(),
+});
+
+const BrowserSelectTabPayloadSchema = z.object({
+  conversationId: z.string().uuid(),
+  tabIndex: z.number().int().min(0),
+});
+
+const BrowserCreateTabPayloadSchema = z.object({
+  conversationId: z.string().uuid(),
+});
+
+const BrowserCloseTabPayloadSchema = z.object({
+  conversationId: z.string().uuid(),
+  tabIndex: z.number().int().min(1), // Cannot close tab 0
+});
+
 // MCP Server Logs payloads
 const SubscribeMcpLogsPayloadSchema = z.object({
   serverId: z.string().uuid(),
@@ -106,6 +125,22 @@ export const ClientWebSocketMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("browser_set_zoom"),
     payload: BrowserSetZoomPayloadSchema,
+  }),
+  z.object({
+    type: z.literal("browser_list_tabs"),
+    payload: BrowserListTabsPayloadSchema,
+  }),
+  z.object({
+    type: z.literal("browser_select_tab"),
+    payload: BrowserSelectTabPayloadSchema,
+  }),
+  z.object({
+    type: z.literal("browser_create_tab"),
+    payload: BrowserCreateTabPayloadSchema,
+  }),
+  z.object({
+    type: z.literal("browser_close_tab"),
+    payload: BrowserCloseTabPayloadSchema,
   }),
   z.object({
     type: z.literal("subscribe_mcp_logs"),
@@ -213,6 +248,53 @@ export type BrowserNavigateBackResultMessage = {
   };
 };
 
+// Browser tabs server -> client messages
+export type BrowserTab = {
+  index: number;
+  title?: string;
+  url?: string;
+  current?: boolean;
+};
+
+export type BrowserTabsListMessage = {
+  type: "browser_tabs_list";
+  payload: {
+    conversationId: string;
+    tabs: BrowserTab[];
+    activeTabIndex: number;
+  };
+};
+
+export type BrowserSelectTabResultMessage = {
+  type: "browser_select_tab_result";
+  payload: {
+    conversationId: string;
+    success: boolean;
+    tabIndex?: number;
+    error?: string;
+  };
+};
+
+export type BrowserCreateTabResultMessage = {
+  type: "browser_create_tab_result";
+  payload: {
+    conversationId: string;
+    success: boolean;
+    tabIndex?: number;
+    error?: string;
+  };
+};
+
+export type BrowserCloseTabResultMessage = {
+  type: "browser_close_tab_result";
+  payload: {
+    conversationId: string;
+    success: boolean;
+    closedTabIndex?: number;
+    error?: string;
+  };
+};
+
 // MCP Logs server -> client messages
 export type McpLogsMessage = {
   type: "mcp_logs";
@@ -248,6 +330,10 @@ export type ServerWebSocketMessage =
   | BrowserPressKeyResultMessage
   | BrowserSnapshotMessage
   | BrowserSetZoomResultMessage
+  | BrowserTabsListMessage
+  | BrowserSelectTabResultMessage
+  | BrowserCreateTabResultMessage
+  | BrowserCloseTabResultMessage
   | McpLogsMessage
   | McpLogsErrorMessage
   | ErrorMessage;

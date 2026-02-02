@@ -27,6 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useBrowserStream } from "@/hooks/use-browser-stream";
 import { cn } from "@/lib/utils";
+import { BrowserTabsBar } from "./browser-tabs-bar";
 
 interface BrowserPreviewContentProps {
   conversationId: string | undefined;
@@ -67,6 +68,13 @@ export function BrowserPreviewContent({
     pressKey,
     setUrlInput,
     setIsEditingUrl,
+    // Tab management
+    tabs,
+    activeTabIndex,
+    isLoadingTabs,
+    selectTab,
+    createTab,
+    closeTab,
   } = useBrowserStream({
     conversationId,
     isActive,
@@ -287,39 +295,54 @@ export function BrowserPreviewContent({
             {headerActions}
           </div>
         </div>
-        <div className="border-b pb-3 w-[120%] -translate-x-[10%] translate-y-[-1px]" />
-        {/* URL input */}
-        <form onSubmit={handleNavigate} className="flex gap-2 mt-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-7 w-7 flex-shrink-0"
-            onClick={navigateBack}
-            disabled={isNavigating || !isConnected}
-            title="Go back"
-          >
-            <ArrowLeft className="h-3 w-3" />
-          </Button>
-          <Input
-            type="text"
-            placeholder="Enter URL..."
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onFocus={() => setIsEditingUrl(true)}
-            className="h-7 text-xs"
-            disabled={isNavigating || !isConnected}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            className="h-7 px-3 text-xs"
-            disabled={isNavigating || !urlInput.trim() || !isConnected}
-          >
-            {isNavigating ? <Loader2 className="h-3 w-3 animate-spin" /> : "Go"}
-          </Button>
-        </form>
       </div>
+
+      {/* Tabs Bar */}
+      {tabs.length > 0 && (
+        <BrowserTabsBar
+          tabs={tabs}
+          activeTabIndex={activeTabIndex}
+          onSelectTab={selectTab}
+          onCreateTab={createTab}
+          onCloseTab={closeTab}
+          disabled={!isConnected || isInteracting || isLoadingTabs}
+        />
+      )}
+
+      {/* URL input */}
+      <form
+        onSubmit={handleNavigate}
+        className="flex gap-2 px-2 py-2 bg-muted/50 border-b"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-7 w-7 flex-shrink-0"
+          onClick={navigateBack}
+          disabled={isNavigating || !isConnected}
+          title="Go back"
+        >
+          <ArrowLeft className="h-3 w-3" />
+        </Button>
+        <Input
+          type="text"
+          placeholder="Enter URL..."
+          value={urlInput}
+          onChange={(e) => setUrlInput(e.target.value)}
+          onFocus={() => setIsEditingUrl(true)}
+          className="h-7 text-xs"
+          disabled={isNavigating || !isConnected}
+        />
+        <Button
+          type="submit"
+          size="sm"
+          className="h-7 px-3 text-xs"
+          disabled={isNavigating || !urlInput.trim() || !isConnected}
+        >
+          {isNavigating ? <Loader2 className="h-3 w-3 animate-spin" /> : "Go"}
+        </Button>
+      </form>
 
       {/* Error display */}
       {error && (

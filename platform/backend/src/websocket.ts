@@ -132,6 +132,30 @@ class WebSocketService {
           },
         });
       },
+      browser_list_tabs: (ws, message) => {
+        if (message.type !== "browser_list_tabs") return;
+        return this.handleBrowserListTabs(ws, message.payload.conversationId);
+      },
+      browser_select_tab: (ws, message) => {
+        if (message.type !== "browser_select_tab") return;
+        return this.handleBrowserSelectTab(
+          ws,
+          message.payload.conversationId,
+          message.payload.tabIndex,
+        );
+      },
+      browser_create_tab: (ws, message) => {
+        if (message.type !== "browser_create_tab") return;
+        return this.handleBrowserCreateTab(ws, message.payload.conversationId);
+      },
+      browser_close_tab: (ws, message) => {
+        if (message.type !== "browser_close_tab") return;
+        return this.handleBrowserCloseTab(
+          ws,
+          message.payload.conversationId,
+          message.payload.tabIndex,
+        );
+      },
       subscribe_mcp_logs: (ws, message, clientContext) => {
         if (message.type !== "subscribe_mcp_logs") return;
         return this.handleSubscribeMcpLogs(
@@ -343,6 +367,9 @@ class WebSocketService {
     });
 
     void sendTick();
+
+    // Send initial tabs list after subscription is established
+    void this.handleBrowserListTabs(ws, conversationId);
   }
 
   private unsubscribeBrowserStream(ws: WebSocket): void {
@@ -669,6 +696,218 @@ class WebSocketService {
         payload: {
           conversationId,
           error: error instanceof Error ? error.message : "Snapshot failed",
+        },
+      });
+    }
+  }
+
+  private async handleBrowserListTabs(
+    ws: WebSocket,
+    conversationId: string,
+  ): Promise<void> {
+    const subscription = this.browserSubscriptions.get(ws);
+    if (!subscription || subscription.conversationId !== conversationId) {
+      this.sendToClient(ws, {
+        type: "browser_tabs_list",
+        payload: {
+          conversationId,
+          tabs: [],
+          activeTabIndex: 0,
+        },
+      });
+      return;
+    }
+
+    try {
+      const result = await browserStreamFeature.listTabs(
+        subscription.agentId,
+        subscription.userContext,
+      );
+
+      // Determine active tab from current flag
+      const activeTabIndex =
+        result.tabs?.find((t) => t.current)?.index ??
+        result.tabs?.find((t) => (t as { selected?: boolean }).selected)
+          ?.index ??
+        0;
+
+      this.sendToClient(ws, {
+        type: "browser_tabs_list",
+        payload: {
+          conversationId,
+          tabs: result.tabs ?? [],
+          activeTabIndex,
+        },
+      });
+    } catch (error) {
+      logger.error({ error, conversationId }, "Browser list tabs failed");
+      this.sendToClient(ws, {
+        type: "browser_tabs_list",
+        payload: {
+          conversationId,
+          tabs: [],
+          activeTabIndex: 0,
+        },
+      });
+    }
+  }
+
+  private async handleBrowserSelectTab(
+    ws: WebSocket,
+    conversationId: string,
+    tabIndex: number,
+  ): Promise<void> {
+    const subscription = this.browserSubscriptions.get(ws);
+    if (!subscription || subscription.conversationId !== conversationId) {
+      this.sendToClient(ws, {
+        type: "browser_select_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error: "Not subscribed to this conversation's browser stream",
+        },
+      });
+      return;
+    }
+
+    try {
+      const result = await browserStreamFeature.selectTab(
+        subscription.agentId,
+        tabIndex,
+        subscription.userContext,
+      );
+
+      this.sendToClient(ws, {
+        type: "browser_select_tab_result",
+        payload: {
+          conversationId,
+          success: result.success,
+          tabIndex: result.success ? tabIndex : undefined,
+          error: result.error,
+        },
+      });
+
+      // Send updated tabs list after selection
+      if (result.success) {
+        await this.handleBrowserListTabs(ws, conversationId);
+      }
+    } catch (error) {
+      logger.error(
+        { error, conversationId, tabIndex },
+        "Browser select tab failed",
+      );
+      this.sendToClient(ws, {
+        type: "browser_select_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error:
+            error instanceof Error ? error.message : "Tab selection failed",
+        },
+      });
+    }
+  }
+
+  private async handleBrowserCreateTab(
+    ws: WebSocket,
+    conversationId: string,
+  ): Promise<void> {
+    const subscription = this.browserSubscriptions.get(ws);
+    if (!subscription || subscription.conversationId !== conversationId) {
+      this.sendToClient(ws, {
+        type: "browser_create_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error: "Not subscribed to this conversation's browser stream",
+        },
+      });
+      return;
+    }
+
+    try {
+      const result = await browserStreamFeature.createTab(
+        subscription.agentId,
+        subscription.userContext,
+      );
+
+      this.sendToClient(ws, {
+        type: "browser_create_tab_result",
+        payload: {
+          conversationId,
+          success: result.success,
+          tabIndex: result.tabIndex,
+          error: result.error,
+        },
+      });
+
+      // Send updated tabs list after creation
+      if (result.success) {
+        await this.handleBrowserListTabs(ws, conversationId);
+      }
+    } catch (error) {
+      logger.error({ error, conversationId }, "Browser create tab failed");
+      this.sendToClient(ws, {
+        type: "browser_create_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error: error instanceof Error ? error.message : "Tab creation failed",
+        },
+      });
+    }
+  }
+
+  private async handleBrowserCloseTab(
+    ws: WebSocket,
+    conversationId: string,
+    tabIndex: number,
+  ): Promise<void> {
+    const subscription = this.browserSubscriptions.get(ws);
+    if (!subscription || subscription.conversationId !== conversationId) {
+      this.sendToClient(ws, {
+        type: "browser_close_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error: "Not subscribed to this conversation's browser stream",
+        },
+      });
+      return;
+    }
+
+    try {
+      const result = await browserStreamFeature.closeTabByIndex(
+        subscription.agentId,
+        tabIndex,
+        subscription.userContext,
+      );
+
+      this.sendToClient(ws, {
+        type: "browser_close_tab_result",
+        payload: {
+          conversationId,
+          success: result.success,
+          closedTabIndex: result.success ? tabIndex : undefined,
+          error: result.error,
+        },
+      });
+
+      // Send updated tabs list after close
+      if (result.success) {
+        await this.handleBrowserListTabs(ws, conversationId);
+      }
+    } catch (error) {
+      logger.error(
+        { error, conversationId, tabIndex },
+        "Browser close tab failed",
+      );
+      this.sendToClient(ws, {
+        type: "browser_close_tab_result",
+        payload: {
+          conversationId,
+          success: false,
+          error: error instanceof Error ? error.message : "Tab close failed",
         },
       });
     }

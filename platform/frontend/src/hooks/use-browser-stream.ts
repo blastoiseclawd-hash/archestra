@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "@ai-sdk/react";
+import type { BrowserTab } from "@shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import websocketService from "@/lib/websocket";
 
@@ -27,6 +28,14 @@ interface UseBrowserStreamReturn {
   setUrlInput: (url: string) => void;
   setIsEditingUrl: (isEditing: boolean) => void;
   isEditingUrl: boolean;
+  // Tab management
+  tabs: BrowserTab[];
+  activeTabIndex: number;
+  isLoadingTabs: boolean;
+  refreshTabs: () => void;
+  selectTab: (tabIndex: number) => void;
+  createTab: () => void;
+  closeTab: (tabIndex: number) => void;
 }
 
 export function useBrowserStream({
@@ -43,6 +52,10 @@ export function useBrowserStream({
   const [isConnected, setIsConnected] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
+  // Tab state
+  const [tabs, setTabs] = useState<BrowserTab[]>([]);
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [isLoadingTabs, setIsLoadingTabs] = useState(false);
 
   const subscribedConversationIdRef = useRef<string | null>(null);
   const prevConversationIdRef = useRef<string | undefined>(undefined);
@@ -238,6 +251,59 @@ export function useBrowserStream({
       },
     );
 
+    // Tab management subscriptions
+    const unsubTabsList = websocketService.subscribe(
+      "browser_tabs_list",
+      (message) => {
+        if (message.payload.conversationId === conversationId) {
+          setTabs(message.payload.tabs);
+          setActiveTabIndex(message.payload.activeTabIndex);
+          setIsLoadingTabs(false);
+        }
+      },
+    );
+
+    const unsubSelectTabResult = websocketService.subscribe(
+      "browser_select_tab_result",
+      (message) => {
+        if (message.payload.conversationId === conversationId) {
+          setIsLoadingTabs(false);
+          if (
+            message.payload.success &&
+            message.payload.tabIndex !== undefined
+          ) {
+            setActiveTabIndex(message.payload.tabIndex);
+          } else if (message.payload.error) {
+            setError(message.payload.error);
+          }
+        }
+      },
+    );
+
+    const unsubCreateTabResult = websocketService.subscribe(
+      "browser_create_tab_result",
+      (message) => {
+        if (message.payload.conversationId === conversationId) {
+          setIsLoadingTabs(false);
+          if (!message.payload.success && message.payload.error) {
+            setError(message.payload.error);
+          }
+        }
+      },
+    );
+
+    const unsubCloseTabResult = websocketService.subscribe(
+      "browser_close_tab_result",
+      (message) => {
+        if (message.payload.conversationId === conversationId) {
+          setIsLoadingTabs(false);
+          if (!message.payload.success && message.payload.error) {
+            setError(message.payload.error);
+          }
+        }
+      },
+    );
+
     const subscribeTimeout = setTimeout(() => {
       websocketService.send({
         type: "subscribe_browser_stream",
@@ -246,8 +312,18 @@ export function useBrowserStream({
       subscribedConversationIdRef.current = conversationId;
     }, 100);
 
+    // Request tabs list after subscribing
+    const tabsTimeout = setTimeout(() => {
+      setIsLoadingTabs(true);
+      websocketService.send({
+        type: "browser_list_tabs",
+        payload: { conversationId },
+      });
+    }, 200);
+
     return () => {
       clearTimeout(subscribeTimeout);
+      clearTimeout(tabsTimeout);
       unsubScreenshot();
       unsubNavigate();
       unsubError();
@@ -256,6 +332,10 @@ export function useBrowserStream({
       unsubPressKey();
       unsubZoom();
       unsubNavigateBack();
+      unsubTabsList();
+      unsubSelectTabResult();
+      unsubCreateTabResult();
+      unsubCloseTabResult();
 
       if (subscribedConversationIdRef.current) {
         websocketService.send({
@@ -351,6 +431,60 @@ export function useBrowserStream({
     [conversationId],
   );
 
+  // Tab management methods
+  const refreshTabs = useCallback(() => {
+    if (!websocketService.isConnected() || !conversationId) return;
+
+    setIsLoadingTabs(true);
+    websocketService.send({
+      type: "browser_list_tabs",
+      payload: { conversationId },
+    });
+  }, [conversationId]);
+
+  const selectTab = useCallback(
+    (tabIndex: number) => {
+      if (!websocketService.isConnected() || !conversationId) return;
+
+      setIsLoadingTabs(true);
+      setError(null);
+
+      websocketService.send({
+        type: "browser_select_tab",
+        payload: { conversationId, tabIndex },
+      });
+    },
+    [conversationId],
+  );
+
+  const createTab = useCallback(() => {
+    if (!websocketService.isConnected() || !conversationId) return;
+
+    setIsLoadingTabs(true);
+    setError(null);
+
+    websocketService.send({
+      type: "browser_create_tab",
+      payload: { conversationId },
+    });
+  }, [conversationId]);
+
+  const closeTab = useCallback(
+    (tabIndex: number) => {
+      if (!websocketService.isConnected() || !conversationId) return;
+      if (tabIndex === 0) return; // Cannot close tab 0
+
+      setIsLoadingTabs(true);
+      setError(null);
+
+      websocketService.send({
+        type: "browser_close_tab",
+        payload: { conversationId, tabIndex },
+      });
+    },
+    [conversationId],
+  );
+
   return {
     screenshot,
     urlInput,
@@ -367,5 +501,13 @@ export function useBrowserStream({
     setUrlInput,
     setIsEditingUrl,
     isEditingUrl,
+    // Tab management
+    tabs,
+    activeTabIndex,
+    isLoadingTabs,
+    refreshTabs,
+    selectTab,
+    createTab,
+    closeTab,
   };
 }

@@ -126,6 +126,26 @@ class BrowserStreamFeature {
     return this.getService().getCurrentUrl(agentId, userContext);
   }
 
+  selectTab(
+    agentId: string,
+    tabIndex: number,
+    userContext: BrowserUserContext,
+  ) {
+    return this.getService().selectTab(agentId, tabIndex, userContext);
+  }
+
+  createTab(agentId: string, userContext: BrowserUserContext) {
+    return this.getService().createTab(agentId, userContext);
+  }
+
+  closeTabByIndex(
+    agentId: string,
+    tabIndex: number,
+    userContext: BrowserUserContext,
+  ) {
+    return this.getService().closeTabByIndex(agentId, tabIndex, userContext);
+  }
+
   click(
     agentId: string,
     conversationId: string,
