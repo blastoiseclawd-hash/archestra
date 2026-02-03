@@ -7,11 +7,4 @@
  */
 
 // Re-export OpenAI message schemas since Groq is OpenAI-compatible
-export {
-  MessageParamSchema,
-  ToolCallSchema,
-  UserMessageParamSchema,
-  AssistantMessageParamSchema,
-  ToolMessageParamSchema,
-  SystemMessageParamSchema,
-} from "../openai/messages";
+export { MessageParamSchema, ToolCallSchema } from "../openai/messages";

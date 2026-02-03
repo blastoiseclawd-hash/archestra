@@ -8,7 +8,7 @@
 
 // Re-export OpenAI tool schemas since Groq is OpenAI-compatible
 export {
-  ToolParamSchema,
-  ToolChoiceSchema,
-  FunctionParametersSchema,
+  ToolSchema,
+  ToolChoiceOptionSchema,
+  FunctionDefinitionParametersSchema,
 } from "../openai/tools";

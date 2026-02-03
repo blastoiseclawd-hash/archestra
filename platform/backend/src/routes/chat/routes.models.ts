@@ -238,6 +238,46 @@ async function fetchCerebrasModels(apiKey: string): Promise<ModelInfo[]> {
 }
 
 /**
+ * Fetch models from Groq API (OpenAI-compatible)
+ * Uses LPU inference for fast responses
+ * @see https://console.groq.com/docs/api-reference#models
+ */
+async function fetchGroqModels(apiKey: string): Promise<ModelInfo[]> {
+  const baseUrl = config.llm.groq?.baseUrl ?? "https://api.groq.com/openai/v1";
+  const url = `${baseUrl}/models`;
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(
+      { status: response.status, error: errorText },
+      "Failed to fetch Groq models",
+    );
+    throw new Error(`Failed to fetch Groq models: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    data: Array<{
+      id: string;
+      created: number;
+      owned_by: string;
+    }>;
+  };
+
+  return data.data.map((model) => ({
+    id: model.id,
+    displayName: model.id,
+    provider: "groq" as const,
+    createdAt: new Date(model.created * 1000).toISOString(),
+  }));
+}
+
+/**
  * Fetch models from Mistral API (OpenAI-compatible)
  */
 async function fetchMistralModels(apiKey: string): Promise<ModelInfo[]> {
@@ -727,6 +767,7 @@ async function getProviderApiKey({
     cerebras: () => config.chat.cerebras.apiKey || null,
     cohere: () => config.chat.cohere?.apiKey || null,
     gemini: () => config.chat.gemini.apiKey || null,
+    groq: () => config.chat.groq?.apiKey || null,
     mistral: () => config.chat.mistral.apiKey || null,
     ollama: () => config.chat.ollama.apiKey || "", // Ollama typically doesn't require API keys
     openai: () => config.chat.openai.apiKey || null,
@@ -747,6 +788,7 @@ const modelFetchers: Record<
   bedrock: fetchBedrockModels,
   cerebras: fetchCerebrasModels,
   gemini: fetchGeminiModels,
+  groq: fetchGroqModels,
   mistral: fetchMistralModels,
   openai: fetchOpenAiModels,
   vllm: fetchVllmModels,

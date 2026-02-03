@@ -459,6 +459,17 @@ const proxiedModelCreators: Record<SupportedChatProvider, ProxiedModelCreator> =
       return client(modelName);
     },
 
+    groq: ({ apiKey, agentId, modelName, headers }) => {
+      // URL format: /v1/groq/:agentId (SDK appends /chat/completions)
+      // Groq uses OpenAI-compatible API with LPU inference
+      const client = createGroq({
+        apiKey,
+        baseURL: buildProxyBaseUrl("groq", agentId),
+        headers,
+      });
+      return client(modelName);
+    },
+
     mistral: ({ apiKey, agentId, modelName, headers }) => {
       // URL format: /v1/mistral/:agentId (SDK appends /chat/completions)
       const client = createMistral({
