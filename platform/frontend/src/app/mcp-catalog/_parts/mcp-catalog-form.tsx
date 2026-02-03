@@ -107,7 +107,6 @@ export function McpCatalogForm({
               resourceRequestsCpu: "",
               resourceLimitsMemory: "",
               resourceLimitsCpu: "",
-              deploymentSpecYaml: "",
             },
             serviceAccount: "",
           },

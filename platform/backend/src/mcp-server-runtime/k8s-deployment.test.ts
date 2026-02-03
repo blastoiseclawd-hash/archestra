@@ -904,7 +904,8 @@ describe("K8sDeployment.generateDeploymentSpec", () => {
     );
 
     const container = deploymentSpec.spec?.template.spec?.containers[0];
-    expect(container?.args).toEqual([]);
+    // When no arguments are provided, args is undefined (equivalent to empty)
+    expect(container?.args).toBeUndefined();
   });
 
   test("generates deploymentSpec with interpolated user_config values in arguments", () => {
@@ -1846,8 +1847,8 @@ describe("K8sDeployment.generateDeploymentSpec", () => {
       expect(mount.readOnly).toBe(true);
     }
 
-    // No env vars for mounted secrets
-    expect(container?.env).toEqual([]);
+    // No env vars for mounted secrets (env is undefined when empty)
+    expect(container?.env).toBeUndefined();
   });
 
   test("mounted flag is ignored for non-secret types", () => {
@@ -1939,8 +1940,8 @@ describe("K8sDeployment.generateDeploymentSpec", () => {
     expect(podSpec?.volumes).toBeUndefined();
     expect(container?.volumeMounts).toBeUndefined();
 
-    // No env vars either (mounted secrets skip env var injection)
-    expect(container?.env).toEqual([]);
+    // No env vars either (mounted secrets skip env var injection, env is undefined when empty)
+    expect(container?.env).toBeUndefined();
   });
 
   test("only mounts secrets with values, skips empty ones", () => {
@@ -2005,8 +2006,8 @@ describe("K8sDeployment.generateDeploymentSpec", () => {
     expect(container?.volumeMounts).toHaveLength(1);
     expect(container?.volumeMounts?.[0].mountPath).toBe("/secrets/TLS_CERT");
 
-    // No env vars (all are mounted secrets, empty ones skipped entirely)
-    expect(container?.env).toEqual([]);
+    // No env vars (all are mounted secrets, empty ones skipped entirely, env is undefined when empty)
+    expect(container?.env).toBeUndefined();
   });
 
   // Advanced K8s Configuration Tests

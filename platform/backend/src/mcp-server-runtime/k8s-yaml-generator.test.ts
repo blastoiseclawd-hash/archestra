@@ -168,9 +168,9 @@ spec:
       expect(result).toContain("secretName: ${archestra.secret_name}");
     });
 
-    test("removes env vars that no longer exist in localConfig", () => {
+    test("preserves env vars from YAML that are not in UI config", () => {
       const environment: EnvironmentVariable[] = [
-        // EXISTING_VAR is removed, only NEW_VAR remains
+        // Only NEW_VAR in UI, but EXISTING_VAR should be kept from YAML
         { key: "NEW_VAR", type: "plain_text", promptOnInstallation: false },
       ];
 
@@ -179,17 +179,17 @@ spec:
         environment,
       );
 
-      // Should NOT contain the removed env var
-      expect(result).not.toContain("name: EXISTING_VAR");
+      // Should KEEP the env var from YAML (user manually added it)
+      expect(result).toContain("name: EXISTING_VAR");
 
-      // Should contain the new env var
+      // Should contain the new env var from UI
       expect(result).toContain("name: NEW_VAR");
 
       // Should preserve customizations
       expect(result).toContain("custom-label: my-custom-value");
     });
 
-    test("handles empty environment array", () => {
+    test("handles empty environment array - preserves YAML env vars", () => {
       const environment: EnvironmentVariable[] = [];
 
       const result = mergeEnvironmentIntoYaml(
@@ -197,10 +197,9 @@ spec:
         environment,
       );
 
-      // Should not have env section or it should be empty
-      // The YAML should still be valid
+      // Should preserve env vars from YAML even when UI has none
       expect(result).toContain("custom-label: my-custom-value");
-      expect(result).not.toContain("name: EXISTING_VAR");
+      expect(result).toContain("name: EXISTING_VAR");
     });
 
     test("handles YAML without existing env section", () => {

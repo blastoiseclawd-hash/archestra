@@ -63,7 +63,7 @@ const ARCHESTRA_PLACEHOLDERS = [
  * Protected fields that cannot be modified by user YAML.
  * These are always overwritten at deployment time.
  */
-const PROTECTED_LABEL_KEYS = ["mcp-server-id", "app"];
+const PROTECTED_LABEL_KEYS = ["mcp-server-id", "mcp-server-name", "app"];
 
 /**
  * Generates a deployment YAML template with placeholders for environment variables.
@@ -186,20 +186,34 @@ function addYamlComments(yamlString: string): string {
   // Add header comment
   result.push("# Kubernetes Deployment Spec for MCP Server");
   result.push("#");
-  result.push("# You can customize this YAML. Environment variables are managed");
-  result.push("# automatically - add/remove them in the Environment Variables section above.");
+  result.push(
+    "# You can customize this YAML. Environment variables are managed",
+  );
+  result.push(
+    "# automatically - add/remove them in the Environment Variables section above.",
+  );
   result.push("#");
   result.push("# Placeholders (replaced at deployment time):");
-  result.push("#   ${env.KEY}       - Value of plain text environment variable");
-  result.push("#   ${secret.KEY}    - Reference to K8s Secret (for sensitive values)");
+  result.push(
+    "#   ${env.KEY}       - Value of plain text environment variable",
+  );
+  result.push(
+    "#   ${secret.KEY}    - Reference to K8s Secret (for sensitive values)",
+  );
   result.push("#   ${archestra.*}   - System values injected by Archestra:");
   result.push("#       deployment_name, server_id, server_name, namespace,");
-  result.push("#       docker_image, secret_name, command, arguments, service_account");
+  result.push(
+    "#       docker_image, secret_name, command, arguments, service_account",
+  );
   result.push("#");
-  result.push("# Protected fields (always overwritten at deployment):");
-  result.push("#   - metadata.labels: mcp-server-id, app");
+  result.push("# Protected fields (always overwritten by system values):");
+  result.push("#   - metadata.name");
+  result.push("#   - metadata.labels: app, mcp-server-id, mcp-server-name");
   result.push("#   - spec.selector.matchLabels");
-  result.push("#   - spec.template.metadata.labels: mcp-server-id, app");
+  result.push(
+    "#   - spec.template.metadata.labels: app, mcp-server-id, mcp-server-name",
+  );
+  result.push("#   - spec.template.spec.containers[0].image");
   result.push("#");
   result.push("");
 
@@ -569,7 +583,8 @@ export function parseAndMergeYaml(
 /**
  * Merges environment variables from localConfig into existing YAML.
  * Preserves all user customizations (labels, resources, annotations, etc.)
- * while syncing the env section with the current localConfig.environment.
+ * and merges env vars: UI config takes priority on conflicts, but YAML-only
+ * env vars are preserved.
  *
  * @param yamlString - The existing YAML string (may have user customizations)
  * @param environment - Current environment variables from localConfig
@@ -621,12 +636,24 @@ export function mergeEnvironmentIntoYaml(
 
     const container = containers[0];
 
-    // Build new env section from localConfig.environment
-    const newEnvSection: Array<{
-      name: string;
-      value?: string;
-      valueFrom?: { secretKeyRef: { name: string; key: string } };
-    }> = [];
+    // Get existing env vars from YAML
+    const existingEnv = (container.env as Array<Record<string, unknown>>) || [];
+    const existingEnvMap = new Map<string, Record<string, unknown>>();
+    for (const env of existingEnv) {
+      if (env.name && typeof env.name === "string") {
+        existingEnvMap.set(env.name, env);
+      }
+    }
+
+    // Build env vars from UI config
+    const uiEnvMap = new Map<
+      string,
+      {
+        name: string;
+        value?: string;
+        valueFrom?: { secretKeyRef: { name: string; key: string } };
+      }
+    >();
 
     // Track mounted secrets for volume configuration
     const mountedSecrets: Array<{ key: string }> = [];
@@ -638,7 +665,7 @@ export function mergeEnvironmentIntoYaml(
           mountedSecrets.push({ key: envVar.key });
         } else {
           // Secret type: use secretKeyRef
-          newEnvSection.push({
+          uiEnvMap.set(envVar.key, {
             name: envVar.key,
             valueFrom: {
               secretKeyRef: {
@@ -650,16 +677,40 @@ export function mergeEnvironmentIntoYaml(
         }
       } else {
         // Plain text, boolean, number: use placeholder
-        newEnvSection.push({
+        uiEnvMap.set(envVar.key, {
           name: envVar.key,
           value: placeholder("env", envVar.key),
         });
       }
     }
 
+    // Merge: start with existing YAML env vars, then override/add from UI
+    const mergedEnv: Array<Record<string, unknown>> = [];
+
+    // First, add all existing YAML env vars (will be overridden if in UI)
+    for (const [name, envObj] of existingEnvMap) {
+      if (uiEnvMap.has(name)) {
+        // UI takes priority - use UI version
+        const uiEnv = uiEnvMap.get(name);
+        if (uiEnv) {
+          mergedEnv.push(uiEnv);
+        }
+      } else {
+        // Keep YAML version (user manually added it)
+        mergedEnv.push(envObj);
+      }
+    }
+
+    // Then, add any UI env vars not already in YAML
+    for (const [name, envObj] of uiEnvMap) {
+      if (!existingEnvMap.has(name)) {
+        mergedEnv.push(envObj);
+      }
+    }
+
     // Update the container's env section
-    if (newEnvSection.length > 0) {
-      container.env = newEnvSection;
+    if (mergedEnv.length > 0) {
+      container.env = mergedEnv;
     } else {
       // Remove env section if no env vars
       delete container.env;
