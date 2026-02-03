@@ -1294,6 +1294,7 @@ export default function ChatPage() {
         isBrowserOpen={isBrowserPanelOpen && isBrowserStreamingEnabled}
         onBrowserClose={closeBrowserPanel}
         conversationId={conversationId}
+        isInstallingBrowser={isInstallingBrowser}
       />
 
       <PromptVersionHistoryDialog

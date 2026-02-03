@@ -91,9 +91,18 @@ const toolCache = new LRUCacheManager<Record<string, Tool>>({
 });
 
 /**
- * Generate cache key from agentId and userId
+ * Generate cache key from agentId, userId, and optional conversationId.
+ * When conversationId is provided, each conversation gets its own MCP client
+ * and therefore its own browser instance for proper isolation.
  */
-function getCacheKey(agentId: string, userId: string): string {
+function getCacheKey(
+  agentId: string,
+  userId: string,
+  conversationId?: string,
+): string {
+  if (conversationId) {
+    return `${agentId}:${userId}:${conversationId}`;
+  }
   return `${agentId}:${userId}`;
 }
 
@@ -130,8 +139,8 @@ export const __test = {
 /**
  * Select the appropriate token for a user based on team overlap
  * Priority:
- * 1. Personal user token (if user has access to profile via team membership)
- * 2. Organization token (if user is profile admin)
+ * 1. Personal user token (always preferred - ensures userId is available for global catalog tools)
+ * 2. Organization token (fallback for admins)
  * 3. Team token where user is a member AND team is assigned to profile
  *
  * @param agentId - The profile (agent) ID
@@ -142,6 +151,7 @@ export const __test = {
 async function selectMCPGatewayToken(
   agentId: string,
   userId: string,
+  organizationId: string,
   userIsProfileAdmin: boolean,
 ): Promise<{
   tokenValue: string;
@@ -150,40 +160,36 @@ async function selectMCPGatewayToken(
   isOrganizationToken: boolean;
   isUserToken?: boolean;
 } | null> {
-  // Get user's team IDs and profile's team IDs (needed for access check)
+  // Get user's team IDs and profile's team IDs (needed for fallback token selection)
   const userTeamIds = await TeamModel.getUserTeamIds(userId);
   const profileTeamIds = await AgentTeamModel.getTeamsForAgent(agentId);
   const commonTeamIds = userTeamIds.filter((id) => profileTeamIds.includes(id));
 
-  // 1. Try personal user token first (if user has access via team membership)
-  if (commonTeamIds.length > 0) {
-    // Get organizationId from one of the common teams
-    const team = await TeamModel.findById(commonTeamIds[0]);
-    if (team) {
-      const userToken = await UserTokenModel.findByUserAndOrg(
-        userId,
-        team.organizationId,
+  // 1. Always try to get/create a personal user token first
+  // This ensures userId is available in the token for global catalog tools
+  {
+    // Ensure user has a token (creates one if missing)
+    const userToken = await UserTokenModel.ensureUserToken(
+      userId,
+      organizationId,
+    );
+    const tokenValue = await UserTokenModel.getTokenValue(userToken.id);
+    if (tokenValue) {
+      logger.info(
+        {
+          agentId,
+          userId,
+          tokenId: userToken.id,
+        },
+        "Using personal user token for chat MCP client",
       );
-      if (userToken) {
-        const tokenValue = await UserTokenModel.getTokenValue(userToken.id);
-        if (tokenValue) {
-          logger.info(
-            {
-              agentId,
-              userId,
-              tokenId: userToken.id,
-            },
-            "Using personal user token for chat MCP client",
-          );
-          return {
-            tokenValue,
-            tokenId: userToken.id,
-            teamId: null,
-            isOrganizationToken: false,
-            isUserToken: true,
-          };
-        }
-      }
+      return {
+        tokenValue,
+        tokenId: userToken.id,
+        teamId: null,
+        isOrganizationToken: false,
+        isUserToken: true,
+      };
     }
   }
 
@@ -202,7 +208,7 @@ async function selectMCPGatewayToken(
             userId,
             tokenId: orgToken.id,
           },
-          "Using organization token for chat MCP client",
+          "Using organization token for chat MCP client (fallback)",
         );
         return {
           tokenValue,
@@ -227,7 +233,7 @@ async function selectMCPGatewayToken(
               tokenId: token.id,
               teamId: token.teamId,
             },
-            "Selected team-scoped token for chat MCP client",
+            "Selected team-scoped token for chat MCP client (fallback)",
           );
           return {
             tokenValue,
@@ -323,20 +329,60 @@ export function clearChatMcpClient(agentId: string): void {
 }
 
 /**
+ * Close and remove cached MCP client for a specific agent/user/conversation.
+ * Should be called when browser stream unsubscribes to free resources.
+ *
+ * @param agentId - The agent (profile) ID
+ * @param userId - The user ID
+ * @param conversationId - The conversation ID
+ */
+export function closeChatMcpClient(
+  agentId: string,
+  userId: string,
+  conversationId: string,
+): void {
+  const cacheKey = getCacheKey(agentId, userId, conversationId);
+  const client = clientCache.get(cacheKey);
+  if (client) {
+    try {
+      client.close();
+      logger.info(
+        { agentId, userId, conversationId, cacheKey },
+        "Closed MCP client connection for conversation",
+      );
+    } catch (error) {
+      logger.warn(
+        { agentId, userId, conversationId, cacheKey, error },
+        "Error closing MCP client connection (non-fatal)",
+      );
+    }
+    clientCache.delete(cacheKey);
+  }
+
+  // Also clear tool cache for this conversation
+  const toolCacheKey = getToolCacheKey(agentId, userId, conversationId);
+  toolCache.delete(toolCacheKey);
+}
+
+/**
  * Get or create MCP client for the specified agent and user
  * Connects to internal MCP Gateway with team token authentication
  *
  * @param agentId - The agent (profile) ID
  * @param userId - The user ID for token selection
+ * @param organizationId - The organization ID for token creation
  * @param userIsProfileAdmin - Whether the user is a profile admin
+ * @param conversationId - Optional conversation ID for per-conversation browser isolation
  * @returns MCP Client connected to the gateway, or null if connection fails
  */
 export async function getChatMcpClient(
   agentId: string,
   userId: string,
+  organizationId: string,
   userIsProfileAdmin: boolean,
+  conversationId?: string,
 ): Promise<Client | null> {
-  const cacheKey = getCacheKey(agentId, userId);
+  const cacheKey = getCacheKey(agentId, userId, conversationId);
 
   // Check cache first
   const cachedClient = clientCache.get(cacheKey);
@@ -386,6 +432,7 @@ export async function getChatMcpClient(
   const tokenResult = await selectMCPGatewayToken(
     agentId,
     userId,
+    organizationId,
     userIsProfileAdmin,
   );
   if (!tokenResult) {
@@ -493,9 +540,9 @@ function normalizeJsonSchema(schema: unknown): JSONSchema7 {
  *
  * @param agentId - The agent ID to fetch tools for
  * @param userId - The user ID for authentication
+ * @param organizationId - The organization ID for token creation
  * @param userIsProfileAdmin - Whether the user is a profile admin
  * @param enabledToolIds - Optional array of tool IDs to filter by. Empty array = all tools enabled.
- * @param organizationId - Optional organization ID for agent tools lookup
  * @param conversationId - Optional conversation ID for browser tab selection
  * @returns Record of tool name to AI SDK Tool object
  */
@@ -503,20 +550,20 @@ export async function getChatMcpTools({
   agentName,
   agentId,
   userId,
+  organizationId,
   userIsProfileAdmin,
   enabledToolIds,
   conversationId,
-  organizationId,
   sessionId,
   delegationChain,
 }: {
   agentName: string;
   agentId: string;
   userId: string;
+  organizationId: string;
   userIsProfileAdmin: boolean;
   enabledToolIds?: string[];
   conversationId?: string;
-  organizationId?: string;
   /** Session ID for grouping related LLM requests in logs */
   sessionId?: string;
   /** Delegation chain of agent IDs for tracking delegated agent calls */
@@ -557,6 +604,7 @@ export async function getChatMcpTools({
   const mcpGwToken = await selectMCPGatewayToken(
     agentId,
     userId,
+    organizationId,
     userIsProfileAdmin,
   );
   if (!mcpGwToken) {
@@ -568,7 +616,14 @@ export async function getChatMcpTools({
   }
 
   // Still use MCP client for listing tools (via MCP Gateway)
-  const client = await getChatMcpClient(agentId, userId, userIsProfileAdmin);
+  // Pass conversationId for per-conversation browser isolation
+  const client = await getChatMcpClient(
+    agentId,
+    userId,
+    organizationId,
+    userIsProfileAdmin,
+    conversationId,
+  );
 
   if (!client) {
     logger.warn(
@@ -645,7 +700,7 @@ export async function getChatMcpTools({
                 const tabResult = await browserStreamFeature.selectOrCreateTab(
                   agentId,
                   conversationId,
-                  { userId, userIsProfileAdmin },
+                  { userId, organizationId, userIsProfileAdmin },
                 );
 
                 if (!tabResult.success) {
@@ -756,7 +811,7 @@ export async function getChatMcpTools({
                   await browserStreamFeature.syncTabMappingFromTabsToolCall({
                     agentId,
                     conversationId,
-                    userContext: { userId, userIsProfileAdmin },
+                    userContext: { userId, organizationId, userIsProfileAdmin },
                     toolArguments,
                     toolResultContent: result.content,
                     tabsToolName: mcpTool.name,
@@ -775,7 +830,11 @@ export async function getChatMcpTools({
                     await browserStreamFeature.syncNavigationFromToolCall({
                       agentId,
                       conversationId,
-                      userContext: { userId, userIsProfileAdmin },
+                      userContext: {
+                        userId,
+                        organizationId,
+                        userIsProfileAdmin,
+                      },
                       url: navigateUrl,
                     });
                   }
@@ -940,6 +999,7 @@ export async function getChatMcpTools({
     await addGlobalCatalogTools({
       aiTools,
       userId,
+      organizationId,
       userIsProfileAdmin,
       agentId,
       conversationId,
@@ -970,6 +1030,7 @@ export async function getChatMcpTools({
 async function addGlobalCatalogTools({
   aiTools,
   userId,
+  organizationId,
   userIsProfileAdmin,
   agentId,
   conversationId,
@@ -977,6 +1038,7 @@ async function addGlobalCatalogTools({
 }: {
   aiTools: Record<string, Tool>;
   userId: string;
+  organizationId: string;
   userIsProfileAdmin: boolean;
   agentId: string;
   conversationId?: string;
@@ -1097,7 +1159,7 @@ async function addGlobalCatalogTools({
                 const tabResult = await browserStreamFeature.selectOrCreateTab(
                   agentId,
                   conversationId,
-                  { userId, userIsProfileAdmin },
+                  { userId, organizationId, userIsProfileAdmin },
                 );
 
                 if (!tabResult.success) {
@@ -1159,7 +1221,7 @@ async function addGlobalCatalogTools({
                   await browserStreamFeature.syncTabMappingFromTabsToolCall({
                     agentId,
                     conversationId,
-                    userContext: { userId, userIsProfileAdmin },
+                    userContext: { userId, organizationId, userIsProfileAdmin },
                     toolArguments,
                     toolResultContent: result.content,
                     tabsToolName: catalogTool.name,
@@ -1180,7 +1242,11 @@ async function addGlobalCatalogTools({
                     await browserStreamFeature.syncNavigationFromToolCall({
                       agentId,
                       conversationId,
-                      userContext: { userId, userIsProfileAdmin },
+                      userContext: {
+                        userId,
+                        organizationId,
+                        userIsProfileAdmin,
+                      },
                       url: navigateUrl,
                     });
                   }

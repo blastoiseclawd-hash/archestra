@@ -94,6 +94,7 @@ describe("chat-mcp-client health check", () => {
       agentName: agent.name,
       agentId: agent.id,
       userId: user.id,
+      organizationId: org.id,
       userIsProfileAdmin: false,
     });
 
@@ -162,6 +163,7 @@ describe("chat-mcp-client tool caching", () => {
       agentName: agent.name,
       agentId: agent.id,
       userId: user.id,
+      organizationId: org.id,
       userIsProfileAdmin: false,
     });
     expect(Object.keys(first)).toEqual(["lookup_email"]);
@@ -170,6 +172,7 @@ describe("chat-mcp-client tool caching", () => {
       agentName: agent.name,
       agentId: agent.id,
       userId: user.id,
+      organizationId: org.id,
       userIsProfileAdmin: false,
     });
 

@@ -40,6 +40,8 @@ interface BrowserPreviewContentProps {
   headerActions?: React.ReactNode;
   /** Additional class names for the container */
   className?: string;
+  /** When true, shows "Installing browser" message instead of normal content */
+  isInstalling?: boolean;
 }
 
 export function BrowserPreviewContent({
@@ -47,6 +49,7 @@ export function BrowserPreviewContent({
   isActive,
   headerActions,
   className,
+  isInstalling = false,
 }: BrowserPreviewContentProps) {
   const [typeText, setTypeText] = useState("");
   const imageRef = useRef<HTMLImageElement>(null);
@@ -342,7 +345,7 @@ export function BrowserPreviewContent({
       {/* Content - Screenshot with clickable overlay */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-hidden bg-muted min-h-0 relative"
+        className="flex-1 overflow-hidden min-h-0 relative"
       >
         {isConnecting && (
           <div className="flex items-center justify-center h-full">
@@ -379,10 +382,21 @@ export function BrowserPreviewContent({
         {!isConnecting && !screenshot && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center space-y-2">
-              <Globe className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                Enter a URL above to start browsing
-              </p>
+              {isInstalling ? (
+                <>
+                  <Loader2 className="h-12 w-12 text-muted-foreground mx-auto animate-spin" />
+                  <p className="text-sm text-muted-foreground">
+                    Installing browser...
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Globe className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Enter a URL above to start browsing
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}

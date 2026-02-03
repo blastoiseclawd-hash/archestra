@@ -53,8 +53,8 @@ class BrowserStreamFeature {
 
   // Delegate all service methods
 
-  checkAvailability(agentId: string) {
-    return this.getService().checkAvailability(agentId);
+  checkAvailability(agentId: string, userId?: string) {
+    return this.getService().checkAvailability(agentId, userId);
   }
 
   selectOrCreateTab(
@@ -143,8 +143,16 @@ class BrowserStreamFeature {
     );
   }
 
-  getCurrentUrl(agentId: string, userContext: BrowserUserContext) {
-    return this.getService().getCurrentUrl(agentId, userContext);
+  getCurrentUrl(
+    agentId: string,
+    conversationId: string,
+    userContext: BrowserUserContext,
+  ) {
+    return this.getService().getCurrentUrl(
+      agentId,
+      conversationId,
+      userContext,
+    );
   }
 
   click(

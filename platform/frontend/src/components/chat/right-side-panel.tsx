@@ -16,6 +16,8 @@ interface RightSidePanelProps {
   isBrowserOpen: boolean;
   onBrowserClose: () => void;
   conversationId: string | undefined;
+  /** When true, shows "Installing browser" message in browser panel */
+  isInstallingBrowser?: boolean;
 }
 
 export function RightSidePanel({
@@ -25,6 +27,7 @@ export function RightSidePanel({
   isBrowserOpen,
   onBrowserClose,
   conversationId,
+  isInstallingBrowser = false,
 }: RightSidePanelProps) {
   const [width, setWidth] = useState(() => {
     if (typeof window !== "undefined") {
@@ -164,6 +167,7 @@ export function RightSidePanel({
             isOpen={isBrowserOpen}
             onClose={onBrowserClose}
             conversationId={conversationId}
+            isInstalling={isInstallingBrowser}
           />
         </div>
       )}

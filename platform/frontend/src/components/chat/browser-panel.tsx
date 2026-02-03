@@ -14,12 +14,15 @@ interface BrowserPanelProps {
   isOpen: boolean;
   onClose: () => void;
   conversationId: string | undefined;
+  /** When true, shows "Installing browser" message instead of normal content */
+  isInstalling?: boolean;
 }
 
 export function BrowserPanel({
   isOpen,
   onClose,
   conversationId,
+  isInstalling = false,
 }: BrowserPanelProps) {
   const handleOpenInNewWindow = useCallback(() => {
     if (!conversationId) return;
@@ -46,6 +49,7 @@ export function BrowserPanel({
     <BrowserPreviewContent
       conversationId={conversationId}
       isActive={isOpen}
+      isInstalling={isInstalling}
       className="border-t"
       headerActions={
         <>

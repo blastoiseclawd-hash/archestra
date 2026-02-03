@@ -13,6 +13,7 @@ const {
   getChatConversations,
   getChatConversation,
   getChatAgentMcpTools,
+  getChatGlobalTools,
   createChatConversation,
   updateChatConversation,
   deleteChatConversation,
@@ -386,6 +387,27 @@ export function useAgentDelegationTools(agentId: string | undefined) {
 }
 
 /**
+ * Get globally available tools with IDs for the current user.
+ * These are tools from catalogs marked as isGloballyAvailable where the user
+ * has a personal server installed (e.g., Playwright browser tools).
+ */
+export function useGlobalChatTools() {
+  return useQuery({
+    queryKey: ["chat", "global-tools"],
+    queryFn: async () => {
+      const { data, error } = await getChatGlobalTools();
+      if (error) {
+        handleApiError(error);
+        return [];
+      }
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+/**
  * Auto-install browser preview (Playwright) for the current user.
  * Creates a personal Playwright server if one doesn't exist.
  * Uses the existing InstallMcpServer endpoint which is idempotent for personal installations.
@@ -408,11 +430,13 @@ export function useAutoInstallBrowserPreview() {
       return data;
     },
     onSuccess: () => {
-      // Invalidate all chat MCP tools queries to pick up new Playwright tools
+      // Invalidate chat MCP tools queries to pick up new Playwright tools
       queryClient.invalidateQueries({
-        queryKey: ["chat"],
-        predicate: (query) =>
-          query.queryKey[0] === "chat" && query.queryKey.includes("mcp-tools"),
+        queryKey: ["chat", "agents"],
+      });
+      // Invalidate global tools query to show Playwright tools in ChatToolsDisplay
+      queryClient.invalidateQueries({
+        queryKey: ["chat", "global-tools"],
       });
     },
   });

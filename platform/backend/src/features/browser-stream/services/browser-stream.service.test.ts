@@ -19,7 +19,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     // Mock selectOrCreateTab to succeed
     vi.spyOn(browserService, "selectOrCreateTab").mockResolvedValue({
@@ -76,7 +80,11 @@ describe("BrowserStreamService URL handling", () => {
     );
 
     // Verify getCurrentUrl was called with correct args
-    expect(getCurrentUrlSpy).toHaveBeenCalledWith(agentId, userContext);
+    expect(getCurrentUrlSpy).toHaveBeenCalledWith(
+      agentId,
+      conversationId,
+      userContext,
+    );
 
     // Verify the URL in result is from getCurrentUrl, not from screenshot response
     expect(result.url).toBe("https://correct-page.example.com/path");
@@ -89,7 +97,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     // Mock selectOrCreateTab to succeed
     vi.spyOn(browserService, "selectOrCreateTab").mockResolvedValue({
@@ -151,7 +163,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(browserService, "selectOrCreateTab").mockResolvedValue({
       success: true,
@@ -199,7 +215,11 @@ describe("BrowserStreamService URL handling", () => {
   test("getCurrentUrl reads current tab URL from JSON tabs list", async () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -235,7 +255,12 @@ describe("BrowserStreamService URL handling", () => {
       callTool,
     } as never);
 
-    const result = await browserService.getCurrentUrl(agentId, userContext);
+    const conversationId = "test-conversation";
+    const result = await browserService.getCurrentUrl(
+      agentId,
+      conversationId,
+      userContext,
+    );
 
     expect(callTool).toHaveBeenCalledWith({
       name: "browser_tabs",
@@ -247,7 +272,12 @@ describe("BrowserStreamService URL handling", () => {
   test("getCurrentUrl reads current tab URL from numeric current flag", async () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const conversationId = "test-conversation";
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -283,7 +313,11 @@ describe("BrowserStreamService URL handling", () => {
       callTool,
     } as never);
 
-    const result = await browserService.getCurrentUrl(agentId, userContext);
+    const result = await browserService.getCurrentUrl(
+      agentId,
+      conversationId,
+      userContext,
+    );
 
     expect(callTool).toHaveBeenCalledWith({
       name: "browser_tabs",
@@ -295,7 +329,12 @@ describe("BrowserStreamService URL handling", () => {
   test("getCurrentUrl reads current tab URL from top-level currentIndex", async () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const conversationId = "test-conversation";
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -332,7 +371,11 @@ describe("BrowserStreamService URL handling", () => {
       callTool,
     } as never);
 
-    const result = await browserService.getCurrentUrl(agentId, userContext);
+    const result = await browserService.getCurrentUrl(
+      agentId,
+      conversationId,
+      userContext,
+    );
 
     expect(callTool).toHaveBeenCalledWith({
       name: "browser_tabs",
@@ -348,7 +391,12 @@ describe("BrowserStreamService URL handling", () => {
     try {
       const browserService = new BrowserStreamService();
       const agentId = "test-agent";
-      const userContext = { userId: "test-user", userIsProfileAdmin: false };
+      const conversationId = "test-conversation";
+      const userContext = {
+        userId: "test-user",
+        organizationId: "test-org",
+        userIsProfileAdmin: false,
+      };
 
       vi.spyOn(
         browserService as unknown as {
@@ -373,8 +421,16 @@ describe("BrowserStreamService URL handling", () => {
         callTool,
       } as never);
 
-      const first = await browserService.getCurrentUrl(agentId, userContext);
-      const second = await browserService.getCurrentUrl(agentId, userContext);
+      const first = await browserService.getCurrentUrl(
+        agentId,
+        conversationId,
+        userContext,
+      );
+      const second = await browserService.getCurrentUrl(
+        agentId,
+        conversationId,
+        userContext,
+      );
 
       expect(first).toBe("https://cached.example.com");
       expect(second).toBe("https://cached.example.com");
@@ -396,7 +452,11 @@ describe("BrowserStreamService URL handling", () => {
         tabsTool: "browser_tabs",
       });
 
-      const third = await browserService.getCurrentUrl(agentId, userContext);
+      const third = await browserService.getCurrentUrl(
+        agentId,
+        conversationId,
+        userContext,
+      );
 
       expect(third).toBe("https://cached.example.com");
       expect(callTool).toHaveBeenCalledTimes(2);
@@ -409,7 +469,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-provided";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -470,7 +534,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-reused";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -531,7 +599,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-concurrent";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -588,7 +660,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-log";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -649,7 +725,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-current";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     const state: BrowserState = {
       activeTabId: "tab-1",
@@ -704,7 +784,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-blank-reuse";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -790,7 +874,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-restore-url";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -879,7 +967,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-click-nav";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -967,7 +1059,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-stale";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     vi.spyOn(
       browserService as unknown as {
@@ -1060,7 +1156,11 @@ describe("BrowserStreamService URL handling", () => {
     const browserService = new BrowserStreamService();
     const agentId = "test-agent";
     const conversationId = "test-conversation-sync";
-    const userContext = { userId: "test-user", userIsProfileAdmin: false };
+    const userContext = {
+      userId: "test-user",
+      organizationId: "test-org",
+      userIsProfileAdmin: false,
+    };
 
     const state: BrowserState = {
       activeTabId: "tab-1",
