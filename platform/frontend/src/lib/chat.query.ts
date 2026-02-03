@@ -1,6 +1,8 @@
 import {
   archestraApiSdk,
   isBrowserMcpTool,
+  PLAYWRIGHT_MCP_CATALOG_ID,
+  PLAYWRIGHT_MCP_SERVER_NAME,
   type SupportedProvider,
 } from "@shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ const {
   updateConversationEnabledTools,
   deleteConversationEnabledTools,
   getAgentTools,
+  installMcpServer,
 } = archestraApiSdk;
 
 export function useConversation(conversationId?: string) {
@@ -382,8 +385,42 @@ export function useAgentDelegationTools(agentId: string | undefined) {
   });
 }
 
+/**
+ * Auto-install browser preview (Playwright) for the current user.
+ * Creates a personal Playwright server if one doesn't exist.
+ * Uses the existing InstallMcpServer endpoint which is idempotent for personal installations.
+ */
+export function useAutoInstallBrowserPreview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await installMcpServer({
+        body: {
+          name: PLAYWRIGHT_MCP_SERVER_NAME,
+          catalogId: PLAYWRIGHT_MCP_CATALOG_ID,
+        },
+      });
+      if (error) {
+        handleApiError(error);
+        return null;
+      }
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidate all chat MCP tools queries to pick up new Playwright tools
+      queryClient.invalidateQueries({
+        queryKey: ["chat"],
+        predicate: (query) =>
+          query.queryKey[0] === "chat" && query.queryKey.includes("mcp-tools"),
+      });
+    },
+  });
+}
+
 export function useHasPlaywrightMcpTools(agentId: string | undefined) {
   const toolsQuery = useChatProfileMcpTools(agentId);
+  const autoInstall = useAutoInstallBrowserPreview();
 
   const hasPlaywrightMcp =
     toolsQuery.data?.some((tool) => {
@@ -391,5 +428,10 @@ export function useHasPlaywrightMcpTools(agentId: string | undefined) {
       return typeof toolName === "string" && isBrowserMcpTool(toolName);
     }) ?? false;
 
-  return { hasPlaywrightMcp, isLoading: toolsQuery.isLoading };
+  return {
+    hasPlaywrightMcp,
+    isLoading: toolsQuery.isLoading,
+    isInstalling: autoInstall.isPending,
+    installBrowser: autoInstall.mutateAsync,
+  };
 }

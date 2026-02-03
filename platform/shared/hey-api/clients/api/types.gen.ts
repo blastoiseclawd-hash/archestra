@@ -17564,6 +17564,7 @@ export type GetInternalMcpCatalogResponses = {
         repository: string | null;
         installationCommand: string | null;
         requiresAuth: boolean;
+        isGloballyAvailable: boolean;
         authDescription: string | null;
         authFields: Array<{
             name: string;
@@ -17668,6 +17669,7 @@ export type CreateInternalMcpCatalogItemData = {
         repository?: string | null;
         installationCommand?: string | null;
         requiresAuth?: boolean;
+        isGloballyAvailable?: boolean;
         authDescription?: string | null;
         authFields?: Array<{
             name: string;
@@ -17837,6 +17839,7 @@ export type CreateInternalMcpCatalogItemResponses = {
         repository: string | null;
         installationCommand: string | null;
         requiresAuth: boolean;
+        isGloballyAvailable: boolean;
         authDescription: string | null;
         authFields: Array<{
             name: string;
@@ -18091,6 +18094,7 @@ export type GetInternalMcpCatalogItemResponses = {
         repository: string | null;
         installationCommand: string | null;
         requiresAuth: boolean;
+        isGloballyAvailable: boolean;
         authDescription: string | null;
         authFields: Array<{
             name: string;
@@ -18194,6 +18198,7 @@ export type UpdateInternalMcpCatalogItemData = {
         repository?: string | null;
         installationCommand?: string | null;
         requiresAuth?: boolean;
+        isGloballyAvailable?: boolean;
         authDescription?: string | null;
         authFields?: Array<{
             name: string;
@@ -18365,6 +18370,7 @@ export type UpdateInternalMcpCatalogItemResponses = {
         repository: string | null;
         installationCommand: string | null;
         requiresAuth: boolean;
+        isGloballyAvailable: boolean;
         authDescription: string | null;
         authFields: Array<{
             name: string;

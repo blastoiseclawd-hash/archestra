@@ -2,7 +2,15 @@
 
 import type { UIMessage } from "@ai-sdk/react";
 
-import { Bot, Edit, FileText, Globe, Plus, Wrench } from "lucide-react";
+import {
+  Bot,
+  Edit,
+  FileText,
+  Globe,
+  Loader2,
+  Plus,
+  Wrench,
+} from "lucide-react";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -406,33 +414,16 @@ export default function ChatPage() {
     ? (conversation?.agentId ?? conversation?.agent?.id)
     : (initialAgentId ?? undefined);
 
-  // Check if Playwright MCP is available for browser panel
-  const { hasPlaywrightMcp, isLoading: isLoadingPlaywrightMcp } =
-    useHasPlaywrightMcpTools(browserToolsAgentId);
+  // Check if Playwright MCP is available for browser panel and get auto-install function
+  const {
+    hasPlaywrightMcp,
+    isLoading: isLoadingPlaywrightMcp,
+    isInstalling: isInstallingBrowser,
+    installBrowser,
+  } = useHasPlaywrightMcpTools(browserToolsAgentId);
 
   // Check if browser streaming feature is enabled
   const isBrowserStreamingEnabled = useFeatureFlag("browserStreamingEnabled");
-
-  // Close browser panel when switching to a profile without Playwright tools
-  useEffect(() => {
-    // Only close if we have an agentId and tools have finished loading
-    // When agentId is undefined, the query is disabled and isLoading is false,
-    // so we must also check that browserToolsAgentId exists
-    if (
-      browserToolsAgentId &&
-      !isLoadingPlaywrightMcp &&
-      !hasPlaywrightMcp &&
-      isBrowserPanelOpen
-    ) {
-      setIsBrowserPanelOpen(false);
-      localStorage.setItem(LocalStorageKeys.browserOpen, "false");
-    }
-  }, [
-    browserToolsAgentId,
-    hasPlaywrightMcp,
-    isBrowserPanelOpen,
-    isLoadingPlaywrightMcp,
-  ]);
 
   // Clear MCP Gateway sessions when opening a NEW conversation
   useEffect(() => {
@@ -770,12 +761,28 @@ export default function ChatPage() {
     });
   };
 
-  // Persist browser panel state
-  const toggleBrowserPanel = useCallback(() => {
+  // Persist browser panel state, auto-install browser preview if needed
+  const toggleBrowserPanel = useCallback(async () => {
+    // If opening and browser tools not available, auto-install first
+    if (!isBrowserPanelOpen && !hasPlaywrightMcp && !isLoadingPlaywrightMcp) {
+      try {
+        await installBrowser();
+        // After install, tools will be refetched and hasPlaywrightMcp will become true
+      } catch {
+        // Error already handled by mutation, just return
+        return;
+      }
+    }
+
     const newValue = !isBrowserPanelOpen;
     setIsBrowserPanelOpen(newValue);
     localStorage.setItem(LocalStorageKeys.browserOpen, String(newValue));
-  }, [isBrowserPanelOpen]);
+  }, [
+    isBrowserPanelOpen,
+    hasPlaywrightMcp,
+    isLoadingPlaywrightMcp,
+    installBrowser,
+  ]);
 
   // Close browser panel handler (also persists to localStorage)
   const closeBrowserPanel = useCallback(() => {
@@ -1081,17 +1088,22 @@ export default function ChatPage() {
                   <FileText className="h-3 w-3 mr-1" />
                   Artifact
                 </Button>
-                {hasPlaywrightMcp && isBrowserStreamingEnabled && (
+                {isBrowserStreamingEnabled && (
                   <>
                     <div className="w-px h-4 bg-border" />
                     <Button
                       variant={isBrowserPanelOpen ? "secondary" : "ghost"}
                       size="sm"
                       onClick={toggleBrowserPanel}
+                      disabled={isInstallingBrowser}
                       className="text-xs"
                     >
-                      <Globe className="h-3 w-3 mr-1" />
-                      Browser
+                      {isInstallingBrowser ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Globe className="h-3 w-3 mr-1" />
+                      )}
+                      {isInstallingBrowser ? "Setting up..." : "Browser"}
                     </Button>
                   </>
                 )}
@@ -1279,9 +1291,7 @@ export default function ChatPage() {
         artifact={conversation?.artifact}
         isArtifactOpen={isArtifactOpen}
         onArtifactToggle={toggleArtifactPanel}
-        isBrowserOpen={
-          isBrowserPanelOpen && isBrowserStreamingEnabled && hasPlaywrightMcp
-        }
+        isBrowserOpen={isBrowserPanelOpen && isBrowserStreamingEnabled}
         onBrowserClose={closeBrowserPanel}
         conversationId={conversationId}
       />
