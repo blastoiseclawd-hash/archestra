@@ -138,6 +138,33 @@ const cerebrasConfig: TokenCostLimitTestConfig = {
   },
 };
 
+const groqConfig: TokenCostLimitTestConfig = {
+  providerName: "Groq",
+
+  endpoint: (profileId) => `/v1/groq/${profileId}/chat/completions`,
+
+  headers: (wiremockStub) => ({
+    Authorization: `Bearer ${wiremockStub}`,
+    "Content-Type": "application/json",
+  }),
+
+  buildRequest: (content) => ({
+    model: "test-groq-cost-limit",
+    messages: [{ role: "user", content }],
+  }),
+
+  modelName: "test-groq-cost-limit",
+
+  // WireMock returns: prompt_tokens: 100, completion_tokens: 20
+  // Cost = (100 * 500 + 20 * 800) / 1,000,000 = $0.066 (Groq is cheap)
+  tokenPrice: {
+    provider: "groq",
+    model: "test-groq-cost-limit",
+    pricePerMillionInput: "500.00",
+    pricePerMillionOutput: "800.00",
+  },
+};
+
 const mistralConfig: TokenCostLimitTestConfig = {
   providerName: "Mistral",
 
@@ -283,6 +310,7 @@ const testConfigs: TokenCostLimitTestConfig[] = [
   geminiConfig,
   cohereConfig,
   cerebrasConfig,
+  groqConfig,
   mistralConfig,
   vllmConfig,
   ollamaConfig,
