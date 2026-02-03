@@ -211,13 +211,9 @@ export default class K8sDeployment {
 
   /**
    * Returns the effective namespace for this deployment.
-   * Uses the namespace from advancedK8sConfig if specified, otherwise falls back to the default.
    */
   private get namespace(): string {
-    return (
-      this.catalogItem?.localConfig?.advancedK8sConfig?.namespace ||
-      this.defaultNamespace
-    );
+    return this.defaultNamespace;
   }
 
   /**
@@ -502,11 +498,8 @@ export default class K8sDeployment {
    * Returns the system-managed labels that must always be present on deployments.
    * These labels are used for identification and cannot be overridden by user configuration.
    */
-  private getSystemLabels(
-    customLabels?: Record<string, string>,
-  ): Record<string, string> {
+  private getSystemLabels(): Record<string, string> {
     return K8sDeployment.sanitizeMetadataLabels({
-      ...(customLabels || {}),
       app: "mcp-server",
       "mcp-server-id": this.mcpServer.id,
       "mcp-server-name": this.mcpServer.name,
@@ -736,8 +729,7 @@ export default class K8sDeployment {
     dockerImage: string,
     localConfig: z.infer<typeof LocalConfigSchema>,
   ): k8s.V1Deployment {
-    const advancedConfig = localConfig.advancedK8sConfig;
-    const labels = this.getSystemLabels(advancedConfig?.labels);
+    const labels = this.getSystemLabels();
 
     const podSpec: k8s.V1PodSpec = {
       // Fast shutdown for stateless MCP servers (default is 30s)
@@ -761,37 +753,18 @@ export default class K8sDeployment {
           // Set resource requests/limits for the container (with defaults)
           resources: {
             requests: {
-              memory:
-                advancedConfig?.resources?.requests?.memory ||
-                MCP_ORCHESTRATOR_DEFAULTS.resourceRequestMemory,
-              cpu:
-                advancedConfig?.resources?.requests?.cpu ||
-                MCP_ORCHESTRATOR_DEFAULTS.resourceRequestCpu,
+              memory: MCP_ORCHESTRATOR_DEFAULTS.resourceRequestMemory,
+              cpu: MCP_ORCHESTRATOR_DEFAULTS.resourceRequestCpu,
             },
-            ...(advancedConfig?.resources?.limits
-              ? {
-                  limits: {
-                    ...(advancedConfig.resources.limits.memory
-                      ? { memory: advancedConfig.resources.limits.memory }
-                      : {}),
-                    ...(advancedConfig.resources.limits.cpu
-                      ? { cpu: advancedConfig.resources.limits.cpu }
-                      : {}),
-                  },
-                }
-              : {}),
           },
         },
       ],
       restartPolicy: "Always",
     };
 
-    // Build pod template metadata with optional annotations
+    // Build pod template metadata
     const podTemplateMetadata: k8s.V1ObjectMeta = {
       labels,
-      ...(advancedConfig?.annotations
-        ? { annotations: advancedConfig.annotations }
-        : {}),
     };
 
     return {
@@ -802,8 +775,7 @@ export default class K8sDeployment {
         labels,
       },
       spec: {
-        replicas:
-          advancedConfig?.replicas ?? MCP_ORCHESTRATOR_DEFAULTS.replicas,
+        replicas: MCP_ORCHESTRATOR_DEFAULTS.replicas,
         selector: {
           matchLabels: labels,
         },
