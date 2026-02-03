@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.38](https://github.com/archestra-ai/archestra/compare/platform-v1.0.37...platform-v1.0.38) (2026-02-03)
+
+
+### Bug Fixes
+
+* browser preview improvements ([#2580](https://github.com/archestra-ai/archestra/issues/2580)) ([6307b90](https://github.com/archestra-ai/archestra/commit/6307b9084385ad043c575cff902b640c2a55ca40))
+
 ## [1.0.37](https://github.com/archestra-ai/archestra/compare/platform-v1.0.34...platform-v1.0.37) (2026-02-02)
 
 
