@@ -302,6 +302,12 @@ export const requiredEndpointPermissionsMap: Partial<
   [RouteId.DeleteInternalMcpCatalogItemByName]: {
     internalMcpCatalog: ["delete"],
   },
+  [RouteId.GetDeploymentYamlPreview]: {
+    internalMcpCatalog: ["read"],
+  },
+  [RouteId.ValidateDeploymentYaml]: {
+    internalMcpCatalog: ["read"],
+  },
   [RouteId.GetMcpServers]: {
     mcpServer: ["read"],
   },

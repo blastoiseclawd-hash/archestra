@@ -1,7 +1,13 @@
 import { RouteId } from "@shared";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { z } from "zod";
+import config from "@/config";
 import logger from "@/logging";
+import {
+  generateDeploymentYamlTemplate,
+  mergeEnvironmentIntoYaml,
+  validateDeploymentYaml,
+} from "@/mcp-server-runtime/k8s-yaml-generator";
 import { InternalMcpCatalogModel, McpServerModel, ToolModel } from "@/models";
 import { isByosEnabled, secretManager } from "@/secrets-manager";
 import {
@@ -186,6 +192,19 @@ const internalMcpCatalogRoutes: FastifyPluginAsyncZod = async (fastify) => {
           localConfigSecretId = secret.id;
           restBody.localConfigSecretId = localConfigSecretId;
         }
+      }
+
+      // Merge environment variables into YAML if both are present
+      // This ensures env/secret configuration is reflected in the YAML
+      if (
+        restBody.serverType === "local" &&
+        restBody.deploymentSpecYaml &&
+        restBody.localConfig?.environment
+      ) {
+        restBody.deploymentSpecYaml = mergeEnvironmentIntoYaml(
+          restBody.deploymentSpecYaml,
+          restBody.localConfig.environment,
+        );
       }
 
       const catalogItem = await InternalMcpCatalogModel.create(restBody);
@@ -417,6 +436,26 @@ const internalMcpCatalogRoutes: FastifyPluginAsyncZod = async (fastify) => {
         }
       }
 
+      // Merge environment variables into existing YAML if present
+      // This ensures env/secret changes are reflected in the saved YAML
+      const isLocalServer =
+        restBody.serverType === "local" ||
+        (!restBody.serverType && originalCatalogItem.serverType === "local");
+
+      if (isLocalServer) {
+        const existingYaml =
+          restBody.deploymentSpecYaml || originalCatalogItem.deploymentSpecYaml;
+        const environment = restBody.localConfig?.environment;
+
+        if (existingYaml && environment) {
+          // Merge current environment into the existing YAML
+          restBody.deploymentSpecYaml = mergeEnvironmentIntoYaml(
+            existingYaml,
+            environment,
+          );
+        }
+      }
+
       // Update the catalog item
       const catalogItem = await InternalMcpCatalogModel.update(id, restBody);
 
@@ -572,6 +611,90 @@ const internalMcpCatalogRoutes: FastifyPluginAsyncZod = async (fastify) => {
       return reply.send({
         success: await InternalMcpCatalogModel.delete(catalogItem.id),
       });
+    },
+  );
+
+  // Schema for deployment YAML preview response
+  const DeploymentYamlPreviewSchema = z.object({
+    yaml: z.string(),
+  });
+
+  // Schema for deployment YAML validation response
+  const DeploymentYamlValidationSchema = z.object({
+    valid: z.boolean(),
+    errors: z.array(z.string()),
+    warnings: z.array(z.string()),
+  });
+
+  fastify.get(
+    "/api/internal_mcp_catalog/:id/deployment-yaml-preview",
+    {
+      schema: {
+        operationId: RouteId.GetDeploymentYamlPreview,
+        description:
+          "Generate a deployment YAML template preview for a catalog item",
+        tags: ["MCP Catalog"],
+        params: z.object({
+          id: UuidIdSchema,
+        }),
+        response: constructResponseSchema(DeploymentYamlPreviewSchema),
+      },
+    },
+    async ({ params: { id } }, reply) => {
+      const catalogItem = await InternalMcpCatalogModel.findById(id);
+
+      if (!catalogItem) {
+        throw new ApiError(404, "Catalog item not found");
+      }
+
+      if (catalogItem.serverType !== "local") {
+        throw new ApiError(
+          400,
+          "Deployment YAML preview is only available for local MCP servers",
+        );
+      }
+
+      // If the catalog item already has a deploymentSpecYaml, return it
+      if (catalogItem.deploymentSpecYaml) {
+        return reply.send({
+          yaml: catalogItem.deploymentSpecYaml,
+        });
+      }
+
+      // Generate a default YAML template
+      const yamlTemplate = generateDeploymentYamlTemplate({
+        serverId: "{server_id}",
+        serverName: catalogItem.name,
+        namespace: config.orchestrator.kubernetes.namespace,
+        dockerImage:
+          catalogItem.localConfig?.dockerImage ||
+          config.orchestrator.mcpServerBaseImage,
+        command: catalogItem.localConfig?.command,
+        arguments: catalogItem.localConfig?.arguments,
+        environment: catalogItem.localConfig?.environment,
+        serviceAccount: catalogItem.localConfig?.serviceAccount,
+      });
+
+      return reply.send({ yaml: yamlTemplate });
+    },
+  );
+
+  fastify.post(
+    "/api/internal_mcp_catalog/validate-deployment-yaml",
+    {
+      schema: {
+        operationId: RouteId.ValidateDeploymentYaml,
+        description: "Validate a deployment YAML template",
+        tags: ["MCP Catalog"],
+        body: z.object({
+          yaml: z.string().min(1, "YAML content is required"),
+        }),
+        response: constructResponseSchema(DeploymentYamlValidationSchema),
+      },
+    },
+    async ({ body: { yaml } }, reply) => {
+      const result = validateDeploymentYaml(yaml);
+      return reply.send(result);
     },
   );
 };

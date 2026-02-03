@@ -17596,8 +17596,10 @@ export type GetInternalMcpCatalogResponses = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml: string | null;
         userConfig: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -17700,8 +17702,10 @@ export type CreateInternalMcpCatalogItemData = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml?: string | null;
         userConfig?: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -17869,8 +17873,10 @@ export type CreateInternalMcpCatalogItemResponses = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml: string | null;
         userConfig: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -18123,8 +18129,10 @@ export type GetInternalMcpCatalogItemResponses = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml: string | null;
         userConfig: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -18226,8 +18234,10 @@ export type UpdateInternalMcpCatalogItemData = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml?: string | null;
         userConfig?: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -18397,8 +18407,10 @@ export type UpdateInternalMcpCatalogItemResponses = {
                         cpu?: string;
                     };
                 };
+                deploymentSpecYaml?: string;
             };
         } | null;
+        deploymentSpecYaml: string | null;
         userConfig: {
             [key: string]: {
                 type: 'string' | 'number' | 'boolean' | 'directory' | 'file';
@@ -18609,6 +18621,166 @@ export type DeleteInternalMcpCatalogItemByNameResponses = {
 };
 
 export type DeleteInternalMcpCatalogItemByNameResponse = DeleteInternalMcpCatalogItemByNameResponses[keyof DeleteInternalMcpCatalogItemByNameResponses];
+
+export type GetDeploymentYamlPreviewData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/internal_mcp_catalog/{id}/deployment-yaml-preview';
+};
+
+export type GetDeploymentYamlPreviewErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type GetDeploymentYamlPreviewError = GetDeploymentYamlPreviewErrors[keyof GetDeploymentYamlPreviewErrors];
+
+export type GetDeploymentYamlPreviewResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        yaml: string;
+    };
+};
+
+export type GetDeploymentYamlPreviewResponse = GetDeploymentYamlPreviewResponses[keyof GetDeploymentYamlPreviewResponses];
+
+export type ValidateDeploymentYamlData = {
+    body: {
+        yaml: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/internal_mcp_catalog/validate-deployment-yaml';
+};
+
+export type ValidateDeploymentYamlErrors = {
+    /**
+     * Default Response
+     */
+    400: {
+        error: {
+            message: string;
+            type: 'api_validation_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    401: {
+        error: {
+            message: string;
+            type: 'api_authentication_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    403: {
+        error: {
+            message: string;
+            type: 'api_authorization_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    404: {
+        error: {
+            message: string;
+            type: 'api_not_found_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    409: {
+        error: {
+            message: string;
+            type: 'api_conflict_error';
+        };
+    };
+    /**
+     * Default Response
+     */
+    500: {
+        error: {
+            message: string;
+            type: 'api_internal_server_error';
+        };
+    };
+};
+
+export type ValidateDeploymentYamlError = ValidateDeploymentYamlErrors[keyof ValidateDeploymentYamlErrors];
+
+export type ValidateDeploymentYamlResponses = {
+    /**
+     * Default Response
+     */
+    200: {
+        valid: boolean;
+        errors: Array<string>;
+        warnings: Array<string>;
+    };
+};
+
+export type ValidateDeploymentYamlResponse = ValidateDeploymentYamlResponses[keyof ValidateDeploymentYamlResponses];
 
 export type CheckInvitationData = {
     body?: never;
@@ -19407,6 +19579,7 @@ export type GetMcpServerInstallationRequestsResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -19507,6 +19680,7 @@ export type CreateMcpServerInstallationRequestData = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -19661,6 +19835,7 @@ export type CreateMcpServerInstallationRequestResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -19914,6 +20089,7 @@ export type GetMcpServerInstallationRequestResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -20014,6 +20190,7 @@ export type UpdateMcpServerInstallationRequestData = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -20180,6 +20357,7 @@ export type UpdateMcpServerInstallationRequestResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -20356,6 +20534,7 @@ export type ApproveMcpServerInstallationRequestResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -20532,6 +20711,7 @@ export type DeclineMcpServerInstallationRequestResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;
@@ -20708,6 +20888,7 @@ export type AddMcpServerInstallationRequestNoteResponses = {
                             cpu?: string;
                         };
                     };
+                    deploymentSpecYaml?: string;
                 };
             };
         } | null;

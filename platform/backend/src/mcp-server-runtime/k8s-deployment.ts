@@ -11,6 +11,7 @@ import config from "@/config";
 import logger from "@/logging";
 import { InternalMcpCatalogModel } from "@/models";
 import type { InternalMcpCatalog, McpServer } from "@/types";
+import { parseAndMergeYaml, resolvePlaceholders } from "./k8s-yaml-generator";
 import type { K8sDeploymentState, K8sDeploymentStatusSummary } from "./schemas";
 
 const {
@@ -516,6 +517,26 @@ export default class K8sDeployment {
   ): k8s.V1Deployment {
     const advancedConfig = localConfig.advancedK8sConfig;
 
+    // Check if YAML override is provided
+    if (this.catalogItem?.deploymentSpecYaml) {
+      const yamlDeployment = this.generateDeploymentFromYaml(
+        this.catalogItem.deploymentSpecYaml,
+        dockerImage,
+        localConfig,
+        needsHttp,
+        httpPort,
+        nodeSelector,
+      );
+      if (yamlDeployment) {
+        return yamlDeployment;
+      }
+      // If YAML parsing failed, fall through to default generation
+      logger.warn(
+        { mcpServerId: this.mcpServer.id },
+        "Failed to parse deploymentSpecYaml, falling back to default generation",
+      );
+    }
+
     // Labels common to Deployment, RS, and Pods
     // Merge custom labels from advanced config with required labels
     // Required labels are spread last to prevent custom labels from overriding them
@@ -671,6 +692,224 @@ export default class K8sDeployment {
         },
       },
     };
+  }
+
+  /**
+   * Generate deployment spec from user-provided YAML with placeholders resolved.
+   *
+   * @param yamlString - The YAML string with placeholders
+   * @param dockerImage - The Docker image to use
+   * @param localConfig - The local configuration
+   * @param needsHttp - Whether HTTP port is needed
+   * @param httpPort - The HTTP port
+   * @param nodeSelector - Optional nodeSelector
+   * @returns The K8s deployment or null if parsing failed
+   */
+  private generateDeploymentFromYaml(
+    yamlString: string,
+    dockerImage: string,
+    localConfig: z.infer<typeof LocalConfigSchema>,
+    needsHttp: boolean,
+    httpPort: number,
+    nodeSelector?: k8s.V1PodSpec["nodeSelector"] | null,
+  ): k8s.V1Deployment | null {
+    const k8sSecretName = K8sDeployment.constructK8sSecretName(
+      this.mcpServer.id,
+    );
+
+    // Build env values map for placeholder resolution
+    const envValues: Record<string, string> = {};
+    if (this.catalogItem?.localConfig?.environment) {
+      for (const envDef of this.catalogItem.localConfig.environment) {
+        // Skip secret types - they use secretKeyRef, not direct values
+        if (envDef.type === "secret") {
+          continue;
+        }
+
+        let value: string | undefined;
+        if (envDef.promptOnInstallation) {
+          value = this.environmentValues?.[envDef.key];
+        } else {
+          value = envDef.value;
+          // Interpolate ${user_config.xxx} placeholders
+          if (value && (this.environmentValues || this.userConfigValues)) {
+            value = value.replace(
+              /\$\{user_config\.([^}]+)\}/g,
+              (match, configKey) => {
+                return (
+                  this.environmentValues?.[configKey] ||
+                  this.userConfigValues?.[configKey] ||
+                  match
+                );
+              },
+            );
+          }
+        }
+
+        if (value) {
+          envValues[envDef.key] = value;
+        }
+      }
+    }
+
+    // Resolve placeholders in the YAML
+    const resolvedYaml = resolvePlaceholders(
+      yamlString,
+      {
+        deploymentName: this.deploymentName,
+        serverId: this.mcpServer.id,
+        serverName: this.mcpServer.name,
+        namespace: this.namespace,
+        dockerImage,
+        secretName: k8sSecretName,
+        command: localConfig.command,
+        arguments: localConfig.arguments,
+        serviceAccount: localConfig.serviceAccount,
+      },
+      envValues,
+    );
+
+    // System-managed labels that must always be present
+    const labels = K8sDeployment.sanitizeMetadataLabels({
+      app: "mcp-server",
+      "mcp-server-id": this.mcpServer.id,
+      "mcp-server-name": this.mcpServer.name,
+    });
+
+    // Parse YAML and merge with system values
+    const deployment = parseAndMergeYaml(resolvedYaml, {
+      deploymentName: this.deploymentName,
+      serverId: this.mcpServer.id,
+      serverName: this.mcpServer.name,
+      namespace: this.namespace,
+      labels,
+    });
+
+    if (!deployment) {
+      return null;
+    }
+
+    // Apply additional system-managed settings that may not be in YAML
+    // 1. Apply nodeSelector if provided
+    if (
+      nodeSelector &&
+      Object.keys(nodeSelector).length > 0 &&
+      deployment.spec?.template?.spec
+    ) {
+      deployment.spec.template.spec.nodeSelector = {
+        ...(deployment.spec.template.spec.nodeSelector || {}),
+        ...nodeSelector,
+      };
+    }
+
+    // 2. Add HTTP port if needed
+    if (needsHttp && deployment.spec?.template?.spec?.containers?.[0]) {
+      const container = deployment.spec.template.spec.containers[0];
+      if (!container.ports || container.ports.length === 0) {
+        container.ports = [
+          {
+            containerPort: httpPort,
+            protocol: "TCP",
+          },
+        ];
+      }
+    }
+
+    // 3. Get environment variables and mounted secrets for system-managed env vars
+    const { envVars, mountedSecrets } = this.createContainerEnvFromConfig();
+
+    // 4. Apply volume mounts for mounted secrets
+    if (mountedSecrets.length > 0 && deployment.spec?.template?.spec) {
+      const volumes: k8s.V1Volume[] = [
+        {
+          name: "mounted-secrets",
+          secret: {
+            secretName: k8sSecretName,
+            items: mountedSecrets.map(({ key }) => ({ key, path: key })),
+          },
+        },
+      ];
+
+      deployment.spec.template.spec.volumes = [
+        ...(deployment.spec.template.spec.volumes || []),
+        ...volumes,
+      ];
+
+      // Add volume mounts to container
+      if (deployment.spec.template.spec.containers?.[0]) {
+        const container = deployment.spec.template.spec.containers[0];
+        const volumeMounts: k8s.V1VolumeMount[] = mountedSecrets.map(
+          ({ key }) => ({
+            name: "mounted-secrets",
+            mountPath: `/secrets/${key}`,
+            subPath: key,
+            readOnly: true,
+          }),
+        );
+
+        container.volumeMounts = [
+          ...(container.volumeMounts || []),
+          ...volumeMounts,
+        ];
+      }
+    }
+
+    // 5. Merge environment variables (YAML env vars + system env vars)
+    if (
+      deployment.spec?.template?.spec?.containers?.[0] &&
+      envVars.length > 0
+    ) {
+      const container = deployment.spec.template.spec.containers[0];
+      const existingEnvNames = new Set(
+        (container.env || []).map((e) => e.name),
+      );
+
+      // Add system env vars that are not already defined in YAML
+      for (const envVar of envVars) {
+        if (!existingEnvNames.has(envVar.name)) {
+          container.env = [...(container.env || []), envVar];
+        }
+      }
+    }
+
+    // 6. Ensure command and args from localConfig are applied
+    if (deployment.spec?.template?.spec?.containers?.[0]) {
+      const container = deployment.spec.template.spec.containers[0];
+
+      if (localConfig.command && !container.command) {
+        container.command = [localConfig.command];
+      }
+
+      if (localConfig.arguments && localConfig.arguments.length > 0) {
+        // Process arguments with placeholder replacement
+        const processedArgs = localConfig.arguments.map((arg) => {
+          if (this.environmentValues || this.userConfigValues) {
+            return arg.replace(
+              /\$\{user_config\.([^}]+)\}/g,
+              (match, configKey) => {
+                return (
+                  this.environmentValues?.[configKey] ||
+                  this.userConfigValues?.[configKey] ||
+                  match
+                );
+              },
+            );
+          }
+          return arg;
+        });
+
+        if (!container.args || container.args.length === 0) {
+          container.args = processedArgs;
+        }
+      }
+    }
+
+    logger.info(
+      { mcpServerId: this.mcpServer.id },
+      "Generated deployment spec from YAML override",
+    );
+
+    return deployment;
   }
 
   /**

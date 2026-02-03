@@ -5,9 +5,11 @@ import { toast } from "sonner";
 const {
   createInternalMcpCatalogItem,
   deleteInternalMcpCatalogItem,
+  getDeploymentYamlPreview,
   getInternalMcpCatalog,
   getInternalMcpCatalogTools,
   updateInternalMcpCatalogItem,
+  validateDeploymentYaml,
 } = archestraApiSdk;
 
 export function useInternalMcpCatalog(params?: {
@@ -121,5 +123,34 @@ export function useCatalogTools(catalogId: string | null) {
       return fetchCatalogTools(catalogId);
     },
     enabled: !!catalogId,
+  });
+}
+
+/**
+ * Fetch deployment YAML template preview for a catalog item.
+ */
+export function useGetDeploymentYamlPreview(catalogId: string | null) {
+  return useQuery({
+    queryKey: ["mcp-catalog", catalogId, "deployment-yaml-preview"],
+    queryFn: async () => {
+      if (!catalogId) return null;
+      const response = await getDeploymentYamlPreview({
+        path: { id: catalogId },
+      });
+      return response.data;
+    },
+    enabled: !!catalogId,
+  });
+}
+
+/**
+ * Validate deployment YAML template.
+ */
+export function useValidateDeploymentYaml() {
+  return useMutation({
+    mutationFn: async (params: { yaml: string }) => {
+      const response = await validateDeploymentYaml({ body: params });
+      return response.data;
+    },
   });
 }
