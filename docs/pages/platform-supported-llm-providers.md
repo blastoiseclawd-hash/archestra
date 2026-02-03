@@ -144,6 +144,44 @@ See the [Vertex AI authentication guide](https://cloud.google.com/vertex-ai/docs
 
 - Usage of the llama models in the chat ⚠️ Not yet supported ([GitHub Issue #2058](https://github.com/archestra-ai/archestra/issues/2058)) 
 
+## Groq
+
+[Groq](https://groq.com/) provides ultra-fast inference for open-source AI models using their custom LPU (Language Processing Unit) hardware. Groq offers an OpenAI-compatible API with industry-leading inference speeds.
+
+### Supported Groq APIs
+
+- **Chat Completions API** (`/chat/completions`) - ✅ Fully supported
+- **Streaming**: ✅ Fully supported
+
+### Groq Connection Details
+
+- **Base URL**: `http://localhost:9000/v1/groq/{profile-id}`
+- **Authentication**: Pass your Groq API key in the `Authorization` header as `Bearer <your-api-key>`
+
+### Environment Variables
+
+| Variable                      | Required | Description                                                                    |
+| ----------------------------- | -------- | ------------------------------------------------------------------------------ |
+| `ARCHESTRA_GROQ_BASE_URL`     | No       | Groq API base URL (default: `https://api.groq.com/openai/v1`)                  |
+| `ARCHESTRA_CHAT_GROQ_API_KEY` | No       | Default API key for Groq (can be overridden per conversation/team/org)         |
+
+### Getting an API Key
+
+You can get an API key from the [Groq Console](https://console.groq.com/keys).
+
+### Popular Models
+
+- **llama-3.3-70b-versatile** - High-quality Llama 3.3 70B model for general use
+- **llama-3.1-8b-instant** - Fast, lightweight Llama 3.1 8B model
+- **mixtral-8x7b-32768** - Mixtral model with 32K context window
+- **gemma2-9b-it** - Google's Gemma 2 9B instruction-tuned model
+
+### Important Notes
+
+- **LPU Inference**: Groq uses custom LPU hardware for extremely fast inference speeds
+- **OpenAI-compatible API**: Groq's API follows the OpenAI Chat Completions format
+- **Free tier available**: Groq offers a generous free tier for testing and development
+
 ## Cohere
 
 [Cohere](https://www.cohere.ai/) provides enterprise-grade LLMs designed for safe, controllable, and efficient AI applications. The platform offers features like safety guardrails, function calling, and both synchronous and streaming APIs.
